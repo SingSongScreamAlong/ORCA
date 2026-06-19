@@ -1,11 +1,9 @@
-"""Append-only audit log.
+"""Audit domain object.
 
-Every consequential action — confirming, rejecting, or flagging a review item;
-creating or deleting a case or report; a failed integrity check; role changes — is
-recorded here. The log is append-only: there is no API to edit or delete entries.
-
-The skeleton keeps entries in memory. The production target is an append-only table
-in PostgreSQL (see ``app.models.audit`` and the migration).
+Every consequential action — intake, approve/reject/needs_more_review, relationship
+creation, report generation — is recorded as an append-only ``AuditEntry``. Storage is
+provided by the audit repository on the active unit of work (in-memory or PostgreSQL);
+there is no update or delete path by design. See ``docs/security.md``.
 """
 
 from __future__ import annotations
@@ -22,41 +20,28 @@ class AuditEntry:
     action: str
     target_type: str
     target_id: str
+    case_id: UUID | None
     context: dict
     created_at: datetime
 
 
-class AuditLog:
-    """In-memory append-only audit log for the skeleton."""
-
-    def __init__(self) -> None:
-        self._entries: list[AuditEntry] = []
-
-    def record(
-        self,
-        *,
-        actor_id: str,
-        action: str,
-        target_type: str,
-        target_id: str,
-        context: dict | None = None,
-    ) -> AuditEntry:
-        entry = AuditEntry(
-            id=uuid4(),
-            actor_id=actor_id,
-            action=action,
-            target_type=target_type,
-            target_id=str(target_id),
-            context=context or {},
-            created_at=datetime.now(UTC),
-        )
-        self._entries.append(entry)
-        return entry
-
-    def entries(self) -> list[AuditEntry]:
-        """Return all entries in insertion order (read-only view)."""
-        return list(self._entries)
-
-
-# Process-wide audit log instance for the in-memory skeleton.
-audit_log = AuditLog()
+def new_audit_entry(
+    *,
+    actor_id: str,
+    action: str,
+    target_type: str,
+    target_id,
+    case_id: UUID | None = None,
+    context: dict | None = None,
+) -> AuditEntry:
+    """Construct an audit entry with system-set id and timestamp."""
+    return AuditEntry(
+        id=uuid4(),
+        actor_id=actor_id,
+        action=action,
+        target_type=target_type,
+        target_id=str(target_id),
+        case_id=case_id,
+        context=context or {},
+        created_at=datetime.now(UTC),
+    )

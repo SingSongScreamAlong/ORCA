@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 from fastapi import Query
 
 from app.core.security import Principal, get_current_principal
+from app.repositories.uow import UnitOfWork, build_unit_of_work
 
 
 def current_principal() -> Principal:
@@ -16,6 +18,23 @@ def current_principal() -> Principal:
     ``app.core.security``).
     """
     return get_current_principal()
+
+
+def get_uow() -> Iterator[UnitOfWork]:
+    """Yield a request-scoped unit of work, committing on success.
+
+    For the PostgreSQL backend this manages the transaction; for the in-memory
+    backend commit/rollback are no-ops.
+    """
+    uow = build_unit_of_work()
+    try:
+        yield uow
+        uow.commit()
+    except Exception:
+        uow.rollback()
+        raise
+    finally:
+        uow.close()
 
 
 @dataclass

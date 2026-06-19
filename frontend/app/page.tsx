@@ -35,13 +35,10 @@ export default async function DashboardPage() {
         requires review.
       </PageIntro>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <StatCard label="Cases" value={counts.cases} hint="Analyst work products" />
         <StatCard label="Observations" value={counts.observations} hint="Recorded facts" />
-        <StatCard
-          label="Relationships"
-          value={counts.relationships}
-          hint="Discovered links"
-        />
+        <StatCard label="Relationships" value={counts.relationships} hint="Discovered links" />
         <StatCard
           label="Awaiting review"
           value={counts.pending_review}

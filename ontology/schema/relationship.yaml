@@ -6,6 +6,7 @@ summary: >
 
 properties:
   id:                { type: uuid, required: true, system_set: true }
+  case_id:           { type: uuid, required: false, ref: Case, note: "v0.2: case the relationship belongs to." }
   source_entity_id:  { type: uuid, required: true, ref: Entity }
   target_entity_id:  { type: uuid, required: true, ref: Entity }
   relationship_type: { type: enum, required: true, ref: enums.relationship_type }
@@ -22,6 +23,7 @@ relationships:
 
 invariants:
   - A Relationship must reference at least one supporting Observation.
+  - Every cited supporting Observation must be 'approved' (v0.2).
   - relationship_type 'analyst_confirmed' may only be set by a person.
-  - status may not become 'confirmed' without an analyst action recorded in the audit log.
+  - status may not become 'approved' without an analyst action recorded in the audit log.
   - source_entity_id and target_entity_id must differ.

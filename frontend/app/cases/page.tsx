@@ -1,31 +1,58 @@
-import { Card } from "@/components/ui/Card";
+import Link from "next/link";
+import { NewCaseForm } from "@/components/cases/NewCaseForm";
+import { Table, Td, Th, Tr } from "@/components/ui/Table";
+import { Tag } from "@/components/ui/Badges";
+import { BackendNotice, EmptyState } from "@/components/ui/States";
 import { PageIntro } from "@/components/ui/PageIntro";
+import { getCases } from "@/lib/api";
+import { formatTimestamp, humanize } from "@/lib/format";
 
-export default function CasesPage() {
+export const dynamic = "force-dynamic";
+
+export default async function CasesPage() {
+  const cases = await getCases();
+
   return (
     <div className="space-y-6">
       <PageIntro>
-        Cases are analyst work products — curated views over observations, entities,
-        clusters, and reports. A case is a lens, not a container: it references evidence
-        and never owns it, so closing a case never deletes the underlying record.
+        Cases are analyst work products — curated views over observations, relationships, and
+        reports. A case is a lens, not a container: it references evidence and never owns it.
       </PageIntro>
 
-      <Card title="Cases arrive in Phase 3">
-        <p className="text-sm text-ink-muted">
-          The case workspace is built on top of confirmed evidence and relationships. It
-          is scheduled after the evidence, observation, relationship, and review surfaces
-          are complete, so that a case is always assembled from reviewed material.
-        </p>
-        <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-ink-muted">
-          <li>Assemble a case as a view over selected observations, entities, and clusters.</li>
-          <li>Track case status from open through closed without touching the evidence.</li>
-          <li>Author reports under a case, each citing its supporting observations.</li>
-        </ul>
-        <p className="mt-4 text-xs text-ink-faint">
-          See the roadmap (<span className="mono">docs/roadmap.md</span>, Phase 3) for the
-          full plan.
-        </p>
-      </Card>
+      <NewCaseForm />
+
+      {!cases.ok ? (
+        <BackendNotice error={cases.error} />
+      ) : cases.data.length === 0 ? (
+        <EmptyState message="No cases yet. Create one to begin the analyst loop." />
+      ) : (
+        <Table
+          head={
+            <>
+              <Th>Title</Th>
+              <Th>Status</Th>
+              <Th>Owner</Th>
+              <Th>Updated</Th>
+            </>
+          }
+        >
+          {cases.data.map((c) => (
+            <Tr key={c.id}>
+              <Td>
+                <Link href={`/cases/${c.id}`} className="font-medium">
+                  {c.title}
+                </Link>
+                {c.summary && <div className="mt-0.5 text-xs text-ink-faint">{c.summary}</div>}
+              </Td>
+              <Td>
+                <Tag>{humanize(c.status)}</Tag>
+              </Td>
+              <Td>{c.owner}</Td>
+              <Td>{formatTimestamp(c.updated_at)}</Td>
+            </Tr>
+          ))}
+        </Table>
+      )}
     </div>
   );
 }

@@ -25,6 +25,15 @@ sequence is the commitment.
 The skeleton is deliberately honest: endpoints and screens exist and are wired to the
 data model, but business logic is minimal and clearly marked.
 
+> **v0.2 status.** The **Analyst Loop MVP** delivers a vertical slice across Phases 1–3:
+> case creation, observation intake with source + handling metadata, the observation
+> review queue (approve / reject / needs_more_review), relationships that may only cite
+> approved observations, the case timeline, the case-scoped append-only audit log, and
+> a draft-report generator that uses approved evidence only. A production PostgreSQL
+> persistence path (SQLAlchemy unit of work + Alembic migration) is implemented and
+> integration-tested. Evidence hashing/integrity, real authentication, and the Neo4j
+> projection remain to complete the phases below.
+
 ## Phase 1 — Evidence and observations
 
 **Goal:** record and preserve, end to end.

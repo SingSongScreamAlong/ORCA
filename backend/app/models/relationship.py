@@ -27,6 +27,9 @@ class Relationship(UUIDPrimaryKey, TimestampMixin, Base):
         ),
     )
 
+    case_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("cases.id", ondelete="SET NULL"), nullable=True
+    )
     source_entity_id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("entities.id"), nullable=False
     )

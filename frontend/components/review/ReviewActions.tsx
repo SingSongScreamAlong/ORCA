@@ -43,11 +43,11 @@ export function ReviewActions({ itemId }: { itemId: string }) {
         </button>
         <button
           type="button"
-          onClick={() => decide("needs_review")}
+          onClick={() => decide("needs_more_review")}
           disabled={busy !== null}
           className={`${base} bg-sky-50 text-sky-700 ring-sky-200 hover:bg-sky-100`}
         >
-          Needs review
+          Needs more review
         </button>
         <button
           type="button"

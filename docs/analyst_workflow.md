@@ -80,25 +80,30 @@ Every review item displays four things:
 
 ### Actions
 
-| Action         | Effect                                                                       |
-| -------------- | ---------------------------------------------------------------------------- |
-| **Approve**    | Confirms the item. Status → `confirmed`. Written to the audit log.            |
-| **Reject**     | Dismisses the item. Status → `rejected`. Written to the audit log.            |
-| **Needs review**| Defers the item for more information or a second opinion. Status → `needs_review`. |
+| Action            | Effect                                                                       |
+| ----------------- | ---------------------------------------------------------------------------- |
+| **Approve**       | Approves the item. Status → `approved`. Written to the audit log.            |
+| **Reject**        | Dismisses the item. Status → `rejected`. Written to the audit log.           |
+| **Needs more review** | Defers for more information or a second opinion. Status → `needs_more_review`. |
 
-Every Approve and Reject is recorded against the analyst who made it. A confirmed
-relationship can always be traced to a person and the evidence they saw. This is what
-makes assessments explainable after the fact.
+Every Approve and Reject is recorded against the analyst who made it. An approved
+observation or relationship can always be traced to a person and the evidence they saw.
+This is what makes assessments explainable after the fact.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> proposed: system proposes
-    proposed --> confirmed: Approve
+    [*] --> proposed: intake / system proposes
+    proposed --> approved: Approve
     proposed --> rejected: Reject
-    proposed --> needs_review: Needs review
-    needs_review --> confirmed: Approve
-    needs_review --> rejected: Reject
+    proposed --> needs_more_review: Needs more review
+    needs_more_review --> approved: Approve
+    needs_more_review --> rejected: Reject
 ```
+
+> **v0.2 — the observation review loop.** Observations now enter the review queue at
+> intake. A relationship may only cite **approved** observations: rejected or still-
+> proposed observations cannot support a link. This makes the queue the gate through
+> which evidence becomes usable.
 
 ## 6. Cluster and case
 

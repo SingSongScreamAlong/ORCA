@@ -1,0 +1,228 @@
+"""In-memory repository implementations over the development ``store``.
+
+Each repository exposes the surface the service layer needs. They return Pydantic read
+models directly (the store holds read models). The PostgreSQL implementations in
+``app.repositories.sql`` mirror this surface.
+"""
+
+from __future__ import annotations
+
+from uuid import UUID
+
+from app.core.audit import AuditEntry
+from app.models.enums import EntityType, ReviewStatus
+from app.repositories.base import newest_first, paginate
+from app.repositories.store import InMemoryStore
+from app.schemas.case import CaseRead
+from app.schemas.cluster import ClusterRead
+from app.schemas.entity import EntityRead
+from app.schemas.evidence import EvidenceRead
+from app.schemas.observation import ObservationRead
+from app.schemas.relationship import RelationshipRead
+from app.schemas.report import ReportRead
+from app.schemas.review import ReviewItemRead
+from app.schemas.source import SourceRead
+
+
+class _Base:
+    def __init__(self, store: InMemoryStore) -> None:
+        self._store = store
+
+
+class MemorySourceRepository(_Base):
+    def get(self, source_id: UUID) -> SourceRead | None:
+        return self._store.sources.get(source_id)
+
+    def list(self, *, limit: int = 50, offset: int = 0) -> list[SourceRead]:
+        return paginate(newest_first(self._store.sources.values()), limit=limit, offset=offset)
+
+    def add(self, source: SourceRead) -> SourceRead:
+        self._store.sources[source.id] = source
+        return source
+
+
+class MemoryEvidenceRepository(_Base):
+    def get(self, evidence_id: UUID) -> EvidenceRead | None:
+        return self._store.evidence.get(evidence_id)
+
+    def list(self, *, limit: int = 50, offset: int = 0) -> list[EvidenceRead]:
+        return paginate(newest_first(self._store.evidence.values()), limit=limit, offset=offset)
+
+    def add(self, evidence: EvidenceRead) -> EvidenceRead:
+        self._store.evidence[evidence.id] = evidence
+        return evidence
+
+
+class MemoryEntityRepository(_Base):
+    def get(self, entity_id: UUID) -> EntityRead | None:
+        return self._store.entities.get(entity_id)
+
+    def list(self, *, limit: int = 50, offset: int = 0) -> list[EntityRead]:
+        return paginate(newest_first(self._store.entities.values()), limit=limit, offset=offset)
+
+    def find_by_value(self, entity_type: EntityType, value: str) -> EntityRead | None:
+        for entity in self._store.entities.values():
+            if entity.entity_type == entity_type and entity.value == value:
+                return entity
+        return None
+
+    def add(self, entity: EntityRead) -> EntityRead:
+        self._store.entities[entity.id] = entity
+        return entity
+
+
+class MemoryObservationRepository(_Base):
+    def get(self, observation_id: UUID) -> ObservationRead | None:
+        return self._store.observations.get(observation_id)
+
+    def list(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+        case_id: UUID | None = None,
+        status: ReviewStatus | None = None,
+    ) -> list[ObservationRead]:
+        values = self._store.observations.values()
+        if case_id is not None:
+            values = [o for o in values if o.case_id == case_id]
+        if status is not None:
+            values = [o for o in values if o.status == status]
+        return paginate(newest_first(values), limit=limit, offset=offset)
+
+    def for_case(self, case_id: UUID) -> list[ObservationRead]:
+        return [o for o in self._store.observations.values() if o.case_id == case_id]
+
+    def count(self) -> int:
+        return len(self._store.observations)
+
+    def add(self, observation: ObservationRead) -> ObservationRead:
+        self._store.observations[observation.id] = observation
+        return observation
+
+    def replace(self, observation: ObservationRead) -> ObservationRead:
+        self._store.observations[observation.id] = observation
+        return observation
+
+
+class MemoryRelationshipRepository(_Base):
+    def get(self, relationship_id: UUID) -> RelationshipRead | None:
+        return self._store.relationships.get(relationship_id)
+
+    def list(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+        case_id: UUID | None = None,
+        status: ReviewStatus | None = None,
+    ) -> list[RelationshipRead]:
+        values = self._store.relationships.values()
+        if case_id is not None:
+            values = [r for r in values if r.case_id == case_id]
+        if status is not None:
+            values = [r for r in values if r.status == status]
+        return paginate(newest_first(values), limit=limit, offset=offset)
+
+    def for_case(self, case_id: UUID) -> list[RelationshipRead]:
+        return [r for r in self._store.relationships.values() if r.case_id == case_id]
+
+    def count(self) -> int:
+        return len(self._store.relationships)
+
+    def add(self, relationship: RelationshipRead) -> RelationshipRead:
+        self._store.relationships[relationship.id] = relationship
+        return relationship
+
+    def replace(self, relationship: RelationshipRead) -> RelationshipRead:
+        self._store.relationships[relationship.id] = relationship
+        return relationship
+
+
+class MemoryClusterRepository(_Base):
+    def get(self, cluster_id: UUID) -> ClusterRead | None:
+        return self._store.clusters.get(cluster_id)
+
+    def list(self, *, limit: int = 50, offset: int = 0) -> list[ClusterRead]:
+        return paginate(newest_first(self._store.clusters.values()), limit=limit, offset=offset)
+
+    def add(self, cluster: ClusterRead) -> ClusterRead:
+        self._store.clusters[cluster.id] = cluster
+        return cluster
+
+
+class MemoryCaseRepository(_Base):
+    def get(self, case_id: UUID) -> CaseRead | None:
+        return self._store.cases.get(case_id)
+
+    def list(self, *, limit: int = 50, offset: int = 0) -> list[CaseRead]:
+        return paginate(newest_first(self._store.cases.values()), limit=limit, offset=offset)
+
+    def add(self, case: CaseRead) -> CaseRead:
+        self._store.cases[case.id] = case
+        return case
+
+    def replace(self, case: CaseRead) -> CaseRead:
+        self._store.cases[case.id] = case
+        return case
+
+
+class MemoryReportRepository(_Base):
+    def get(self, report_id: UUID) -> ReportRead | None:
+        return self._store.reports.get(report_id)
+
+    def list(self, *, case_id: UUID | None = None) -> list[ReportRead]:
+        values = self._store.reports.values()
+        if case_id is not None:
+            values = [r for r in values if r.case_id == case_id]
+        return newest_first(values)
+
+    def add(self, report: ReportRead) -> ReportRead:
+        self._store.reports[report.id] = report
+        return report
+
+
+class MemoryReviewRepository(_Base):
+    def get(self, item_id: UUID) -> ReviewItemRead | None:
+        return self._store.review_items.get(item_id)
+
+    def list(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+        status: ReviewStatus | None = ReviewStatus.PROPOSED,
+        case_id: UUID | None = None,
+    ) -> list[ReviewItemRead]:
+        values = self._store.review_items.values()
+        if status is not None:
+            values = [i for i in values if i.status == status]
+        if case_id is not None:
+            values = [i for i in values if i.case_id == case_id]
+        return paginate(newest_first(values), limit=limit, offset=offset)
+
+    def pending_count(self) -> int:
+        return sum(1 for i in self._store.review_items.values() if i.status == ReviewStatus.PROPOSED)
+
+    def add(self, item: ReviewItemRead) -> ReviewItemRead:
+        self._store.review_items[item.id] = item
+        return item
+
+    def replace(self, item: ReviewItemRead) -> ReviewItemRead:
+        self._store.review_items[item.id] = item
+        return item
+
+
+class MemoryAuditRepository(_Base):
+    def record(self, entry: AuditEntry) -> AuditEntry:
+        self._store.audit.append(entry)
+        return entry
+
+    def list(self, *, case_id: UUID | None = None) -> list[AuditEntry]:
+        entries = list(self._store.audit)
+        if case_id is not None:
+            entries = [e for e in entries if e.case_id == case_id]
+        return list(reversed(entries))  # newest first
+
+    def all(self) -> list[AuditEntry]:
+        return list(self._store.audit)

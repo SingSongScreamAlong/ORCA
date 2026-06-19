@@ -6,12 +6,14 @@ import { TopBar } from "./TopBar";
 const TITLES: Record<string, string> = {
   "/": "Dashboard",
   "/review": "Review Queue",
+  "/cases": "Cases",
   "/observations": "Observations",
+  "/intake": "Observation Intake",
   "/entities": "Entities",
   "/relationships": "Relationships",
   "/clusters": "Clusters",
-  "/cases": "Cases",
   "/reports": "Reports",
+  "/safety": "Safety & Handling",
 };
 
 export function SectionTitle() {

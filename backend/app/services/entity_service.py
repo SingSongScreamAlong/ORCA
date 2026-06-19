@@ -7,30 +7,29 @@ exists returns the existing one rather than a duplicate.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from app.core.security import Principal
-from app.repositories.entity_repository import EntityRepository
+from app.repositories.uow import UnitOfWork
 from app.schemas.entity import EntityCreate, EntityRead
 from app.services.errors import NotFoundError
 
 
 class EntityService:
-    def __init__(self) -> None:
-        self._entities = EntityRepository()
+    def __init__(self, uow: UnitOfWork) -> None:
+        self.uow = uow
 
     def list(self, *, limit: int = 50, offset: int = 0) -> list[EntityRead]:
-        return self._entities.list(limit=limit, offset=offset)
+        return self.uow.entities.list(limit=limit, offset=offset)
 
-    def get(self, entity_id) -> EntityRead:
-        entity = self._entities.get(entity_id)
+    def get(self, entity_id: UUID) -> EntityRead:
+        entity = self.uow.entities.get(entity_id)
         if entity is None:
             raise NotFoundError(f"Entity {entity_id} not found")
         return entity
 
     def create(self, payload: EntityCreate, principal: Principal) -> EntityRead:
-        # Deduplicate: the same value of the same type is one entity.
-        existing = self._entities.find_by_value(payload.entity_type, payload.value)
+        existing = self.uow.entities.find_by_value(payload.entity_type, payload.value)
         if existing is not None:
             return existing
 
@@ -41,4 +40,4 @@ class EntityService:
             confidence=payload.confidence,
             created_at=datetime.now(UTC),
         )
-        return self._entities.add(entity)
+        return self.uow.entities.add(entity)

@@ -42,7 +42,7 @@ origin = postgresql.ENUM(
     "system_proposed", "analyst_created", "imported", name="origin", create_type=False
 )
 review_status = postgresql.ENUM(
-    "proposed", "confirmed", "rejected", "needs_review", name="review_status", create_type=False
+    "proposed", "approved", "rejected", "needs_more_review", name="review_status", create_type=False
 )
 cluster_status = postgresql.ENUM(
     "proposed", "active", "archived", "rejected", name="cluster_status", create_type=False
@@ -54,7 +54,7 @@ report_status = postgresql.ENUM(
     "draft", "in_review", "final", name="report_status", create_type=False
 )
 review_item_type = postgresql.ENUM(
-    "proposed_relationship", "proposed_cluster", "flagged_observation",
+    "proposed_observation", "proposed_relationship", "proposed_cluster", "flagged_observation",
     name="review_item_type", create_type=False,
 )
 
@@ -112,22 +112,43 @@ def upgrade() -> None:
     )
     op.create_index("ix_entities_value", "entities", ["value"])
 
+    # Cases are created before observations/relationships/review_items (which reference them).
+    op.create_table(
+        "cases",
+        sa.Column("id", _uuid(), primary_key=True),
+        sa.Column("title", sa.String(512), nullable=False),
+        sa.Column("status", case_status, nullable=False, server_default="open"),
+        sa.Column("owner", sa.String(255), nullable=False),
+        sa.Column("summary", sa.Text(), nullable=True),
+        sa.Column("legal_notes", sa.Text(), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    )
+
     op.create_table(
         "observations",
         sa.Column("id", _uuid(), primary_key=True),
+        sa.Column("case_id", _uuid(), sa.ForeignKey("cases.id", ondelete="SET NULL"), nullable=True),
         sa.Column("timestamp", sa.DateTime(timezone=True), nullable=False),
         sa.Column("source_id", _uuid(), sa.ForeignKey("sources.id"), nullable=False),
         sa.Column("collector", sa.String(255), nullable=False),
         sa.Column("location", sa.String(512), nullable=True),
         sa.Column("notes", sa.Text(), nullable=True),
         sa.Column("confidence", sa.Float(), nullable=False, server_default="0.0"),
+        sa.Column("status", review_status, nullable=False, server_default="proposed"),
+        sa.Column("decided_by", sa.String(255), nullable=True),
+        sa.Column("decided_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("handling", postgresql.JSONB(), nullable=False, server_default="{}"),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
     )
+    op.create_index("ix_observations_case", "observations", ["case_id"])
+    op.create_index("ix_observations_status", "observations", ["status"])
 
     op.create_table(
         "relationships",
         sa.Column("id", _uuid(), primary_key=True),
+        sa.Column("case_id", _uuid(), sa.ForeignKey("cases.id", ondelete="SET NULL"), nullable=True),
         sa.Column("source_entity_id", _uuid(), sa.ForeignKey("entities.id"), nullable=False),
         sa.Column("target_entity_id", _uuid(), sa.ForeignKey("entities.id"), nullable=False),
         sa.Column("relationship_type", relationship_type, nullable=False),
@@ -149,17 +170,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
     )
-
-    op.create_table(
-        "cases",
-        sa.Column("id", _uuid(), primary_key=True),
-        sa.Column("title", sa.String(512), nullable=False),
-        sa.Column("status", case_status, nullable=False, server_default="open"),
-        sa.Column("owner", sa.String(255), nullable=False),
-        sa.Column("summary", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-    )
+    op.create_index("ix_relationships_case", "relationships", ["case_id"])
 
     op.create_table(
         "reports",
@@ -179,6 +190,7 @@ def upgrade() -> None:
         sa.Column("item_type", review_item_type, nullable=False),
         sa.Column("subject_type", sa.String(64), nullable=False),
         sa.Column("subject_id", _uuid(), nullable=False),
+        sa.Column("case_id", _uuid(), sa.ForeignKey("cases.id", ondelete="SET NULL"), nullable=True),
         sa.Column("rationale", sa.Text(), nullable=False),
         sa.Column("confidence", sa.Float(), nullable=False, server_default="0.0"),
         sa.Column("evidence_ids", postgresql.ARRAY(_uuid()), nullable=False, server_default="{}"),
@@ -196,6 +208,7 @@ def upgrade() -> None:
         sa.Column("action", sa.String(128), nullable=False),
         sa.Column("target_type", sa.String(64), nullable=False),
         sa.Column("target_id", sa.String(64), nullable=False),
+        sa.Column("case_id", _uuid(), nullable=True),
         sa.Column("context", postgresql.JSONB(), nullable=False, server_default="{}"),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
@@ -245,12 +258,15 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Drop children before parents. Everything that references cases (observations,
+    # relationships, review_items, reports) is dropped before cases itself.
     for table in (
         "case_clusters", "case_entities", "case_observations",
         "cluster_observations", "cluster_entities", "relationship_observations",
         "observation_evidence", "observation_entities",
-        "audit_log", "review_items", "reports", "cases", "clusters",
-        "relationships", "observations", "entities", "evidence", "sources",
+        "audit_log", "review_items", "reports",
+        "relationships", "observations", "clusters", "cases",
+        "entities", "evidence", "sources",
     ):
         op.drop_table(table)
 

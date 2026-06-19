@@ -70,15 +70,23 @@ These principles are not decoration. They are encoded in the data model (see
 | [Ontology v0.1](docs/ontology_v0.1.md)               | The object model: observations, entities, relationships.|
 | [Analyst workflow](docs/analyst_workflow.md)         | How an analyst moves from observation to report.       |
 | [Security](docs/security.md)                         | Access control, evidence integrity, audit, encryption. |
+| [Safety & Handling](docs/safety_and_handling.md)     | Boundaries: lawful, analyst-controlled, human-reviewed.|
+| [v0.2 Analyst Loop](docs/v0.2_analyst_loop.md)       | The end-to-end intake → review → report loop.          |
 | [Roadmap](docs/roadmap.md)                            | Phased delivery, starting from this skeleton.          |
 
 ---
 
 ## Status
 
-This repository is an **initial skeleton**. It establishes the structure, the data
-model, the API surface, and the analyst-facing screens. Collection ("Hunting
-Grounds") is defined as an interface only — no collection logic is implemented.
+- **v0.1 — skeleton.** Structure, data model, API surface, and analyst screens.
+- **v0.2 — Analyst Loop MVP (current).** One complete, auditable loop: case → observation
+  intake → review queue → approval → relationship (citing approved evidence) →
+  timeline/audit → draft report. PostgreSQL persistence path is implemented and
+  integration-tested. See [`docs/v0.2_analyst_loop.md`](docs/v0.2_analyst_loop.md).
+
+Collection ("Hunting Grounds") remains an interface only — no collection logic, no
+scraping, no autonomous hunting. ORCA stays evidence-first, lawful, and analyst-controlled
+(see [`docs/safety_and_handling.md`](docs/safety_and_handling.md)).
 
 ## Getting started
 

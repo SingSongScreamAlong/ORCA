@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str = "please-change-me"
+    # The graph projection is optional; PostgreSQL is authoritative. Enable to mirror
+    # entities/relationships into Neo4j.
+    graph_enabled: bool = False
 
     # Evidence object store (local path for the skeleton).
     evidence_store: str = "./.evidence"

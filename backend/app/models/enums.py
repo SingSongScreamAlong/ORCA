@@ -36,10 +36,15 @@ class Origin(str, Enum):
 
 
 class ReviewStatus(str, Enum):
+    """Approval lifecycle shared by observations, relationships, and review items.
+
+    These are the four states the analyst interface shows as status badges.
+    """
+
     PROPOSED = "proposed"
-    CONFIRMED = "confirmed"
+    APPROVED = "approved"
     REJECTED = "rejected"
-    NEEDS_REVIEW = "needs_review"
+    NEEDS_MORE_REVIEW = "needs_more_review"
 
 
 class EntityType(str, Enum):
@@ -120,6 +125,7 @@ class ReportStatus(str, Enum):
 
 
 class ReviewItemType(str, Enum):
+    PROPOSED_OBSERVATION = "proposed_observation"
     PROPOSED_RELATIONSHIP = "proposed_relationship"
     PROPOSED_CLUSTER = "proposed_cluster"
     FLAGGED_OBSERVATION = "flagged_observation"

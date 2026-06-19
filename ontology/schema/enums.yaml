@@ -22,12 +22,22 @@ origin:
     - imported          # ingested from an external dataset
 
 review_status:
-  description: Lifecycle for proposable objects (relationships, review items).
+  description: >
+    Approval lifecycle (v0.2) for observations, relationships, and review items.
+    These are the status badges shown in the analyst interface.
   values:
     - proposed
-    - confirmed
+    - approved
     - rejected
-    - needs_review
+    - needs_more_review
+
+review_item_type:
+  description: The kind of subject a review-queue item concerns.
+  values:
+    - proposed_observation   # v0.2: observation intake awaiting approval
+    - proposed_relationship
+    - proposed_cluster
+    - flagged_observation
 
 entity_type:
   values:

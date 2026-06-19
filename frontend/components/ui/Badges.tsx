@@ -21,9 +21,9 @@ export function ConfidenceBadge({ value }: { value: number }) {
 
 const STATUS_STYLE: Record<ReviewStatus, string> = {
   proposed: "bg-amber-50 text-amber-700 ring-amber-200",
-  confirmed: "bg-green-50 text-green-700 ring-green-200",
+  approved: "bg-green-50 text-green-700 ring-green-200",
   rejected: "bg-slate-100 text-slate-500 ring-slate-200",
-  needs_review: "bg-sky-50 text-sky-700 ring-sky-200",
+  needs_more_review: "bg-sky-50 text-sky-700 ring-sky-200",
 };
 
 export function StatusBadge({ status }: { status: ReviewStatus }) {

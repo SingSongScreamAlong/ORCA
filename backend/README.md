@@ -2,8 +2,15 @@
 
 FastAPI service for ORCA. It exposes the ontology objects over a JSON API and enforces
 the rules that keep evidence traceable: observations reference a source, relationships
-reference supporting observations, and nothing reaches `confirmed` without an audited
-analyst decision.
+may only cite **approved** observations, and nothing reaches `approved` without an
+audited analyst decision.
+
+> **v0.2 — Analyst Loop MVP.** Adds cases, the observation review loop (intake →
+> queue → approve/reject/needs_more_review), relationships from approved observations,
+> the case timeline, case-scoped audit log, draft-report generation, and a
+> production PostgreSQL persistence path (SQLAlchemy unit of work + Alembic). See
+> [`../docs/v0.2_analyst_loop.md`](../docs/v0.2_analyst_loop.md). The data access layer
+> is selected by `ORCA_STORAGE_BACKEND` (`memory` default, `postgres` for the DB path).
 
 ## Layout
 

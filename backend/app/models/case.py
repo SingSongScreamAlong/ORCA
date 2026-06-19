@@ -25,6 +25,8 @@ class Case(UUIDPrimaryKey, TimestampMixin, Base):
     )
     owner: Mapped[str] = mapped_column(String(255), nullable=False)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Placeholder case-level legal/handling note (see docs/safety_and_handling.md).
+    legal_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     observations = relationship("Observation", secondary=case_observations)
     entities = relationship("Entity", secondary=case_entities)

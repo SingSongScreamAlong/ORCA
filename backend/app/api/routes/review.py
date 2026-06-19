@@ -9,17 +9,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api.deps import Pagination, current_principal, pagination
+from app.api.deps import Pagination, current_principal, get_uow, pagination
 from app.core.security import Principal
 from app.models.enums import ReviewStatus
+from app.repositories.uow import UnitOfWork
 from app.schemas.review import ReviewDecisionRequest, ReviewItemRead
 from app.services.review_service import ReviewService
 
 router = APIRouter(prefix="/review", tags=["review"])
-
-
-def _service() -> ReviewService:
-    return ReviewService()
 
 
 @router.get("", response_model=list[ReviewItemRead], summary="List review-queue items")
@@ -30,23 +27,28 @@ def list_review_items(
         alias="status",
         description="Filter by status. Defaults to the pending (proposed) queue.",
     ),
+    case_id: UUID | None = Query(None, description="Filter by case."),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> list[ReviewItemRead]:
-    return _service().list(limit=page.limit, offset=page.offset, status=status_filter)
+    return ReviewService(uow).list(
+        limit=page.limit, offset=page.offset, status=status_filter, case_id=case_id
+    )
 
 
 @router.get("/{item_id}", response_model=ReviewItemRead, summary="Get a review item")
-def get_review_item(item_id: UUID) -> ReviewItemRead:
-    return _service().get(item_id)
+def get_review_item(item_id: UUID, uow: UnitOfWork = Depends(get_uow)) -> ReviewItemRead:
+    return ReviewService(uow).get(item_id)
 
 
 @router.post(
     "/{item_id}/decision",
     response_model=ReviewItemRead,
-    summary="Decide a review item (approve / reject / needs_review)",
+    summary="Decide a review item (approve / reject / needs_more_review)",
 )
 def decide_review_item(
     item_id: UUID,
     request: ReviewDecisionRequest,
     principal: Principal = Depends(current_principal),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> ReviewItemRead:
-    return _service().decide(item_id, request.decision, principal, note=request.note)
+    return ReviewService(uow).decide(item_id, request.decision, principal, note=request.note)

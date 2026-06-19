@@ -6,20 +6,26 @@ summary: >
 
 properties:
   id:           { type: uuid, required: true, system_set: true }
+  case_id:      { type: uuid, required: false, ref: Case, note: "v0.2: case this observation was intaked into." }
   timestamp:    { type: datetime, required: true, note: "When the fact was observed (collector-supplied)." }
   source:       { type: uuid, required: true, ref: Source }
   collector:    { type: string, required: true, note: "Analyst id or collector name." }
   location:     { type: string, required: false, note: "Geo or place where observed." }
   notes:        { type: text, required: false }
   confidence:   { type: float, required: true, range: [0.0, 1.0] }
+  status:       { type: enum, required: true, ref: enums.review_status, default: proposed, note: "v0.2 review lifecycle." }
+  decided_by:   { type: string, required: false, note: "Reviewer who decided (set on approve/reject)." }
+  decided_at:   { type: datetime, required: false }
+  handling:     { type: object, required: false, note: "Legal/handling placeholder metadata; see docs/safety_and_handling.md." }
   evidence_ids: { type: array, items: uuid, required: false, ref: Evidence }
 
 relationships:
   references_entity:      { target: Entity, cardinality: many }
-  part_of_case:           { target: Case, cardinality: many }
+  part_of_case:           { target: Case, cardinality: one }
   supported_by_evidence:  { target: Evidence, cardinality: many }
 
 invariants:
   - An Observation must reference exactly one Source.
-  - An Observation is append-only; corrections are new observations referencing the prior one.
+  - An Observation enters the review queue as 'proposed'; only a reviewer moves it to approved/rejected/needs_more_review.
+  - Factual content is append-only; corrections are new observations referencing the prior one.
   - Confidence is within [0.0, 1.0].

@@ -4,8 +4,8 @@
 -- ontology/schema. Enum labels use the lowercase ontology values. The Alembic
 -- migration backend/migrations/versions/0001_initial.py creates the same objects.
 --
--- This is the Phase 1 target schema. The default skeleton backend is in-memory and
--- does not require this to run.
+-- This is the Phase 1 / v0.2 target schema. The default skeleton backend is in-memory
+-- and does not require this to run.
 
 BEGIN;
 
@@ -19,11 +19,13 @@ CREATE TYPE entity_type        AS ENUM ('phone_number', 'alias', 'account', 'use
 CREATE TYPE relationship_type  AS ENUM ('shared_phone', 'shared_image', 'shared_location',
                                         'shared_account', 'appears_with', 'analyst_confirmed');
 CREATE TYPE origin             AS ENUM ('system_proposed', 'analyst_created', 'imported');
-CREATE TYPE review_status      AS ENUM ('proposed', 'confirmed', 'rejected', 'needs_review');
+-- v0.2 approval lifecycle (replaces v0.1 'confirmed'/'needs_review').
+CREATE TYPE review_status      AS ENUM ('proposed', 'approved', 'rejected', 'needs_more_review');
 CREATE TYPE cluster_status     AS ENUM ('proposed', 'active', 'archived', 'rejected');
 CREATE TYPE case_status        AS ENUM ('open', 'active', 'on_hold', 'closed');
 CREATE TYPE report_status      AS ENUM ('draft', 'in_review', 'final');
-CREATE TYPE review_item_type   AS ENUM ('proposed_relationship', 'proposed_cluster', 'flagged_observation');
+CREATE TYPE review_item_type   AS ENUM ('proposed_observation', 'proposed_relationship',
+                                        'proposed_cluster', 'flagged_observation');
 
 -- --- Core objects -----------------------------------------------------------
 
@@ -63,20 +65,40 @@ CREATE TABLE entities (
 );
 CREATE INDEX ix_entities_value ON entities (value);
 
+-- Cases are created before observations/relationships/review_items, which reference them.
+CREATE TABLE cases (
+    id          UUID PRIMARY KEY,
+    title       VARCHAR(512) NOT NULL,
+    status      case_status NOT NULL DEFAULT 'open',
+    owner       VARCHAR(255) NOT NULL,
+    summary     TEXT,
+    legal_notes TEXT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE observations (
     id         UUID PRIMARY KEY,
+    case_id    UUID REFERENCES cases(id) ON DELETE SET NULL,
     timestamp  TIMESTAMPTZ NOT NULL,               -- observed time (collector-supplied)
     source_id  UUID NOT NULL REFERENCES sources(id),
     collector  VARCHAR(255) NOT NULL,
     location   VARCHAR(512),
     notes      TEXT,
     confidence DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    status     review_status NOT NULL DEFAULT 'proposed',
+    decided_by VARCHAR(255),
+    decided_at TIMESTAMPTZ,
+    handling   JSONB NOT NULL DEFAULT '{}',        -- legal/handling placeholder metadata
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE INDEX ix_observations_case ON observations (case_id);
+CREATE INDEX ix_observations_status ON observations (status);
 
 CREATE TABLE relationships (
     id                UUID PRIMARY KEY,
+    case_id           UUID REFERENCES cases(id) ON DELETE SET NULL,
     source_entity_id  UUID NOT NULL REFERENCES entities(id),
     target_entity_id  UUID NOT NULL REFERENCES entities(id),
     relationship_type relationship_type NOT NULL,
@@ -87,6 +109,7 @@ CREATE TABLE relationships (
     updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT ck_relationship_distinct_endpoints CHECK (source_entity_id <> target_entity_id)
 );
+CREATE INDEX ix_relationships_case ON relationships (case_id);
 
 CREATE TABLE clusters (
     id         UUID PRIMARY KEY,
@@ -94,16 +117,6 @@ CREATE TABLE clusters (
     status     cluster_status NOT NULL DEFAULT 'proposed',
     confidence DOUBLE PRECISION NOT NULL DEFAULT 0.0,
     origin     origin NOT NULL DEFAULT 'system_proposed',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE cases (
-    id         UUID PRIMARY KEY,
-    title      VARCHAR(512) NOT NULL,
-    status     case_status NOT NULL DEFAULT 'open',
-    owner      VARCHAR(255) NOT NULL,
-    summary    TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -124,6 +137,7 @@ CREATE TABLE review_items (
     item_type    review_item_type NOT NULL,
     subject_type VARCHAR(64) NOT NULL,
     subject_id   UUID NOT NULL,
+    case_id      UUID REFERENCES cases(id) ON DELETE SET NULL,
     rationale    TEXT NOT NULL,                  -- why surfaced; never null
     confidence   DOUBLE PRECISION NOT NULL DEFAULT 0.0,
     evidence_ids UUID[] NOT NULL DEFAULT '{}',
@@ -133,6 +147,7 @@ CREATE TABLE review_items (
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE INDEX ix_review_items_status ON review_items (status);
 
 -- Append-only audit log. No UPDATE/DELETE path by policy.
 CREATE TABLE audit_log (
@@ -141,10 +156,12 @@ CREATE TABLE audit_log (
     action      VARCHAR(128) NOT NULL,
     target_type VARCHAR(64) NOT NULL,
     target_id   VARCHAR(64) NOT NULL,
+    case_id     UUID,
     context     JSONB NOT NULL DEFAULT '{}',
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE INDEX ix_audit_log_case ON audit_log (case_id);
 
 -- --- Association tables (many-to-many) --------------------------------------
 

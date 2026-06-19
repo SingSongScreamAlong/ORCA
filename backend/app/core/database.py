@@ -27,14 +27,19 @@ def _init_engine() -> None:
     _SessionLocal = sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False)
 
 
+def new_session() -> Session:
+    """Return a new database session (caller manages its lifecycle)."""
+    _init_engine()
+    assert _SessionLocal is not None
+    return _SessionLocal()
+
+
 def get_session() -> Iterator[Session]:
     """FastAPI dependency yielding a database session.
 
     Only used when the PostgreSQL backend is active.
     """
-    _init_engine()
-    assert _SessionLocal is not None
-    session = _SessionLocal()
+    session = new_session()
     try:
         yield session
     finally:

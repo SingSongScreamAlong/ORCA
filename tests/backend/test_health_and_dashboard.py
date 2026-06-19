@@ -18,9 +18,11 @@ def test_dashboard_summary_answers_the_three_questions(client):
     resp = client.get(f"{PREFIX}/dashboard/summary")
     assert resp.status_code == 200
     body = resp.json()
-    # What is new / what requires review.
-    assert body["counts"]["observations"] == 2
+    # The v0.2 seed: one case, three observations (two approved + one pending), one
+    # relationship, and one pending review item.
+    assert body["counts"]["observations"] == 3
     assert body["counts"]["relationships"] == 1
     assert body["counts"]["pending_review"] == 1
+    assert body["counts"]["cases"] == 1
     assert len(body["review_queue"]) == 1
     assert body["system_health"]["status"] == "ok"

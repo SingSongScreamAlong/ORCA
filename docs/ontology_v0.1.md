@@ -53,11 +53,17 @@ Objects that can be produced by the system carry two fields that encode the
 "AI proposes, analysts decide" principle:
 
 - `origin` — one of `system_proposed`, `analyst_created`, `imported`.
-- `status` — lifecycle state. For proposable objects: `proposed → confirmed`,
-  `proposed → rejected`, or `proposed → needs_review`.
+- `status` — approval lifecycle state (v0.2): `proposed`, `approved`, `rejected`,
+  `needs_more_review`. Observations, relationships, and review items share this set;
+  they are the status badges shown in the analyst interface.
 
-Nothing produced by the system enters a `confirmed` state without an analyst action,
+Nothing produced by the system enters an `approved` state without an analyst action,
 and every transition is written to the audit log.
+
+> **v0.2 note.** Earlier drafts used `confirmed`/`needs_review`; these are now
+> `approved`/`needs_more_review`. In v0.2, **observations** also carry this status and
+> flow through the review queue, and a relationship may only cite **approved**
+> observations.
 
 ### Timestamps
 
@@ -140,7 +146,7 @@ discovery. Relationships persist beyond cases.
 | `relationship_type` | enum    | One of the relationship types below.             |
 | `confidence`        | float   | Strength of support, `[0,1]`.                    |
 | `origin`            | enum    | `system_proposed` / `analyst_created` / `imported`.|
-| `status`            | enum    | `proposed` / `confirmed` / `rejected` / `needs_review`.|
+| `status`            | enum    | `proposed` / `approved` / `rejected` / `needs_more_review`.|
 | `created_at`        | datetime| Set by system.                                   |
 | `updated_at`        | datetime| Set by system.                                   |
 
@@ -302,8 +308,9 @@ views of evidence, not the source of truth.
 
 ## Invariants enforced by the system
 
-1. An `Observation` must reference at least one `Source`.
-2. A `Relationship` must reference at least one supporting `Observation`.
+1. An `Observation` must reference exactly one `Source`.
+2. A `Relationship` must reference at least one supporting `Observation`, and every
+   cited observation must be `approved` (v0.2).
 3. `Evidence` is immutable; its `sha256` is verified on read.
-4. No object reaches `confirmed` without an analyst action recorded in the audit log.
+4. No object reaches `approved` without an analyst action recorded in the audit log.
 5. Deleting a `Case` never deletes referenced observations, entities, or evidence.

@@ -1,13 +1,15 @@
 """Relationship service.
 
-Enforces the central invariants:
+Central invariants:
 
 * A relationship must reference at least one supporting observation.
-* Its two endpoints must be distinct, existing entities.
-* ``analyst_confirmed`` may only be asserted by a principal with review authority, and
-  results in a ``confirmed`` relationship recorded in the audit log.
-* Any other relationship submitted through the API is ``proposed`` and is routed to
-  the review queue — it never enters the confirmed graph without an analyst decision.
+* Every cited observation must exist and be **approved** — a relationship cannot rest
+  on proposed or rejected evidence.
+* Endpoints must be two distinct, existing entities.
+
+An analyst-created relationship (from approved observations) is recorded as
+``approved`` and audited. A system-proposed relationship is ``proposed`` and routed to
+the review queue; it never enters the confirmed graph without an analyst decision.
 """
 
 from __future__ import annotations
@@ -15,110 +17,67 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from app.core.audit import audit_log
-from app.core.rbac import Capability, can
+from app.core.audit import new_audit_entry
 from app.core.security import Principal
-from app.models.enums import (
-    Origin,
-    RelationshipType,
-    ReviewItemType,
-    ReviewStatus,
-)
-from app.repositories.entity_repository import EntityRepository
-from app.repositories.observation_repository import ObservationRepository
-from app.repositories.relationship_repository import RelationshipRepository
-from app.repositories.review_repository import ReviewRepository
+from app.models.enums import Origin, RelationshipType, ReviewItemType, ReviewStatus
+from app.repositories.uow import UnitOfWork
 from app.schemas.relationship import RelationshipCreate, RelationshipRead
 from app.schemas.review import ReviewItemRead
-from app.services.errors import PermissionDenied, ValidationError
-from app.services.graph_sync import get_graph_repository
+from app.services.errors import NotFoundError, ValidationError
 
 
 class RelationshipService:
-    def __init__(self) -> None:
-        self._relationships = RelationshipRepository()
-        self._entities = EntityRepository()
-        self._observations = ObservationRepository()
-        self._reviews = ReviewRepository()
-        self._graph = get_graph_repository()
+    def __init__(self, uow: UnitOfWork) -> None:
+        self.uow = uow
 
-    def list(self, *, limit: int = 50, offset: int = 0, status: ReviewStatus | None = None):
-        return self._relationships.list(limit=limit, offset=offset, status=status)
+    def list(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+        case_id: UUID | None = None,
+        status: ReviewStatus | None = None,
+    ) -> list[RelationshipRead]:
+        return self.uow.relationships.list(limit=limit, offset=offset, case_id=case_id, status=status)
 
-    def get(self, relationship_id) -> RelationshipRead:
-        relationship = self._relationships.get(relationship_id)
+    def get(self, relationship_id: UUID) -> RelationshipRead:
+        relationship = self.uow.relationships.get(relationship_id)
         if relationship is None:
-            raise ValidationError(f"Relationship {relationship_id} not found")
+            raise NotFoundError(f"Relationship {relationship_id} not found")
         return relationship
 
     def create(self, payload: RelationshipCreate, principal: Principal) -> RelationshipRead:
-        if payload.source_entity_id == payload.target_entity_id:
-            raise ValidationError("A relationship must connect two distinct entities")
-
-        for entity_id in (payload.source_entity_id, payload.target_entity_id):
-            if self._entities.get(entity_id) is None:
-                raise ValidationError(f"Entity {entity_id} does not exist")
-
-        # Invariant: at least one supporting observation, and each must exist.
-        if not payload.observation_ids:
-            raise ValidationError("A relationship must reference at least one observation")
-        for observation_id in payload.observation_ids:
-            if self._observations.get(observation_id) is None:
-                raise ValidationError(f"Supporting observation {observation_id} does not exist")
+        self._validate_endpoints(payload.source_entity_id, payload.target_entity_id)
+        case_id = self._require_approved_observations(payload.observation_ids, payload.case_id)
 
         now = datetime.now(UTC)
-
-        if payload.relationship_type is RelationshipType.ANALYST_CONFIRMED:
-            # A direct analyst assertion. Only a reviewer/admin may do this, and it is
-            # recorded as confirmed in the audit log — it is a human decision.
-            if not can(principal.role, Capability.REVIEW_DECIDE):
-                raise PermissionDenied(
-                    "Asserting analyst_confirmed requires review authority"
-                )
-            relationship = RelationshipRead(
-                id=uuid4(),
-                source_entity_id=payload.source_entity_id,
-                target_entity_id=payload.target_entity_id,
-                relationship_type=payload.relationship_type,
-                confidence=max(payload.confidence, 0.90),
-                origin=Origin.ANALYST_CREATED,
-                status=ReviewStatus.CONFIRMED,
-                observation_ids=list(payload.observation_ids),
-                created_at=now,
-                updated_at=now,
-            )
-            self._relationships.add(relationship)
-            self._project(relationship)
-            audit_log.record(
-                actor_id=principal.id,
-                action="relationship.created_confirmed",
-                target_type="relationship",
-                target_id=relationship.id,
-                context={"relationship_type": relationship.relationship_type.value},
-            )
-            return relationship
-
-        # Any other type goes to the review queue as a proposal.
         relationship = RelationshipRead(
             id=uuid4(),
+            case_id=case_id,
             source_entity_id=payload.source_entity_id,
             target_entity_id=payload.target_entity_id,
             relationship_type=payload.relationship_type,
             confidence=payload.confidence,
             origin=Origin.ANALYST_CREATED,
-            status=ReviewStatus.PROPOSED,
+            status=ReviewStatus.APPROVED,
             observation_ids=list(payload.observation_ids),
             created_at=now,
             updated_at=now,
         )
-        self._relationships.add(relationship)
-        self._enqueue_review(relationship)
-        audit_log.record(
-            actor_id=principal.id,
-            action="relationship.proposed",
-            target_type="relationship",
-            target_id=relationship.id,
-            context={"relationship_type": relationship.relationship_type.value},
+        self.uow.relationships.add(relationship)
+        self._project(relationship)
+        self.uow.audit.record(
+            new_audit_entry(
+                actor_id=principal.id,
+                action="relationship.created",
+                target_type="relationship",
+                target_id=relationship.id,
+                case_id=case_id,
+                context={
+                    "relationship_type": relationship.relationship_type.value,
+                    "observation_ids": [str(o) for o in relationship.observation_ids],
+                },
+            )
         )
         return relationship
 
@@ -134,19 +93,17 @@ class RelationshipService:
     ) -> RelationshipRead:
         """Record a system-proposed relationship and route it to the review queue.
 
-        Used by workers (see ``app.workers``). The relationship is created with
-        ``origin = system_proposed`` and ``status = proposed`` — it never enters the
-        confirmed graph without an analyst decision. The proposal is attributed to the
-        ``system`` actor in the audit log.
+        Used by workers. The relationship is ``system_proposed`` / ``proposed`` and only
+        becomes ``approved`` through an analyst decision. Cited observations must already
+        be approved.
         """
-        if source_entity_id == target_entity_id:
-            raise ValidationError("A relationship must connect two distinct entities")
-        if not observation_ids:
-            raise ValidationError("A proposed relationship must reference an observation")
+        self._validate_endpoints(source_entity_id, target_entity_id)
+        case_id = self._require_approved_observations(observation_ids, None)
 
         now = datetime.now(UTC)
         relationship = RelationshipRead(
             id=uuid4(),
+            case_id=case_id,
             source_entity_id=source_entity_id,
             target_entity_id=target_entity_id,
             relationship_type=relationship_type,
@@ -157,70 +114,88 @@ class RelationshipService:
             created_at=now,
             updated_at=now,
         )
-        self._relationships.add(relationship)
-        self._enqueue_review(relationship, rationale=rationale)
-        audit_log.record(
-            actor_id="system",
-            action="relationship.proposed",
-            target_type="relationship",
-            target_id=relationship.id,
-            context={
-                "relationship_type": relationship.relationship_type.value,
-                "origin": Origin.SYSTEM_PROPOSED.value,
-            },
+        self.uow.relationships.add(relationship)
+        self._enqueue_review(relationship, rationale)
+        self.uow.audit.record(
+            new_audit_entry(
+                actor_id="system",
+                action="relationship.proposed",
+                target_type="relationship",
+                target_id=relationship.id,
+                case_id=case_id,
+                context={"relationship_type": relationship.relationship_type.value},
+            )
         )
         return relationship
 
     def set_status(self, relationship_id: UUID, status: ReviewStatus) -> RelationshipRead:
-        """Transition a relationship's status (used by the review service)."""
         relationship = self.get(relationship_id)
-        updated = relationship.model_copy(
-            update={"status": status, "updated_at": datetime.now(UTC)}
-        )
-        self._relationships.replace(updated)
-        if status is ReviewStatus.CONFIRMED:
+        updated = relationship.model_copy(update={"status": status, "updated_at": datetime.now(UTC)})
+        self.uow.relationships.replace(updated)
+        if status is ReviewStatus.APPROVED:
             self._project(updated)
         return updated
 
     # --- helpers -----------------------------------------------------------------
 
-    def _evidence_for(self, observation_ids: list[UUID]) -> list[UUID]:
-        evidence: list[UUID] = []
+    def _validate_endpoints(self, source_entity_id: UUID, target_entity_id: UUID) -> None:
+        if source_entity_id == target_entity_id:
+            raise ValidationError("A relationship must connect two distinct entities")
+        for entity_id in (source_entity_id, target_entity_id):
+            if self.uow.entities.get(entity_id) is None:
+                raise ValidationError(f"Entity {entity_id} does not exist")
+
+    def _require_approved_observations(
+        self, observation_ids: list[UUID], case_id: UUID | None
+    ) -> UUID | None:
+        if not observation_ids:
+            raise ValidationError("A relationship must reference at least one observation")
+        resolved_case = case_id
         for observation_id in observation_ids:
-            observation = self._observations.get(observation_id)
+            observation = self.uow.observations.get(observation_id)
+            if observation is None:
+                raise ValidationError(f"Supporting observation {observation_id} does not exist")
+            if observation.status is not ReviewStatus.APPROVED:
+                raise ValidationError(
+                    f"Observation {observation_id} is {observation.status.value}; relationships may "
+                    "only cite approved observations"
+                )
+            if resolved_case is None:
+                resolved_case = observation.case_id
+        return resolved_case
+
+    def _enqueue_review(self, relationship: RelationshipRead, rationale: str | None) -> ReviewItemRead:
+        rationale = rationale or (
+            f"{relationship.relationship_type.value}: proposed link supported by "
+            f"{len(relationship.observation_ids)} approved observation(s)."
+        )
+        evidence: list[UUID] = []
+        for observation_id in relationship.observation_ids:
+            observation = self.uow.observations.get(observation_id)
             if observation is not None:
                 evidence.extend(observation.evidence_ids)
-        return evidence
-
-    def _enqueue_review(
-        self, relationship: RelationshipRead, rationale: str | None = None
-    ) -> ReviewItemRead:
-        rationale = rationale or (
-            f"{relationship.relationship_type.value}: proposed link between two entities, "
-            f"supported by {len(relationship.observation_ids)} observation(s)."
-        )
         item = ReviewItemRead(
             id=uuid4(),
             item_type=ReviewItemType.PROPOSED_RELATIONSHIP,
             subject_type="relationship",
             subject_id=relationship.id,
+            case_id=relationship.case_id,
             rationale=rationale,
             confidence=relationship.confidence,
-            evidence_ids=self._evidence_for(relationship.observation_ids),
+            evidence_ids=evidence,
             status=ReviewStatus.PROPOSED,
             decided_by=None,
             decided_at=None,
             created_at=datetime.now(UTC),
         )
-        return self._reviews.add(item)
+        return self.uow.reviews.add(item)
 
     def _project(self, relationship: RelationshipRead) -> None:
-        """Mirror endpoints and the confirmed edge into the graph projection."""
         for entity_id in (relationship.source_entity_id, relationship.target_entity_id):
-            entity = self._entities.get(entity_id)
+            entity = self.uow.entities.get(entity_id)
             if entity is not None:
-                self._graph.upsert_entity(entity.id, entity.entity_type, entity.value)
-        self._graph.upsert_relationship(
+                self.uow.graph.upsert_entity(entity.id, entity.entity_type, entity.value)
+        self.uow.graph.upsert_relationship(
             relationship.id,
             relationship.source_entity_id,
             relationship.target_entity_id,

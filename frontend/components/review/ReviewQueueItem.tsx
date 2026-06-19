@@ -14,7 +14,7 @@ export function ReviewQueueItem({
   item: ReviewItem;
   evidenceById: Map<string, Evidence>;
 }) {
-  const decided = item.status !== "proposed" && item.status !== "needs_review";
+  const decided = item.status !== "proposed" && item.status !== "needs_more_review";
   const evidence = item.evidence_ids
     .map((id) => evidenceById.get(id))
     .filter((e): e is Evidence => Boolean(e));

@@ -19,6 +19,7 @@ class ReviewItemRead(ORCAModel):
     item_type: ReviewItemType
     subject_type: str
     subject_id: UUID
+    case_id: UUID | None
     # Why this was surfaced — always present.
     rationale: str
     confidence: float
@@ -34,7 +35,7 @@ class ReviewDecision(str, Enum):
 
     APPROVE = "approve"
     REJECT = "reject"
-    NEEDS_REVIEW = "needs_review"
+    NEEDS_MORE_REVIEW = "needs_more_review"
 
 
 class ReviewDecisionRequest(ORCAModel):
