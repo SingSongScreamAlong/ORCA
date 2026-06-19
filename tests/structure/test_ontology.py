@@ -15,7 +15,7 @@ CORE_OBJECTS = {
     "observation": "Observation",
     "entity": "Entity",
     "relationship": "Relationship",
-    "evidence": "Evidence",
+    "evidence": "EvidenceItem",  # v0.3 Evidence Locker
     "source": "Source",
     "cluster": "Cluster",
     "case": "Case",

@@ -25,6 +25,14 @@ sequence is the commitment.
 The skeleton is deliberately honest: endpoints and screens exist and are wired to the
 data model, but business logic is minimal and clearly marked.
 
+> **v0.3 status.** The **Evidence Locker + Integrity Layer** advances Phase 1's
+> evidence work: a rich, case-scoped `EvidenceItem` with source attribution and file
+> metadata, **SHA-256 hashing and on-demand verification** over a content store,
+> a `quarantined` status, chain-of-custody audit events for create / link / decide /
+> verify, the cross-case linking guard, and report citations of approved evidence.
+> No scraping, dark-web collection, autonomous hunting, face search, or
+> offender/victim targeting — and no CSAM storage/handling, by design.
+>
 > **v0.2 status.** The **Analyst Loop MVP** delivers a vertical slice across Phases 1–3:
 > case creation, observation intake with source + handling metadata, the observation
 > review queue (approve / reject / needs_more_review), relationships that may only cite

@@ -83,10 +83,24 @@ SYSTEM_PROPOSABLE_RELATIONSHIP_TYPES: frozenset[RelationshipType] = frozenset(
 
 class EvidenceType(str, Enum):
     SCREENSHOT = "screenshot"
-    ARCHIVED_PAGE = "archived_page"
+    DOCUMENT = "document"
     IMAGE = "image"
-    FILE = "file"
-    TEXT = "text"
+    VIDEO = "video"
+    WEB_ARCHIVE = "web_archive"
+    ANALYST_NOTE = "analyst_note"
+    PARTNER_FILE = "partner_file"
+    OTHER = "other"
+
+
+class EvidenceStatus(str, Enum):
+    """Evidence-item lifecycle. Extends the review states with ``quarantined`` for
+    material that must be isolated pending handling decisions."""
+
+    PROPOSED = "proposed"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    NEEDS_MORE_REVIEW = "needs_more_review"
+    QUARANTINED = "quarantined"
 
 
 class SourceType(str, Enum):

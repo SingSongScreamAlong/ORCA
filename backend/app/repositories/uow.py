@@ -26,6 +26,7 @@ class UnitOfWork(Protocol):
     reviews: object
     audit: object
     graph: object
+    content: object  # evidence content store (SHA-256 integrity layer)
 
     def commit(self) -> None: ...
     def rollback(self) -> None: ...
@@ -66,6 +67,9 @@ class InMemoryUnitOfWork:
         self.reviews = MemoryReviewRepository(store)
         self.audit = MemoryAuditRepository(store)
         self.graph = InMemoryGraphRepository()
+        from app.core.content_store import build_content_store
+
+        self.content = build_content_store()
 
     def commit(self) -> None:
         return None

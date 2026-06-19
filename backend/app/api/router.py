@@ -9,6 +9,7 @@ from app.api.routes import (
     clusters,
     dashboard,
     entities,
+    evidence,
     health,
     observations,
     relationships,
@@ -26,5 +27,6 @@ api_router.include_router(entities.router)
 api_router.include_router(relationships.router)
 api_router.include_router(clusters.router)
 api_router.include_router(review.router)
+api_router.include_router(evidence.router)
 api_router.include_router(reports.router)
 api_router.include_router(sources.router)

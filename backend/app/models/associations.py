@@ -30,12 +30,10 @@ def _link(name: str, left: str, left_table: str, right: str, right_table: str) -
     )
 
 
-# An observation references entities and is supported by evidence.
+# An observation references entities. (Evidence links to an observation via
+# EvidenceItem.observation_id — see app/models/evidence.py.)
 observation_entities = _link(
     "observation_entities", "observation_id", "observations", "entity_id", "entities"
-)
-observation_evidence = _link(
-    "observation_evidence", "observation_id", "observations", "evidence_id", "evidence"
 )
 
 # A relationship is supported by observations.

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { GenerateReportButton } from "@/components/cases/GenerateReportButton";
+import { EvidenceLocker } from "@/components/evidence/EvidenceLocker";
 import { ConfidenceBadge, OriginBadge, StatusBadge, Tag } from "@/components/ui/Badges";
 import { Card } from "@/components/ui/Card";
 import { EntityChip } from "@/components/ui/EntityChip";
@@ -10,11 +11,13 @@ import { BackendNotice, EmptyState } from "@/components/ui/States";
 import {
   getCase,
   getCaseAudit,
+  getCaseEvidence,
   getCaseObservations,
   getCaseRelationships,
   getCaseReports,
   getCaseTimeline,
   getEntities,
+  getSources,
 } from "@/lib/api";
 import { formatTimestamp, humanize, shortId } from "@/lib/format";
 import type { Case, CaseCounts, Entity } from "@/lib/types";
@@ -24,6 +27,7 @@ export const dynamic = "force-dynamic";
 const TABS = [
   ["overview", "Overview"],
   ["observations", "Observations"],
+  ["evidence", "Evidence Locker"],
   ["relationships", "Relationships"],
   ["timeline", "Timeline"],
   ["audit", "Audit log"],
@@ -85,6 +89,7 @@ export default async function CaseDetailPage({
 
       {tab === "overview" && <Overview c={c} counts={counts} />}
       {tab === "observations" && <Observations caseId={c.id} />}
+      {tab === "evidence" && <EvidenceTab caseId={c.id} />}
       {tab === "relationships" && <Relationships caseId={c.id} />}
       {tab === "timeline" && <Timeline caseId={c.id} />}
       {tab === "audit" && <Audit caseId={c.id} />}
@@ -212,6 +217,39 @@ async function Relationships({ caseId }: { caseId: string }) {
         </Tr>
       ))}
     </Table>
+  );
+}
+
+async function EvidenceTab({ caseId }: { caseId: string }) {
+  const [evidence, observations, sources] = await Promise.all([
+    getCaseEvidence(caseId),
+    getCaseObservations(caseId),
+    getSources(),
+  ]);
+  if (!evidence.ok) return <BackendNotice error={evidence.error} />;
+
+  const sourceNames: Record<string, string> = {};
+  if (sources.ok) for (const s of sources.data) sourceNames[s.id] = s.name;
+  const observationLabels: Record<string, string> = {};
+  if (observations.ok) {
+    for (const o of observations.data) observationLabels[o.id] = (o.notes ?? o.id).slice(0, 50);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-ink-faint">
+          Metadata, lawful files, and partner-approved workflows only. Verify hashes; decide each item.
+        </p>
+        <Link
+          href={`/evidence/new?case=${caseId}`}
+          className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+        >
+          + Add evidence
+        </Link>
+      </div>
+      <EvidenceLocker items={evidence.data} sources={sourceNames} observations={observationLabels} />
+    </div>
   );
 }
 

@@ -169,28 +169,48 @@ co-occurrence in evidence. `analyst_confirmed` can only be set by a person.
 
 ---
 
-## Evidence
+## Evidence Item (v0.3 — the Evidence Locker)
 
-**Evidence** is a preserved artifact that supports an observation — a screenshot, an
-archived page, an image, a file. Evidence is immutable once stored. Integrity is
-enforced by content hashing (see [`security.md`](security.md)).
+An **Evidence Item** is a case-scoped, auditable record of a piece of evidence:
+metadata, source attribution, an optional link to one observation, legal/handling
+flags, and a SHA-256 integrity hash when bytes are available. Bytes (when held) live
+in the content store, addressed by their hash; the recorded `sha256` is re-hashed on
+verify (see [`security.md`](security.md), [`safety_and_handling.md`](safety_and_handling.md)).
+
+> **v0.3 note.** This replaces the thin v0.1 `Evidence` object. Evidence is created
+> `proposed` and decided (`approve` / `reject` / `needs_more_review` / `quarantine`);
+> reports cite only **approved** evidence under **approved** observations.
 
 ### Properties
 
-| Property        | Type      | Notes                                              |
-| --------------- | --------- | -------------------------------------------------- |
-| `id`            | uuid      | Stable identifier.                                 |
-| `evidence_type` | enum      | `screenshot`, `archived_page`, `image`, `file`, `text`.|
-| `sha256`        | string    | Content hash; the integrity anchor.                |
-| `storage_uri`   | string    | Where the bytes are stored (object store / path).  |
-| `content_type`  | string    | MIME type.                                         |
-| `captured_at`   | datetime  | When the artifact was captured.                    |
-| `source_id`     | uuid      | The `Source` it was captured from.                 |
-| `description`   | text      | Optional analyst description.                       |
+| Property            | Type      | Notes                                                  |
+| ------------------- | --------- | ------------------------------------------------------ |
+| `id`                | uuid      | The evidence id.                                       |
+| `case_id`           | uuid      | The owning `Case`.                                     |
+| `source_id`         | uuid      | The `Source` it is attributed to.                      |
+| `observation_id`    | uuid?     | Optional link to one `Observation` (same case only).   |
+| `title`             | string    | Human-readable title.                                  |
+| `description`       | text      | Optional description.                                  |
+| `evidence_type`     | enum      | `screenshot`, `document`, `image`, `video`, `web_archive`, `analyst_note`, `partner_file`, `other`.|
+| `storage_uri`       | string?   | Content reference (`orca-content://<sha256>` or external).|
+| `original_filename` | string?   | Original filename, if any.                             |
+| `mime_type`         | string?   | MIME type.                                             |
+| `size_bytes`        | int?      | Size of the bytes, if known.                           |
+| `sha256`            | string?   | Integrity anchor; re-hashed on verify.                 |
+| `captured_at`       | datetime? | When captured.                                         |
+| `captured_by`       | string?   | Who captured it.                                       |
+| `access_method`     | string    | How it reached ORCA (e.g. `manual_upload`, `partner_transfer`).|
+| `legal_flags`       | object    | `lawful_basis` / `requires_legal_review` / `sensitive` / `partner_approved`.|
+| `handling_notes`    | text?     | Handling notes.                                        |
+| `status`            | enum      | `proposed` / `approved` / `rejected` / `needs_more_review` / `quarantined`.|
+| `has_bytes`         | bool      | Whether ORCA holds the bytes (so the hash can be re-verified).|
+| `created_by`        | string    | Who created the record.                                |
 
 ### Relationships
 
-- `supports_observation` → `Observation`.
+- `in_case` → `Case`.
+- `attributed_to` → `Source`.
+- `supports` → `Observation` (optional; same case only).
 
 ---
 

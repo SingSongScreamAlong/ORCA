@@ -2,7 +2,7 @@ import { ReviewQueueItem } from "@/components/review/ReviewQueueItem";
 import { BackendNotice, EmptyState } from "@/components/ui/States";
 import { PageIntro } from "@/components/ui/PageIntro";
 import { getEvidenceList, getReviewQueue } from "@/lib/api";
-import type { Evidence } from "@/lib/types";
+import type { EvidenceItem } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ export default async function ReviewPage() {
     );
   }
 
-  const evidenceById = new Map<string, Evidence>(
+  const evidenceById = new Map<string, EvidenceItem>(
     evidence.ok ? evidence.data.map((e) => [e.id, e]) : [],
   );
 

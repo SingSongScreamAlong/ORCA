@@ -41,6 +41,35 @@ possess — including CSAM:
 ORCA is **not** a reporting authority and is **not** monitored for emergencies. Report
 urgent or illegal material through authorized channels.
 
+## The Evidence Locker (v0.3)
+
+The Evidence Locker stores **metadata, lawful files, and partner-approved workflows
+only**. Before adding any evidence item, the intake form requires acknowledgement that:
+
+- **Do not upload or store CSAM.**
+- **Do not upload illegally obtained material.**
+- **Do not store private/personal material unless authorized.**
+- **Urgent or illegal content must be reported through authorized channels.**
+
+How the locker keeps evidence safe and accountable:
+
+- **Integrity.** When lawful bytes are provided, ORCA computes a SHA-256 and stores the
+  bytes content-addressed by that hash. A *verify* re-hashes the bytes and reports any
+  mismatch. Partner files may instead carry a precomputed hash (then ORCA records but
+  cannot re-verify it).
+- **Provenance.** Every item is attributed to a `Source`, carries an `access_method`,
+  and records who created it and when.
+- **Scope.** An item belongs to exactly one case and may only be linked to an
+  observation **in the same case** — evidence cannot be linked across unrelated cases.
+- **Chain-of-custody audit.** Every create, link, status change (approve / reject /
+  needs_more_review / **quarantine**), and verify is written to the append-only audit
+  log.
+- **Quarantine.** An item that must be isolated pending a handling decision can be
+  marked `quarantined`; quarantined and rejected evidence is excluded from reports.
+
+ORCA does not implement upload of binary files in v0.3 beyond lawful text/inline
+content for hashing; it never inspects, renders, or transmits content.
+
 ## Legal & handling flags (v0.2 placeholders)
 
 Every observation carries lightweight legal/handling metadata so provenance and care

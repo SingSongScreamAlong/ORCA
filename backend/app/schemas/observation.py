@@ -28,7 +28,6 @@ class ObservationCreate(ORCAModel):
     notes: str | None = None
     confidence: ConfidenceScore = 0.0
     entity_ids: list[UUID] = Field(default_factory=list, description="Entities referenced.")
-    evidence_ids: list[UUID] = Field(default_factory=list, description="Supporting evidence.")
     handling: Handling = Field(default_factory=Handling, description="Legal/handling metadata.")
 
     @model_validator(mode="after")
@@ -49,7 +48,6 @@ class ObservationRead(ORCAModel):
     confidence: float
     status: ReviewStatus
     entity_ids: list[UUID]
-    evidence_ids: list[UUID]
     handling: Handling
     decided_by: str | None
     decided_at: datetime | None

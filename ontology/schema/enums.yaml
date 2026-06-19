@@ -62,12 +62,25 @@ relationship_type:
     - analyst_confirmed
 
 evidence_type:
+  description: Kind of evidence item (v0.3 Evidence Locker).
   values:
     - screenshot
-    - archived_page
+    - document
     - image
-    - file
-    - text
+    - video
+    - web_archive
+    - analyst_note
+    - partner_file
+    - other
+
+evidence_status:
+  description: Evidence-item lifecycle (v0.3). Adds 'quarantined' to the review states.
+  values:
+    - proposed
+    - approved
+    - rejected
+    - needs_more_review
+    - quarantined
 
 source_type:
   values:

@@ -94,13 +94,31 @@ def test_full_loop_against_postgres(pg_client):
     )
     assert rel.status_code == 201
 
+    # Evidence locker: create (hashed), link, verify, approve — all persisted.
+    ev = c.post(
+        f"{PREFIX}/evidence",
+        json={
+            "case_id": cid, "source_id": obs["source_id"], "title": "PG-EVIDENCE",
+            "evidence_type": "analyst_note", "content_text": "pg evidence bytes",
+        },
+    ).json()
+    assert ev["sha256"] and ev["has_bytes"] is True
+    assert c.post(f"{PREFIX}/evidence/{ev['id']}/link", json={"observation_id": obs["id"]}).status_code == 200
+    assert c.post(f"{PREFIX}/evidence/{ev['id']}/verify").json()["verified"] is True
+    c.post(f"{PREFIX}/evidence/{ev['id']}/decision", json={"decision": "approve"})
+    assert any(e["title"] == "PG-EVIDENCE" for e in c.get(f"{PREFIX}/cases/{cid}/evidence").json())
+
     # Timeline, report, and audit all reflect the persisted state.
     timeline = c.get(f"{PREFIX}/cases/{cid}/timeline").json()
     assert any(e["kind"] == "observation_approved" for e in timeline)
 
     report = c.post(f"{PREFIX}/cases/{cid}/report").json()
     assert "PG-LOOP" in report["body"]
+    assert "PG-EVIDENCE" in report["body"]  # approved evidence cited
 
     actions = [e["action"] for e in c.get(f"{PREFIX}/cases/{cid}/audit").json()]
-    for expected in ("case.created", "observation.intake", "review.approve", "relationship.created"):
+    for expected in (
+        "case.created", "observation.intake", "review.approve", "relationship.created",
+        "evidence.created", "evidence.linked", "evidence.verified", "evidence.approve",
+    ):
         assert expected in actions

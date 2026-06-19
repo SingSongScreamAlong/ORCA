@@ -1,7 +1,7 @@
 import { ConfidenceBadge, StatusBadge, Tag } from "@/components/ui/Badges";
 import { ReviewActions } from "@/components/review/ReviewActions";
 import { formatTimestamp, humanize, shortId } from "@/lib/format";
-import type { Evidence, ReviewItem } from "@/lib/types";
+import type { EvidenceItem, ReviewItem } from "@/lib/types";
 
 /**
  * One review-queue item. Every item shows the four things an analyst needs to decide:
@@ -12,12 +12,12 @@ export function ReviewQueueItem({
   evidenceById,
 }: {
   item: ReviewItem;
-  evidenceById: Map<string, Evidence>;
+  evidenceById: Map<string, EvidenceItem>;
 }) {
   const decided = item.status !== "proposed" && item.status !== "needs_more_review";
   const evidence = item.evidence_ids
     .map((id) => evidenceById.get(id))
-    .filter((e): e is Evidence => Boolean(e));
+    .filter((e): e is EvidenceItem => Boolean(e));
 
   return (
     <article className="card">
@@ -47,8 +47,10 @@ export function ReviewQueueItem({
                 {evidence.map((e) => (
                   <li key={e.id} className="flex items-center gap-2 text-sm">
                     <Tag>{humanize(e.evidence_type)}</Tag>
-                    <span className="mono text-ink-muted">{e.sha256.slice(0, 12)}…</span>
-                    <span className="text-ink-faint">{e.description ?? e.storage_uri}</span>
+                    <span className="text-ink">{e.title}</span>
+                    {e.sha256 && (
+                      <span className="mono text-ink-faint">sha256:{e.sha256.slice(0, 12)}…</span>
+                    )}
                   </li>
                 ))}
               </ul>

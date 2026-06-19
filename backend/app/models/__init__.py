@@ -10,7 +10,7 @@ from app.models.base import Base
 from app.models.case import Case
 from app.models.cluster import Cluster
 from app.models.entity import Entity
-from app.models.evidence import Evidence
+from app.models.evidence import EvidenceItem
 from app.models.observation import Observation
 from app.models.relationship import Relationship
 from app.models.report import Report
@@ -23,7 +23,7 @@ __all__ = [
     "Case",
     "Cluster",
     "Entity",
-    "Evidence",
+    "EvidenceItem",
     "Observation",
     "Relationship",
     "Report",

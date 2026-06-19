@@ -32,6 +32,25 @@ export type RelationshipType =
 export type SourceType = "website" | "dataset" | "manual_upload" | "tip" | "document";
 export type SourceReliability = "unknown" | "low" | "medium" | "high";
 
+export type EvidenceType =
+  | "screenshot"
+  | "document"
+  | "image"
+  | "video"
+  | "web_archive"
+  | "analyst_note"
+  | "partner_file"
+  | "other";
+
+export type EvidenceStatus =
+  | "proposed"
+  | "approved"
+  | "rejected"
+  | "needs_more_review"
+  | "quarantined";
+
+export type EvidenceDecision = "approve" | "reject" | "needs_more_review" | "quarantine";
+
 export type ReviewItemType =
   | "proposed_observation"
   | "proposed_relationship"
@@ -58,7 +77,6 @@ export interface Observation {
   confidence: number;
   status: ReviewStatus;
   entity_ids: string[];
-  evidence_ids: string[];
   handling: Handling;
   decided_by: string | null;
   decided_at: string | null;
@@ -181,16 +199,44 @@ export interface Source {
   created_at: string;
 }
 
-export interface Evidence {
+export interface LegalFlags {
+  lawful_basis: string | null;
+  requires_legal_review: boolean;
+  sensitive: boolean;
+  partner_approved: boolean;
+}
+
+export interface EvidenceItem {
   id: string;
-  evidence_type: string;
-  sha256: string;
-  storage_uri: string;
-  content_type: string | null;
-  captured_at: string;
-  source_id: string | null;
+  case_id: string;
+  source_id: string;
+  observation_id: string | null;
+  title: string;
   description: string | null;
+  evidence_type: EvidenceType;
+  storage_uri: string | null;
+  original_filename: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  sha256: string | null;
+  captured_at: string | null;
+  captured_by: string | null;
+  access_method: string;
+  legal_flags: LegalFlags;
+  handling_notes: string | null;
+  status: EvidenceStatus;
+  has_bytes: boolean;
+  created_by: string;
   created_at: string;
+}
+
+export interface EvidenceVerifyResult {
+  evidence_id: string;
+  has_bytes: boolean;
+  recorded_sha256: string | null;
+  computed_sha256: string | null;
+  verified: boolean | null;
+  message: string;
 }
 
 export interface DashboardSummary {

@@ -12,7 +12,9 @@ import type {
   Cluster,
   DashboardSummary,
   Entity,
-  Evidence,
+  EvidenceDecision,
+  EvidenceItem,
+  EvidenceVerifyResult,
   Observation,
   Relationship,
   ReviewDecision,
@@ -79,7 +81,8 @@ export const getClusters = () => apiGet<Cluster[]>("/clusters");
 export const getReviewQueue = (status = "proposed") =>
   apiGet<ReviewItem[]>(`/review?status=${status}`);
 export const getSources = () => apiGet<Source[]>("/sources");
-export const getEvidenceList = () => apiGet<Evidence[]>("/evidence");
+export const getEvidenceList = () => apiGet<EvidenceItem[]>("/evidence");
+export const getCaseEvidence = (id: string) => apiGet<EvidenceItem[]>(`/cases/${id}/evidence`);
 
 export const getCases = () => apiGet<Case[]>("/cases");
 export const getCase = (id: string) => apiGet<CaseDetail>(`/cases/${id}`);
@@ -118,6 +121,38 @@ export const createRelationship = (body: {
   observation_ids: string[];
 }) => apiSend<Relationship>("/relationships", "POST", body);
 
+export interface EvidenceCreateBody {
+  case_id: string;
+  source_id: string;
+  observation_id?: string;
+  title: string;
+  description?: string;
+  evidence_type: string;
+  storage_uri?: string;
+  original_filename?: string;
+  mime_type?: string;
+  sha256?: string;
+  captured_by?: string;
+  access_method?: string;
+  legal_flags?: {
+    lawful_basis?: string;
+    requires_legal_review?: boolean;
+    sensitive?: boolean;
+    partner_approved?: boolean;
+  };
+  handling_notes?: string;
+  content_text?: string;
+}
+
+export const createEvidence = (body: EvidenceCreateBody) =>
+  apiSend<EvidenceItem>("/evidence", "POST", body);
+
+export const decideEvidence = (evidenceId: string, decision: EvidenceDecision, note?: string) =>
+  apiSend<EvidenceItem>(`/evidence/${evidenceId}/decision`, "POST", { decision, note });
+
+export const verifyEvidence = (evidenceId: string) =>
+  apiSend<EvidenceVerifyResult>(`/evidence/${evidenceId}/verify`, "POST", {});
+
 export interface IntakeBody {
   case_id?: string;
   timestamp: string;
@@ -134,7 +169,6 @@ export interface IntakeBody {
   notes?: string;
   confidence: number;
   entity_ids: string[];
-  evidence_ids: string[];
   handling: {
     lawful_basis?: string;
     requires_legal_review: boolean;

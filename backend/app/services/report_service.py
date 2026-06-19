@@ -12,7 +12,7 @@ from uuid import UUID, uuid4
 
 from app.core.audit import new_audit_entry
 from app.core.security import Principal
-from app.models.enums import ReportStatus, ReviewStatus
+from app.models.enums import EvidenceStatus, ReportStatus, ReviewStatus
 from app.repositories.uow import UnitOfWork
 from app.schemas.report import ReportRead
 from app.services.errors import NotFoundError
@@ -102,6 +102,7 @@ class ReportService:
             lines.append(f"- **Legal / handling:** {case.legal_notes}")
         lines.append("")
 
+        cited_evidence = 0
         lines.append(f"## Approved observations ({len(observations)})")
         if not observations:
             lines.append("_No approved observations yet._")
@@ -112,6 +113,17 @@ class ReportService:
                 f"- `{str(o.id)[:8]}` {o.timestamp.date()} — {o.notes or '(no notes)'} "
                 f"(source: {source_name}; confidence {o.confidence:.0%})"
             )
+            # Cite only APPROVED evidence linked to this observation (excludes
+            # proposed / rejected / quarantined / needs_more_review).
+            for ev in self.uow.evidence.for_observation(o.id):
+                if ev.status is not EvidenceStatus.APPROVED:
+                    continue
+                cited_evidence += 1
+                digest = f"sha256:{ev.sha256[:16]}…" if ev.sha256 else "no hash"
+                lines.append(
+                    f"    - evidence `{str(ev.id)[:8]}` **{ev.title}** "
+                    f"[{ev.evidence_type.value}] ({digest})"
+                )
         lines.append("")
 
         lines.append(f"## Relationships ({len(relationships)})")
@@ -128,6 +140,7 @@ class ReportService:
         flagged = sum(1 for o in observations if o.handling.requires_legal_review)
         sensitive = sum(1 for o in observations if o.handling.sensitive)
         lines.append("## Handling")
+        lines.append(f"- Approved evidence items cited: {cited_evidence}")
         lines.append(f"- Observations flagged for legal review: {flagged}")
         lines.append(f"- Observations marked sensitive: {sensitive}")
         lines.append("")

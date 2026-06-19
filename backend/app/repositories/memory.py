@@ -16,7 +16,7 @@ from app.repositories.store import InMemoryStore
 from app.schemas.case import CaseRead
 from app.schemas.cluster import ClusterRead
 from app.schemas.entity import EntityRead
-from app.schemas.evidence import EvidenceRead
+from app.schemas.evidence import EvidenceItemRead
 from app.schemas.observation import ObservationRead
 from app.schemas.relationship import RelationshipRead
 from app.schemas.report import ReportRead
@@ -42,13 +42,25 @@ class MemorySourceRepository(_Base):
 
 
 class MemoryEvidenceRepository(_Base):
-    def get(self, evidence_id: UUID) -> EvidenceRead | None:
+    def get(self, evidence_id: UUID) -> EvidenceItemRead | None:
         return self._store.evidence.get(evidence_id)
 
-    def list(self, *, limit: int = 50, offset: int = 0) -> list[EvidenceRead]:
+    def list(self, *, limit: int = 50, offset: int = 0) -> list[EvidenceItemRead]:
         return paginate(newest_first(self._store.evidence.values()), limit=limit, offset=offset)
 
-    def add(self, evidence: EvidenceRead) -> EvidenceRead:
+    def for_case(self, case_id: UUID) -> list[EvidenceItemRead]:
+        return newest_first(e for e in self._store.evidence.values() if e.case_id == case_id)
+
+    def for_observation(self, observation_id: UUID) -> list[EvidenceItemRead]:
+        return newest_first(
+            e for e in self._store.evidence.values() if e.observation_id == observation_id
+        )
+
+    def add(self, evidence: EvidenceItemRead) -> EvidenceItemRead:
+        self._store.evidence[evidence.id] = evidence
+        return evidence
+
+    def replace(self, evidence: EvidenceItemRead) -> EvidenceItemRead:
         self._store.evidence[evidence.id] = evidence
         return evidence
 

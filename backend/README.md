@@ -11,6 +11,12 @@ audited analyst decision.
 > production PostgreSQL persistence path (SQLAlchemy unit of work + Alembic). See
 > [`../docs/v0.2_analyst_loop.md`](../docs/v0.2_analyst_loop.md). The data access layer
 > is selected by `ORCA_STORAGE_BACKEND` (`memory` default, `postgres` for the DB path).
+>
+> **v0.3 — Evidence Locker + Integrity Layer.** Adds the `EvidenceItem` model, a
+> content store (`app/core/content_store.py`) that computes/verifies SHA-256, evidence
+> create/link/decide/verify endpoints under `/evidence`, the cross-case linking guard,
+> a `quarantined` status, chain-of-custody audit events, and report citations of
+> approved evidence. See [`../docs/v0.3_evidence_locker.md`](../docs/v0.3_evidence_locker.md).
 
 ## Layout
 

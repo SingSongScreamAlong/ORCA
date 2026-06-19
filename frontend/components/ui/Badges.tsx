@@ -1,5 +1,5 @@
 import { confidenceBand, confidencePercent, humanize } from "@/lib/format";
-import type { Origin, ReviewStatus } from "@/lib/types";
+import type { EvidenceStatus, Origin, ReviewStatus } from "@/lib/types";
 
 /** Confidence shown as a band, percentage, and a calm color — never alarmist. */
 export function ConfidenceBadge({ value }: { value: number }) {
@@ -30,6 +30,24 @@ export function StatusBadge({ status }: { status: ReviewStatus }) {
   return (
     <span
       className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_STYLE[status]}`}
+    >
+      {humanize(status)}
+    </span>
+  );
+}
+
+const EVIDENCE_STATUS_STYLE: Record<EvidenceStatus, string> = {
+  proposed: "bg-amber-50 text-amber-700 ring-amber-200",
+  approved: "bg-green-50 text-green-700 ring-green-200",
+  rejected: "bg-slate-100 text-slate-500 ring-slate-200",
+  needs_more_review: "bg-sky-50 text-sky-700 ring-sky-200",
+  quarantined: "bg-rose-50 text-rose-700 ring-rose-200",
+};
+
+export function EvidenceStatusBadge({ status }: { status: EvidenceStatus }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${EVIDENCE_STATUS_STYLE[status]}`}
     >
       {humanize(status)}
     </span>

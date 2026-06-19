@@ -171,9 +171,8 @@ class RelationshipService:
         )
         evidence: list[UUID] = []
         for observation_id in relationship.observation_ids:
-            observation = self.uow.observations.get(observation_id)
-            if observation is not None:
-                evidence.extend(observation.evidence_ids)
+            for item in self.uow.evidence.for_observation(observation_id):
+                evidence.append(item.id)
         item = ReviewItemRead(
             id=uuid4(),
             item_type=ReviewItemType.PROPOSED_RELATIONSHIP,

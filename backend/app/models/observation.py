@@ -15,7 +15,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.associations import observation_entities, observation_evidence
+from app.models.associations import observation_entities
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKey
 from app.models.enums import ReviewStatus
 from app.models.types import pg_enum
@@ -48,4 +48,5 @@ class Observation(UUIDPrimaryKey, TimestampMixin, Base):
     handling: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
     entities = relationship("Entity", secondary=observation_entities, backref="observations")
-    evidence = relationship("Evidence", secondary=observation_evidence, backref="observations")
+    # Evidence links to an observation via EvidenceItem.observation_id (one-to-many).
+    evidence_items = relationship("EvidenceItem", backref="observation")

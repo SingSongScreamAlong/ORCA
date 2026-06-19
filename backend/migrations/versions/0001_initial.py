@@ -28,7 +28,12 @@ source_reliability = postgresql.ENUM(
     "unknown", "low", "medium", "high", name="source_reliability", create_type=False
 )
 evidence_type = postgresql.ENUM(
-    "screenshot", "archived_page", "image", "file", "text", name="evidence_type", create_type=False
+    "screenshot", "document", "image", "video", "web_archive", "analyst_note", "partner_file", "other",
+    name="evidence_type", create_type=False,
+)
+evidence_status = postgresql.ENUM(
+    "proposed", "approved", "rejected", "needs_more_review", "quarantined",
+    name="evidence_status", create_type=False,
 )
 entity_type = postgresql.ENUM(
     "phone_number", "alias", "account", "username", "location", "vehicle", "image",
@@ -59,7 +64,7 @@ review_item_type = postgresql.ENUM(
 )
 
 _ALL_ENUMS = [
-    source_type, source_reliability, evidence_type, entity_type, relationship_type,
+    source_type, source_reliability, evidence_type, evidence_status, entity_type, relationship_type,
     origin, review_status, cluster_status, case_status, report_status, review_item_type,
 ]
 
@@ -84,21 +89,6 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
     )
-
-    op.create_table(
-        "evidence",
-        sa.Column("id", _uuid(), primary_key=True),
-        sa.Column("evidence_type", evidence_type, nullable=False),
-        sa.Column("sha256", sa.String(64), nullable=False),
-        sa.Column("storage_uri", sa.String(2048), nullable=False),
-        sa.Column("content_type", sa.String(255), nullable=True),
-        sa.Column("captured_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("source_id", _uuid(), sa.ForeignKey("sources.id"), nullable=True),
-        sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-    )
-    op.create_index("ix_evidence_sha256", "evidence", ["sha256"])
 
     op.create_table(
         "entities",
@@ -144,6 +134,35 @@ def upgrade() -> None:
     )
     op.create_index("ix_observations_case", "observations", ["case_id"])
     op.create_index("ix_observations_status", "observations", ["status"])
+
+    op.create_table(
+        "evidence_items",
+        sa.Column("id", _uuid(), primary_key=True),
+        sa.Column("case_id", _uuid(), sa.ForeignKey("cases.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("source_id", _uuid(), sa.ForeignKey("sources.id"), nullable=False),
+        sa.Column("observation_id", _uuid(), sa.ForeignKey("observations.id", ondelete="SET NULL"), nullable=True),
+        sa.Column("title", sa.String(512), nullable=False),
+        sa.Column("description", sa.Text(), nullable=True),
+        sa.Column("evidence_type", evidence_type, nullable=False),
+        sa.Column("storage_uri", sa.String(2048), nullable=True),
+        sa.Column("original_filename", sa.String(1024), nullable=True),
+        sa.Column("mime_type", sa.String(255), nullable=True),
+        sa.Column("size_bytes", sa.BigInteger(), nullable=True),
+        sa.Column("sha256", sa.String(64), nullable=True),
+        sa.Column("captured_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("captured_by", sa.String(255), nullable=True),
+        sa.Column("access_method", sa.String(64), nullable=False, server_default="manual_upload"),
+        sa.Column("legal_flags", postgresql.JSONB(), nullable=False, server_default="{}"),
+        sa.Column("handling_notes", sa.Text(), nullable=True),
+        sa.Column("status", evidence_status, nullable=False, server_default="proposed"),
+        sa.Column("has_bytes", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column("created_by", sa.String(255), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    )
+    op.create_index("ix_evidence_items_case", "evidence_items", ["case_id"])
+    op.create_index("ix_evidence_items_observation", "evidence_items", ["observation_id"])
+    op.create_index("ix_evidence_items_sha256", "evidence_items", ["sha256"])
 
     op.create_table(
         "relationships",
@@ -221,11 +240,6 @@ def upgrade() -> None:
         sa.Column("entity_id", _uuid(), sa.ForeignKey("entities.id", ondelete="CASCADE"), primary_key=True),
     )
     op.create_table(
-        "observation_evidence",
-        sa.Column("observation_id", _uuid(), sa.ForeignKey("observations.id", ondelete="CASCADE"), primary_key=True),
-        sa.Column("evidence_id", _uuid(), sa.ForeignKey("evidence.id", ondelete="CASCADE"), primary_key=True),
-    )
-    op.create_table(
         "relationship_observations",
         sa.Column("relationship_id", _uuid(), sa.ForeignKey("relationships.id", ondelete="CASCADE"), primary_key=True),
         sa.Column("observation_id", _uuid(), sa.ForeignKey("observations.id", ondelete="CASCADE"), primary_key=True),
@@ -263,10 +277,10 @@ def downgrade() -> None:
     for table in (
         "case_clusters", "case_entities", "case_observations",
         "cluster_observations", "cluster_entities", "relationship_observations",
-        "observation_evidence", "observation_entities",
-        "audit_log", "review_items", "reports",
+        "observation_entities",
+        "audit_log", "review_items", "reports", "evidence_items",
         "relationships", "observations", "clusters", "cases",
-        "entities", "evidence", "sources",
+        "entities", "sources",
     ):
         op.drop_table(table)
 

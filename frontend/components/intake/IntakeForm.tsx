@@ -69,7 +69,6 @@ export function IntakeForm({ cases, defaultCaseId }: { cases: Case[]; defaultCas
       notes: notes || undefined,
       confidence,
       entity_ids: entityIds,
-      evidence_ids: [],
       handling: {
         lawful_basis: lawfulBasis || undefined,
         requires_legal_review: requiresLegalReview,

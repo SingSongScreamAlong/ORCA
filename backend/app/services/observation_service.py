@@ -50,9 +50,6 @@ class ObservationService:
         for entity_id in payload.entity_ids:
             if self.uow.entities.get(entity_id) is None:
                 raise ValidationError(f"Referenced entity {entity_id} does not exist")
-        for evidence_id in payload.evidence_ids:
-            if self.uow.evidence.get(evidence_id) is None:
-                raise ValidationError(f"Referenced evidence {evidence_id} does not exist")
 
         observation = ObservationRead(
             id=uuid4(),
@@ -65,7 +62,6 @@ class ObservationService:
             confidence=payload.confidence,
             status=ReviewStatus.PROPOSED,
             entity_ids=list(payload.entity_ids),
-            evidence_ids=list(payload.evidence_ids),
             handling=payload.handling,
             decided_by=None,
             decided_at=None,
@@ -121,7 +117,7 @@ class ObservationService:
             case_id=observation.case_id,
             rationale=rationale,
             confidence=observation.confidence,
-            evidence_ids=list(observation.evidence_ids),
+            evidence_ids=[],  # evidence is added to the locker and linked separately (v0.3)
             status=ReviewStatus.PROPOSED,
             decided_by=None,
             decided_at=None,

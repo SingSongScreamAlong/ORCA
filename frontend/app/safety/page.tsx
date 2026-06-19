@@ -54,6 +54,18 @@ export default function SafetyPage() {
         </div>
       </Card>
 
+      <Card title="The Evidence Locker">
+        <p className="text-sm text-ink-muted">
+          The Evidence Locker stores metadata, lawful files, and partner-approved workflows only.
+          Adding an item requires acknowledging the boundaries above. Evidence is attributed to a
+          source, scoped to a single case (and can only link to observations in that case), and
+          every create, link, status change, and hash verification is written to the append-only
+          audit log. Lawful content is hashed with SHA-256 and can be re-verified; material that
+          must be isolated can be <span className="font-medium text-ink">quarantined</span> and is
+          then excluded from reports.
+        </p>
+      </Card>
+
       <Card title="Handling flags on every observation">
         <p className="text-sm text-ink-muted">
           Each observation carries legal/handling metadata so provenance and care are explicit:

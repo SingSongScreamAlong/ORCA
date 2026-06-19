@@ -13,7 +13,9 @@ BEGIN;
 
 CREATE TYPE source_type        AS ENUM ('website', 'dataset', 'manual_upload', 'tip', 'document');
 CREATE TYPE source_reliability AS ENUM ('unknown', 'low', 'medium', 'high');
-CREATE TYPE evidence_type      AS ENUM ('screenshot', 'archived_page', 'image', 'file', 'text');
+CREATE TYPE evidence_type      AS ENUM ('screenshot', 'document', 'image', 'video', 'web_archive',
+                                        'analyst_note', 'partner_file', 'other');
+CREATE TYPE evidence_status    AS ENUM ('proposed', 'approved', 'rejected', 'needs_more_review', 'quarantined');
 CREATE TYPE entity_type        AS ENUM ('phone_number', 'alias', 'account', 'username',
                                         'location', 'vehicle', 'image', 'advertisement', 'tattoo_marker');
 CREATE TYPE relationship_type  AS ENUM ('shared_phone', 'shared_image', 'shared_location',
@@ -39,20 +41,6 @@ CREATE TABLE sources (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
-CREATE TABLE evidence (
-    id           UUID PRIMARY KEY,
-    evidence_type evidence_type NOT NULL,
-    sha256       VARCHAR(64) NOT NULL,          -- integrity anchor; verified on read
-    storage_uri  VARCHAR(2048) NOT NULL,
-    content_type VARCHAR(255),
-    captured_at  TIMESTAMPTZ NOT NULL,
-    source_id    UUID REFERENCES sources(id),
-    description  TEXT,
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX ix_evidence_sha256 ON evidence (sha256);
 
 CREATE TABLE entities (
     id          UUID PRIMARY KEY,
@@ -95,6 +83,35 @@ CREATE TABLE observations (
 );
 CREATE INDEX ix_observations_case ON observations (case_id);
 CREATE INDEX ix_observations_status ON observations (status);
+
+-- Evidence Locker (v0.3). Bytes (when held) live in the content store, keyed by sha256.
+CREATE TABLE evidence_items (
+    id                UUID PRIMARY KEY,
+    case_id           UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    source_id         UUID NOT NULL REFERENCES sources(id),
+    observation_id    UUID REFERENCES observations(id) ON DELETE SET NULL,
+    title             VARCHAR(512) NOT NULL,
+    description       TEXT,
+    evidence_type     evidence_type NOT NULL,
+    storage_uri       VARCHAR(2048),
+    original_filename VARCHAR(1024),
+    mime_type         VARCHAR(255),
+    size_bytes        BIGINT,
+    sha256            VARCHAR(64),                 -- integrity anchor; re-hashed on verify
+    captured_at       TIMESTAMPTZ,
+    captured_by       VARCHAR(255),
+    access_method     VARCHAR(64) NOT NULL DEFAULT 'manual_upload',
+    legal_flags       JSONB NOT NULL DEFAULT '{}',
+    handling_notes    TEXT,
+    status            evidence_status NOT NULL DEFAULT 'proposed',
+    has_bytes         BOOLEAN NOT NULL DEFAULT false,
+    created_by        VARCHAR(255) NOT NULL,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_evidence_items_case ON evidence_items (case_id);
+CREATE INDEX ix_evidence_items_observation ON evidence_items (observation_id);
+CREATE INDEX ix_evidence_items_sha256 ON evidence_items (sha256);
 
 CREATE TABLE relationships (
     id                UUID PRIMARY KEY,
@@ -169,12 +186,6 @@ CREATE TABLE observation_entities (
     observation_id UUID NOT NULL REFERENCES observations(id) ON DELETE CASCADE,
     entity_id      UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
     PRIMARY KEY (observation_id, entity_id)
-);
-
-CREATE TABLE observation_evidence (
-    observation_id UUID NOT NULL REFERENCES observations(id) ON DELETE CASCADE,
-    evidence_id    UUID NOT NULL REFERENCES evidence(id) ON DELETE CASCADE,
-    PRIMARY KEY (observation_id, evidence_id)
 );
 
 CREATE TABLE relationship_observations (

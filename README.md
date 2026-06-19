@@ -72,6 +72,7 @@ These principles are not decoration. They are encoded in the data model (see
 | [Security](docs/security.md)                         | Access control, evidence integrity, audit, encryption. |
 | [Safety & Handling](docs/safety_and_handling.md)     | Boundaries: lawful, analyst-controlled, human-reviewed.|
 | [v0.2 Analyst Loop](docs/v0.2_analyst_loop.md)       | The end-to-end intake → review → report loop.          |
+| [v0.3 Evidence Locker](docs/v0.3_evidence_locker.md) | Evidence items, SHA-256 integrity, chain-of-custody.   |
 | [Roadmap](docs/roadmap.md)                            | Phased delivery, starting from this skeleton.          |
 
 ---
@@ -79,10 +80,14 @@ These principles are not decoration. They are encoded in the data model (see
 ## Status
 
 - **v0.1 — skeleton.** Structure, data model, API surface, and analyst screens.
-- **v0.2 — Analyst Loop MVP (current).** One complete, auditable loop: case → observation
+- **v0.2 — Analyst Loop MVP.** One complete, auditable loop: case → observation
   intake → review queue → approval → relationship (citing approved evidence) →
   timeline/audit → draft report. PostgreSQL persistence path is implemented and
   integration-tested. See [`docs/v0.2_analyst_loop.md`](docs/v0.2_analyst_loop.md).
+- **v0.3 — Evidence Locker + Integrity Layer (current).** Case-scoped evidence items
+  with source attribution, file metadata, **SHA-256 hashing + verification**,
+  quarantine, chain-of-custody audit events, and report citations. See
+  [`docs/v0.3_evidence_locker.md`](docs/v0.3_evidence_locker.md).
 
 Collection ("Hunting Grounds") remains an interface only — no collection logic, no
 scraping, no autonomous hunting. ORCA stays evidence-first, lawful, and analyst-controlled

@@ -16,11 +16,13 @@ from app.models.enums import ReviewStatus
 from app.repositories.uow import UnitOfWork
 from app.schemas.audit import AuditEntryRead
 from app.schemas.case import CaseCreate, CaseDetail, CaseRead
+from app.schemas.evidence import EvidenceItemRead
 from app.schemas.observation import ObservationRead
 from app.schemas.relationship import RelationshipRead
 from app.schemas.report import ReportRead
 from app.schemas.timeline import TimelineEvent
 from app.services.case_service import CaseService
+from app.services.evidence_service import EvidenceService
 from app.services.observation_service import ObservationService
 from app.services.relationship_service import RelationshipService
 from app.services.report_service import ReportService
@@ -70,6 +72,15 @@ def case_observations(
 def case_relationships(case_id: UUID, uow: UnitOfWork = Depends(get_uow)) -> list[RelationshipRead]:
     CaseService(uow).get(case_id)
     return RelationshipService(uow).list(case_id=case_id, limit=1000)
+
+
+@router.get(
+    "/{case_id}/evidence",
+    response_model=list[EvidenceItemRead],
+    summary="Evidence items in a case (the evidence locker)",
+)
+def case_evidence(case_id: UUID, uow: UnitOfWork = Depends(get_uow)) -> list[EvidenceItemRead]:
+    return EvidenceService(uow).list_for_case(case_id)
 
 
 @router.get("/{case_id}/timeline", response_model=list[TimelineEvent], summary="Case timeline")

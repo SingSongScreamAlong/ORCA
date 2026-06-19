@@ -20,7 +20,7 @@ from app.models import (
     Case,
     Cluster,
     Entity,
-    Evidence,
+    EvidenceItem,
     Observation,
     Relationship,
     Report,
@@ -31,7 +31,7 @@ from app.models.enums import EntityType, ReviewStatus
 from app.schemas.case import CaseRead
 from app.schemas.cluster import ClusterRead
 from app.schemas.entity import EntityRead
-from app.schemas.evidence import EvidenceRead
+from app.schemas.evidence import EvidenceItemRead, LegalFlags
 from app.schemas.handling import Handling
 from app.schemas.observation import ObservationRead
 from app.schemas.relationship import RelationshipRead
@@ -46,8 +46,30 @@ def _source(o: Source) -> SourceRead:
     return SourceRead.model_validate(o)
 
 
-def _evidence(o: Evidence) -> EvidenceRead:
-    return EvidenceRead.model_validate(o)
+def _evidence(o: EvidenceItem) -> EvidenceItemRead:
+    return EvidenceItemRead(
+        id=o.id,
+        case_id=o.case_id,
+        source_id=o.source_id,
+        observation_id=o.observation_id,
+        title=o.title,
+        description=o.description,
+        evidence_type=o.evidence_type,
+        storage_uri=o.storage_uri,
+        original_filename=o.original_filename,
+        mime_type=o.mime_type,
+        size_bytes=o.size_bytes,
+        sha256=o.sha256,
+        captured_at=o.captured_at,
+        captured_by=o.captured_by,
+        access_method=o.access_method,
+        legal_flags=LegalFlags(**(o.legal_flags or {})),
+        handling_notes=o.handling_notes,
+        status=o.status,
+        has_bytes=o.has_bytes,
+        created_by=o.created_by,
+        created_at=o.created_at,
+    )
 
 
 def _entity(o: Entity) -> EntityRead:
@@ -78,7 +100,6 @@ def _observation(o: Observation) -> ObservationRead:
         confidence=o.confidence,
         status=o.status,
         entity_ids=[e.id for e in o.entities],
-        evidence_ids=[ev.id for ev in o.evidence],
         handling=Handling(**(o.handling or {})),
         decided_by=o.decided_by,
         decided_at=o.decided_at,
@@ -158,23 +179,49 @@ class SqlSourceRepository(_Repo):
 
 
 class SqlEvidenceRepository(_Repo):
-    def get(self, evidence_id: UUID) -> EvidenceRead | None:
-        o = self.s.get(Evidence, evidence_id)
+    def get(self, evidence_id: UUID) -> EvidenceItemRead | None:
+        o = self.s.get(EvidenceItem, evidence_id)
         return _evidence(o) if o else None
 
-    def list(self, *, limit: int = 50, offset: int = 0) -> list[EvidenceRead]:
+    def list(self, *, limit: int = 50, offset: int = 0) -> list[EvidenceItemRead]:
         rows = self.s.scalars(
-            select(Evidence).order_by(Evidence.created_at.desc()).limit(limit).offset(offset)
+            select(EvidenceItem).order_by(EvidenceItem.created_at.desc()).limit(limit).offset(offset)
         ).all()
         return [_evidence(o) for o in rows]
 
-    def add(self, read: EvidenceRead) -> EvidenceRead:
-        o = Evidence(
-            id=read.id, evidence_type=read.evidence_type, sha256=read.sha256,
-            storage_uri=read.storage_uri, content_type=read.content_type,
-            captured_at=read.captured_at, source_id=read.source_id, description=read.description,
+    def for_case(self, case_id: UUID) -> list[EvidenceItemRead]:
+        rows = self.s.scalars(
+            select(EvidenceItem)
+            .where(EvidenceItem.case_id == case_id)
+            .order_by(EvidenceItem.created_at.desc())
+        ).all()
+        return [_evidence(o) for o in rows]
+
+    def for_observation(self, observation_id: UUID) -> list[EvidenceItemRead]:
+        rows = self.s.scalars(
+            select(EvidenceItem).where(EvidenceItem.observation_id == observation_id)
+        ).all()
+        return [_evidence(o) for o in rows]
+
+    def add(self, read: EvidenceItemRead) -> EvidenceItemRead:
+        o = EvidenceItem(
+            id=read.id, case_id=read.case_id, source_id=read.source_id,
+            observation_id=read.observation_id, title=read.title, description=read.description,
+            evidence_type=read.evidence_type, storage_uri=read.storage_uri,
+            original_filename=read.original_filename, mime_type=read.mime_type,
+            size_bytes=read.size_bytes, sha256=read.sha256, captured_at=read.captured_at,
+            captured_by=read.captured_by, access_method=read.access_method,
+            legal_flags=read.legal_flags.model_dump(), handling_notes=read.handling_notes,
+            status=read.status, has_bytes=read.has_bytes, created_by=read.created_by,
         )
         self.s.add(o)
+        self.s.flush()
+        return _evidence(o)
+
+    def replace(self, read: EvidenceItemRead) -> EvidenceItemRead:
+        o = self.s.get(EvidenceItem, read.id)
+        o.observation_id = read.observation_id
+        o.status = read.status
         self.s.flush()
         return _evidence(o)
 
@@ -230,10 +277,6 @@ class SqlObservationRepository(_Repo):
         )
         if read.entity_ids:
             o.entities = list(self.s.scalars(select(Entity).where(Entity.id.in_(read.entity_ids))).all())
-        if read.evidence_ids:
-            o.evidence = list(
-                self.s.scalars(select(Evidence).where(Evidence.id.in_(read.evidence_ids))).all()
-            )
         self.s.add(o)
         self.s.flush()
         return _observation(o)
@@ -446,6 +489,9 @@ class SqlUnitOfWork:
         self.reviews = SqlReviewRepository(session)
         self.audit = SqlAuditRepository(session)
         self.graph = self._build_graph()
+        from app.core.content_store import build_content_store
+
+        self.content = build_content_store()
 
     @staticmethod
     def _build_graph():
