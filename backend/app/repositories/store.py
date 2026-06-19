@@ -38,6 +38,7 @@ from app.schemas.handling import Handling
 from app.schemas.observation import ObservationRead
 from app.schemas.relationship import RelationshipRead
 from app.schemas.report import ReportRead
+from app.schemas.report_package import ReportPackageRead
 from app.schemas.review import ReviewItemRead
 from app.schemas.source import SourceRead
 from app.schemas.user import CaseMemberRead, UserRead
@@ -55,6 +56,7 @@ class InMemoryStore:
         self.clusters: dict[UUID, ClusterRead] = {}
         self.cases: dict[UUID, CaseRead] = {}
         self.reports: dict[UUID, ReportRead] = {}
+        self.report_packages: dict[UUID, ReportPackageRead] = {}
         self.review_items: dict[UUID, ReviewItemRead] = {}
         self.users: dict[UUID, UserRead] = {}
         self.memberships: dict[UUID, CaseMemberRead] = {}
@@ -221,6 +223,7 @@ def reset_store() -> None:
     store.clusters.clear()
     store.cases.clear()
     store.reports.clear()
+    store.report_packages.clear()
     store.review_items.clear()
     store.users.clear()
     store.memberships.clear()

@@ -138,6 +138,19 @@ def test_full_loop_against_postgres(pg_client):
     assert dl.status_code == 200 and dl.content == blob
     assert c.post(f"{PREFIX}/evidence/{up['id']}/verify").json()["verified"] is True
 
+    # Report package export (v0.8): generate from approved material (JSONB manifest in
+    # PostgreSQL), download report + manifest + zip, and confirm recorded hashes match.
+    import json
+
+    pkg = c.post(f"{PREFIX}/cases/{cid}/report/package").json()
+    assert pkg["status"] == "final"
+    md = c.get(f"{PREFIX}/report-packages/{pkg['id']}/report").text
+    manifest_text = c.get(f"{PREFIX}/report-packages/{pkg['id']}/manifest").text
+    assert hashlib.sha256(md.encode()).hexdigest() == pkg["report_sha256"]
+    assert hashlib.sha256(manifest_text.encode()).hexdigest() == pkg["manifest_sha256"]
+    assert any(e["title"] == "PG-EVIDENCE" for e in json.loads(manifest_text)["evidence"])
+    assert c.get(f"{PREFIX}/report-packages/{pkg['id']}/package").status_code == 200
+
     # Timeline, report, and audit all reflect the persisted state.
     timeline = c.get(f"{PREFIX}/cases/{cid}/timeline").json()
     assert any(e["kind"] == "observation_approved" for e in timeline)
@@ -151,5 +164,7 @@ def test_full_loop_against_postgres(pg_client):
         "case.created", "observation.intake", "review.approve", "relationship.created",
         "evidence.created", "evidence.linked", "evidence.verified", "evidence.approve",
         "evidence.uploaded", "evidence.downloaded",
+        "report_package.generated", "report_package.report_downloaded",
+        "report_package.manifest_downloaded", "report_package.downloaded",
     ):
         assert expected in actions

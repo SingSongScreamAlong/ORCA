@@ -156,6 +156,24 @@ CREATE TABLE reports (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Partner-ready export snapshots (v0.8). Approved material only; report + manifest are
+-- stored inline with content hashes. Raw evidence bytes are never bundled.
+CREATE TABLE report_packages (
+    id              UUID PRIMARY KEY,
+    case_id         UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    title           VARCHAR(512) NOT NULL,
+    status          report_status NOT NULL DEFAULT 'final',
+    handling_level  VARCHAR(64) NOT NULL,
+    generated_by    VARCHAR(255) NOT NULL,
+    report_markdown TEXT NOT NULL,
+    manifest        JSONB NOT NULL DEFAULT '{}',
+    report_sha256   VARCHAR(64) NOT NULL,
+    manifest_sha256 VARCHAR(64) NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_report_packages_case ON report_packages (case_id);
+
 CREATE TABLE review_items (
     id           UUID PRIMARY KEY,
     item_type    review_item_type NOT NULL,

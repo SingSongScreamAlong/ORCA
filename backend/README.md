@@ -49,6 +49,14 @@ audited analyst decision.
 > config), role/case-scoped raw download (`GET /evidence/{id}/download`), a mandatory
 > safety acknowledgement, and audited upload/download/verify. Upload/storage only. See
 > [`../docs/v0.7_evidence_file_upload.md`](../docs/v0.7_evidence_file_upload.md).
+>
+> **v0.8 — Report Package Export.** Adds `ReportPackage` (model + migration) and
+> `app/services/report_package_service.py`, which builds an immutable partner-ready export
+> from approved material only: a Markdown report + JSON evidence manifest with content
+> hashes (`POST /cases/{id}/report/package`), plus listing/metadata/download endpoints
+> (`/report-packages/...`, including ZIP). Generation is role-gated; download is scoped to
+> case membership (partner-accessible, no raw evidence/graph/audit). See
+> [`../docs/v0.8_report_package_export.md`](../docs/v0.8_report_package_export.md).
 
 ## Layout
 

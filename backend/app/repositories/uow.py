@@ -23,6 +23,7 @@ class UnitOfWork(Protocol):
     clusters: object
     cases: object
     reports: object
+    report_packages: object
     reviews: object
     users: object
     memberships: object
@@ -53,6 +54,7 @@ class InMemoryUnitOfWork:
             MemoryMembershipRepository,
             MemoryObservationRepository,
             MemoryRelationshipRepository,
+            MemoryReportPackageRepository,
             MemoryReportRepository,
             MemoryReviewRepository,
             MemorySourceRepository,
@@ -68,6 +70,7 @@ class InMemoryUnitOfWork:
         self.clusters = MemoryClusterRepository(store)
         self.cases = MemoryCaseRepository(store)
         self.reports = MemoryReportRepository(store)
+        self.report_packages = MemoryReportPackageRepository(store)
         self.reviews = MemoryReviewRepository(store)
         self.users = MemoryUserRepository(store)
         self.memberships = MemoryMembershipRepository(store)

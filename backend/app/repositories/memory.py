@@ -21,6 +21,7 @@ from app.schemas.evidence import EvidenceItemRead
 from app.schemas.observation import ObservationRead
 from app.schemas.relationship import RelationshipRead
 from app.schemas.report import ReportRead
+from app.schemas.report_package import ReportPackageRead
 from app.schemas.review import ReviewItemRead
 from app.schemas.source import SourceRead
 from app.schemas.user import CaseMemberRead, UserRead
@@ -201,6 +202,21 @@ class MemoryReportRepository(_Base):
     def replace(self, report: ReportRead) -> ReportRead:
         self._store.reports[report.id] = report
         return report
+
+
+class MemoryReportPackageRepository(_Base):
+    def get(self, package_id: UUID) -> ReportPackageRead | None:
+        return self._store.report_packages.get(package_id)
+
+    def for_case(self, case_id: UUID) -> list[ReportPackageRead]:
+        return newest_first(p for p in self._store.report_packages.values() if p.case_id == case_id)
+
+    def list(self) -> list[ReportPackageRead]:
+        return newest_first(self._store.report_packages.values())
+
+    def add(self, package: ReportPackageRead) -> ReportPackageRead:
+        self._store.report_packages[package.id] = package
+        return package
 
 
 class MemoryReviewRepository(_Base):

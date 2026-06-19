@@ -26,6 +26,7 @@ from app.models import (
     Observation,
     Relationship,
     Report,
+    ReportPackage,
     ReviewItem,
     Source,
     User,
@@ -39,6 +40,7 @@ from app.schemas.handling import Handling
 from app.schemas.observation import ObservationRead
 from app.schemas.relationship import RelationshipRead
 from app.schemas.report import ReportRead
+from app.schemas.report_package import ReportPackageCounts, ReportPackageRead
 from app.schemas.review import ReviewItemRead
 from app.schemas.source import SourceRead
 from app.schemas.user import CaseMemberRead, UserRead
@@ -90,6 +92,29 @@ def _report(o: Report) -> ReportRead:
 
 def _review(o: ReviewItem) -> ReviewItemRead:
     return ReviewItemRead.model_validate(o)
+
+
+def _report_package(o: ReportPackage) -> ReportPackageRead:
+    counts = (o.manifest or {}).get("counts", {})
+    return ReportPackageRead(
+        id=o.id,
+        case_id=o.case_id,
+        title=o.title,
+        status=o.status,
+        handling_level=o.handling_level,
+        generated_by=o.generated_by,
+        counts=ReportPackageCounts(
+            approved_observations=counts.get("approved_observations", 0),
+            approved_relationships=counts.get("approved_relationships", 0),
+            cited_evidence=counts.get("cited_evidence", 0),
+        ),
+        caveats=list((o.manifest or {}).get("caveats", [])),
+        report_sha256=o.report_sha256,
+        manifest_sha256=o.manifest_sha256,
+        report_markdown=o.report_markdown,
+        manifest=o.manifest,
+        created_at=o.created_at,
+    )
 
 
 def _user(o: User) -> UserRead:
@@ -536,6 +561,37 @@ class SqlMembershipRepository(_Repo):
         return self._read(o)
 
 
+class SqlReportPackageRepository(_Repo):
+    def get(self, package_id: UUID) -> ReportPackageRead | None:
+        o = self.s.get(ReportPackage, package_id)
+        return _report_package(o) if o else None
+
+    def for_case(self, case_id: UUID) -> list[ReportPackageRead]:
+        rows = self.s.scalars(
+            select(ReportPackage)
+            .where(ReportPackage.case_id == case_id)
+            .order_by(ReportPackage.created_at.desc())
+        ).all()
+        return [_report_package(o) for o in rows]
+
+    def list(self) -> list[ReportPackageRead]:
+        rows = self.s.scalars(
+            select(ReportPackage).order_by(ReportPackage.created_at.desc())
+        ).all()
+        return [_report_package(o) for o in rows]
+
+    def add(self, read: ReportPackageRead) -> ReportPackageRead:
+        o = ReportPackage(
+            id=read.id, case_id=read.case_id, title=read.title, status=read.status,
+            handling_level=read.handling_level, generated_by=read.generated_by,
+            report_markdown=read.report_markdown, manifest=read.manifest,
+            report_sha256=read.report_sha256, manifest_sha256=read.manifest_sha256,
+        )
+        self.s.add(o)
+        self.s.flush()
+        return _report_package(o)
+
+
 class SqlReviewRepository(_Repo):
     def get(self, item_id: UUID) -> ReviewItemRead | None:
         o = self.s.get(ReviewItem, item_id)
@@ -611,6 +667,7 @@ class SqlUnitOfWork:
         self.clusters = SqlClusterRepository(session)
         self.cases = SqlCaseRepository(session)
         self.reports = SqlReportRepository(session)
+        self.report_packages = SqlReportPackageRepository(session)
         self.reviews = SqlReviewRepository(session)
         self.users = SqlUserRepository(session)
         self.memberships = SqlMembershipRepository(session)

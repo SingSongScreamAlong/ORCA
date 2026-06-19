@@ -147,6 +147,20 @@ only the cases they are assigned to (see [`v0.6_case_membership.md`](v0.6_case_m
 - **Auditable roster.** Adding, re-roling, or revoking a member is an audited action,
   keeping access to sensitive cases reviewable after the fact.
 
+## Partner export packages (v0.8)
+
+Report packages (see [`v0.8_report_package_export.md`](v0.8_report_package_export.md)) are
+the sanctioned way to share findings with partners. They are export-only and conservative
+by design:
+
+- **Approved material only.** Proposed, rejected, needs-more-review, and quarantined
+  observations and evidence are excluded from every package.
+- **No raw files.** Evidence is represented by metadata and SHA-256 hashes; raw evidence
+  bytes, the case audit log, and the relationship graph are never bundled or exposed to
+  the partner export viewer.
+- **Scoped and audited.** A partner sees packages only for cases they are assigned to;
+  generation and every download are recorded in the append-only audit log.
+
 ## Human review is mandatory
 
 Nothing in ORCA becomes confirmed knowledge without a human decision. Observations
