@@ -6,7 +6,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from app.api.deps import Pagination, current_principal, get_uow, pagination
+from app.api.deps import Pagination, get_uow, pagination, require
+from app.core.rbac import Capability
 from app.core.security import Principal
 from app.models.enums import ReviewStatus
 from app.repositories.uow import UnitOfWork
@@ -21,6 +22,7 @@ def list_relationships(
     page: Pagination = Depends(pagination),
     case_id: UUID | None = Query(None, description="Filter by case."),
     status_filter: ReviewStatus | None = Query(None, alias="status", description="Filter by status."),
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
     uow: UnitOfWork = Depends(get_uow),
 ) -> list[RelationshipRead]:
     return RelationshipService(uow).list(
@@ -36,7 +38,7 @@ def list_relationships(
 )
 def create_relationship(
     payload: RelationshipCreate,
-    principal: Principal = Depends(current_principal),
+    principal: Principal = Depends(require(Capability.CREATE_RELATIONSHIP)),
     uow: UnitOfWork = Depends(get_uow),
 ) -> RelationshipRead:
     return RelationshipService(uow).create(payload, principal)
@@ -44,6 +46,8 @@ def create_relationship(
 
 @router.get("/{relationship_id}", response_model=RelationshipRead, summary="Get a relationship")
 def get_relationship(
-    relationship_id: UUID, uow: UnitOfWork = Depends(get_uow)
+    relationship_id: UUID,
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> RelationshipRead:
     return RelationshipService(uow).get(relationship_id)

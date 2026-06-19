@@ -16,11 +16,13 @@ from app.models.relationship import Relationship
 from app.models.report import Report
 from app.models.review import ReviewItem
 from app.models.source import Source
+from app.models.user import CaseMembership, User
 
 __all__ = [
     "Base",
     "AuditLogEntry",
     "Case",
+    "CaseMembership",
     "Cluster",
     "Entity",
     "EvidenceItem",
@@ -29,4 +31,5 @@ __all__ = [
     "Report",
     "ReviewItem",
     "Source",
+    "User",
 ]

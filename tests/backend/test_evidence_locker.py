@@ -17,6 +17,10 @@ from datetime import datetime, timezone
 
 PREFIX = "/api/v1"
 
+# Decisions are made by a reviewer (separation of duties); evidence/observations are
+# created by the default admin user, so a reviewer deciding is not self-review.
+REVIEWER = {"X-ORCA-User": "rae"}
+
 
 def _case(client, title="Case"):
     return client.post(f"{PREFIX}/cases", json={"title": title, "owner": "analyst"}).json()["id"]
@@ -37,7 +41,7 @@ def _approved_observation(client, case_id, source_id, note="obs"):
         },
     ).json()
     item = next(i for i in client.get(f"{PREFIX}/review").json() if i["subject_id"] == obs["id"])
-    client.post(f"{PREFIX}/review/{item['id']}/decision", json={"decision": "approve"})
+    client.post(f"{PREFIX}/review/{item['id']}/decision", json={"decision": "approve"}, headers=REVIEWER)
     return obs["id"]
 
 
@@ -139,7 +143,9 @@ def test_every_evidence_status_change_is_audited(client):
     src = _source(client)
     for decision in ("approve", "reject", "needs_more_review", "quarantine"):
         ev = _evidence(client, case_id, src, title=decision).json()
-        resp = client.post(f"{PREFIX}/evidence/{ev['id']}/decision", json={"decision": decision})
+        resp = client.post(
+            f"{PREFIX}/evidence/{ev['id']}/decision", json={"decision": decision}, headers=REVIEWER
+        )
         assert resp.status_code == 200
     actions = _actions(client, case_id)
     for decision in ("approve", "reject", "needs_more_review", "quarantine"):
@@ -158,9 +164,11 @@ def test_report_cites_only_approved_evidence(client):
     rejected = _evidence(client, case_id, src, title="REJECTED-EV", observation_id=obs, content_text="b").json()
     quarantined = _evidence(client, case_id, src, title="QUARANTINED-EV", observation_id=obs, content_text="c").json()
 
-    client.post(f"{PREFIX}/evidence/{approved['id']}/decision", json={"decision": "approve"})
-    client.post(f"{PREFIX}/evidence/{rejected['id']}/decision", json={"decision": "reject"})
-    client.post(f"{PREFIX}/evidence/{quarantined['id']}/decision", json={"decision": "quarantine"})
+    client.post(f"{PREFIX}/evidence/{approved['id']}/decision", json={"decision": "approve"}, headers=REVIEWER)
+    client.post(f"{PREFIX}/evidence/{rejected['id']}/decision", json={"decision": "reject"}, headers=REVIEWER)
+    client.post(
+        f"{PREFIX}/evidence/{quarantined['id']}/decision", json={"decision": "quarantine"}, headers=REVIEWER
+    )
 
     body = client.post(f"{PREFIX}/cases/{case_id}/report").json()["body"]
     assert "APPROVED-EV" in body
@@ -182,7 +190,7 @@ def test_report_excludes_evidence_under_unapproved_observation(client):
         },
     ).json()["id"]
     ev = _evidence(client, case_id, src, title="EV-UNDER-PENDING", observation_id=obs, content_text="z").json()
-    client.post(f"{PREFIX}/evidence/{ev['id']}/decision", json={"decision": "approve"})
+    client.post(f"{PREFIX}/evidence/{ev['id']}/decision", json={"decision": "approve"}, headers=REVIEWER)
 
     body = client.post(f"{PREFIX}/cases/{case_id}/report").json()["body"]
     assert "EV-UNDER-PENDING" not in body

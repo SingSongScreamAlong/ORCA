@@ -16,7 +16,7 @@ export default async function RelationshipsPage() {
     return (
       <div className="space-y-6">
         <Intro />
-        <BackendNotice error={relationships.error} />
+        <BackendNotice error={relationships.error} status={relationships.status} />
       </div>
     );
   }

@@ -32,6 +32,8 @@ class ReviewItem(UUIDPrimaryKey, TimestampMixin, Base):
     case_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("cases.id", ondelete="SET NULL"), nullable=True
     )
+    # Who proposed the subject (for separation-of-duties / self-review checks).
+    created_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # Human-readable explanation of why this was surfaced. Required — no item without it.
     rationale: Mapped[str] = mapped_column(Text, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)

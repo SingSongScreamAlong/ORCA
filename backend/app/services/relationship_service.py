@@ -179,6 +179,7 @@ class RelationshipService:
             subject_type="relationship",
             subject_id=relationship.id,
             case_id=relationship.case_id,
+            created_by="system",
             rationale=rationale,
             confidence=relationship.confidence,
             evidence_ids=evidence,

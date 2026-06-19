@@ -15,7 +15,7 @@ export default async function IntakePage({
     return (
       <div className="space-y-6">
         <Intro />
-        <BackendNotice error={cases.error} />
+        <BackendNotice error={cases.error} status={cases.status} />
       </div>
     );
   }

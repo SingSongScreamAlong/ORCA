@@ -68,7 +68,7 @@ class ObservationService:
             created_at=datetime.now(UTC),
         )
         self.uow.observations.add(observation)
-        self._enqueue_review(observation)
+        self._enqueue_review(observation, principal.id)
         self.uow.audit.record(
             new_audit_entry(
                 actor_id=principal.id,
@@ -103,7 +103,7 @@ class ObservationService:
         self.uow.sources.add(source)
         return source.id
 
-    def _enqueue_review(self, observation: ObservationRead) -> ReviewItemRead:
+    def _enqueue_review(self, observation: ObservationRead, created_by: str) -> ReviewItemRead:
         rationale = (
             "Observation intake awaiting review: "
             f"{observation.notes or 'recorded fact'} "
@@ -115,6 +115,7 @@ class ObservationService:
             subject_type="observation",
             subject_id=observation.id,
             case_id=observation.case_id,
+            created_by=created_by,
             rationale=rationale,
             confidence=observation.confidence,
             evidence_ids=[],  # evidence is added to the locker and linked separately (v0.3)

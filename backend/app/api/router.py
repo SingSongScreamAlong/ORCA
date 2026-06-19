@@ -16,10 +16,12 @@ from app.api.routes import (
     reports,
     review,
     sources,
+    users,
 )
 
 api_router = APIRouter()
 api_router.include_router(health.router)
+api_router.include_router(users.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(cases.router)
 api_router.include_router(observations.router)

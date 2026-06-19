@@ -73,6 +73,7 @@ These principles are not decoration. They are encoded in the data model (see
 | [Safety & Handling](docs/safety_and_handling.md)     | Boundaries: lawful, analyst-controlled, human-reviewed.|
 | [v0.2 Analyst Loop](docs/v0.2_analyst_loop.md)       | The end-to-end intake → review → report loop.          |
 | [v0.3 Evidence Locker](docs/v0.3_evidence_locker.md) | Evidence items, SHA-256 integrity, chain-of-custody.   |
+| [v0.4 Auth/RBAC](docs/v0.4_auth_rbac.md)             | Roles, capability matrix, separation of duties.        |
 | [Roadmap](docs/roadmap.md)                            | Phased delivery, starting from this skeleton.          |
 
 ---
@@ -84,10 +85,15 @@ These principles are not decoration. They are encoded in the data model (see
   intake → review queue → approval → relationship (citing approved evidence) →
   timeline/audit → draft report. PostgreSQL persistence path is implemented and
   integration-tested. See [`docs/v0.2_analyst_loop.md`](docs/v0.2_analyst_loop.md).
-- **v0.3 — Evidence Locker + Integrity Layer (current).** Case-scoped evidence items
-  with source attribution, file metadata, **SHA-256 hashing + verification**,
-  quarantine, chain-of-custody audit events, and report citations. See
+- **v0.3 — Evidence Locker + Integrity Layer.** Case-scoped evidence items with source
+  attribution, file metadata, **SHA-256 hashing + verification**, quarantine,
+  chain-of-custody audit events, and report citations. See
   [`docs/v0.3_evidence_locker.md`](docs/v0.3_evidence_locker.md).
+- **v0.4 — Auth/RBAC + Workspace Hardening (current).** Real authenticated identities,
+  **six roles** with a capability matrix enforced on every endpoint (403/401),
+  **separation of duties** on approvals with an audited admin override, case
+  membership/assignment, and report publishing for partner export. See
+  [`docs/v0.4_auth_rbac.md`](docs/v0.4_auth_rbac.md).
 
 Collection ("Hunting Grounds") remains an interface only — no collection logic, no
 scraping, no autonomous hunting. ORCA stays evidence-first, lawful, and analyst-controlled

@@ -14,7 +14,7 @@ export default async function ClustersPage() {
     return (
       <div className="space-y-6">
         <Intro />
-        <BackendNotice error={clusters.error} />
+        <BackendNotice error={clusters.error} status={clusters.status} />
       </div>
     );
   }

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AssignMemberForm } from "@/components/cases/AssignMemberForm";
 import { GenerateReportButton } from "@/components/cases/GenerateReportButton";
+import { CapLink } from "@/components/auth/CapLink";
 import { EvidenceLocker } from "@/components/evidence/EvidenceLocker";
 import { ConfidenceBadge, OriginBadge, StatusBadge, Tag } from "@/components/ui/Badges";
 import { Card } from "@/components/ui/Card";
@@ -12,12 +14,14 @@ import {
   getCase,
   getCaseAudit,
   getCaseEvidence,
+  getCaseMembers,
   getCaseObservations,
   getCaseRelationships,
   getCaseReports,
   getCaseTimeline,
   getEntities,
   getSources,
+  getUsers,
 } from "@/lib/api";
 import { formatTimestamp, humanize, shortId } from "@/lib/format";
 import type { Case, CaseCounts, Entity } from "@/lib/types";
@@ -30,6 +34,7 @@ const TABS = [
   ["evidence", "Evidence Locker"],
   ["relationships", "Relationships"],
   ["timeline", "Timeline"],
+  ["members", "Members"],
   ["audit", "Audit log"],
   ["report", "Draft report"],
 ] as const;
@@ -44,7 +49,7 @@ export default async function CaseDetailPage({
   const detail = await getCase(params.id);
   if (!detail.ok) {
     if (detail.error.includes("404")) notFound();
-    return <BackendNotice error={detail.error} />;
+    return <BackendNotice error={detail.error} status={detail.status} />;
   }
   const { case: c, counts } = detail.data;
   const tab = searchParams.tab ?? "overview";
@@ -61,12 +66,13 @@ export default async function CaseDetailPage({
             Owner {c.owner} · created {formatTimestamp(c.created_at)}
           </p>
         </div>
-        <Link
+        <CapLink
+          cap="create_observation"
           href={`/intake?case=${c.id}`}
           className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
         >
           + Add observation
-        </Link>
+        </CapLink>
       </div>
 
       {/* Tabs */}
@@ -92,6 +98,7 @@ export default async function CaseDetailPage({
       {tab === "evidence" && <EvidenceTab caseId={c.id} />}
       {tab === "relationships" && <Relationships caseId={c.id} />}
       {tab === "timeline" && <Timeline caseId={c.id} />}
+      {tab === "members" && <Members caseId={c.id} />}
       {tab === "audit" && <Audit caseId={c.id} />}
       {tab === "report" && <ReportTab caseId={c.id} />}
     </div>
@@ -124,7 +131,7 @@ async function _entityMap(): Promise<Map<string, Entity>> {
 
 async function Observations({ caseId }: { caseId: string }) {
   const [obs, entityMap] = await Promise.all([getCaseObservations(caseId), _entityMap()]);
-  if (!obs.ok) return <BackendNotice error={obs.error} />;
+  if (!obs.ok) return <BackendNotice error={obs.error} status={obs.status} />;
   if (obs.data.length === 0) return <EmptyState message="No observations in this case yet." />;
   return (
     <Table
@@ -172,7 +179,7 @@ async function Observations({ caseId }: { caseId: string }) {
 
 async function Relationships({ caseId }: { caseId: string }) {
   const [rels, entityMap] = await Promise.all([getCaseRelationships(caseId), _entityMap()]);
-  if (!rels.ok) return <BackendNotice error={rels.error} />;
+  if (!rels.ok) return <BackendNotice error={rels.error} status={rels.status} />;
   if (rels.data.length === 0) {
     return <EmptyState message="No relationships yet. Approve observations, then link them." />;
   }
@@ -226,7 +233,7 @@ async function EvidenceTab({ caseId }: { caseId: string }) {
     getCaseObservations(caseId),
     getSources(),
   ]);
-  if (!evidence.ok) return <BackendNotice error={evidence.error} />;
+  if (!evidence.ok) return <BackendNotice error={evidence.error} status={evidence.status} />;
 
   const sourceNames: Record<string, string> = {};
   if (sources.ok) for (const s of sources.data) sourceNames[s.id] = s.name;
@@ -241,21 +248,57 @@ async function EvidenceTab({ caseId }: { caseId: string }) {
         <p className="text-sm text-ink-faint">
           Metadata, lawful files, and partner-approved workflows only. Verify hashes; decide each item.
         </p>
-        <Link
+        <CapLink
+          cap="create_evidence"
           href={`/evidence/new?case=${caseId}`}
           className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
         >
           + Add evidence
-        </Link>
+        </CapLink>
       </div>
       <EvidenceLocker items={evidence.data} sources={sourceNames} observations={observationLabels} />
     </div>
   );
 }
 
+async function Members({ caseId }: { caseId: string }) {
+  const [members, users] = await Promise.all([getCaseMembers(caseId), getUsers()]);
+  if (!members.ok) return <BackendNotice error={members.error} status={members.status} />;
+  return (
+    <div className="space-y-4">
+      <AssignMemberForm caseId={caseId} users={users.ok ? users.data : []} />
+      {members.data.length === 0 ? (
+        <EmptyState message="No members assigned to this case yet." />
+      ) : (
+        <Table
+          head={
+            <>
+              <Th>User</Th>
+              <Th>Role</Th>
+              <Th>Assigned by</Th>
+              <Th>When</Th>
+            </>
+          }
+        >
+          {members.data.map((m) => (
+            <Tr key={m.id}>
+              <Td>{m.username}</Td>
+              <Td>
+                <Tag>{humanize(m.role)}</Tag>
+              </Td>
+              <Td>{m.assigned_by}</Td>
+              <Td>{formatTimestamp(m.assigned_at)}</Td>
+            </Tr>
+          ))}
+        </Table>
+      )}
+    </div>
+  );
+}
+
 async function Timeline({ caseId }: { caseId: string }) {
   const events = await getCaseTimeline(caseId);
-  if (!events.ok) return <BackendNotice error={events.error} />;
+  if (!events.ok) return <BackendNotice error={events.error} status={events.status} />;
   if (events.data.length === 0) {
     return <EmptyState message="The timeline shows approved observations and relationship changes." />;
   }
@@ -276,7 +319,7 @@ async function Timeline({ caseId }: { caseId: string }) {
 
 async function Audit({ caseId }: { caseId: string }) {
   const audit = await getCaseAudit(caseId);
-  if (!audit.ok) return <BackendNotice error={audit.error} />;
+  if (!audit.ok) return <BackendNotice error={audit.error} status={audit.status} />;
   if (audit.data.length === 0) return <EmptyState message="No audited actions yet." />;
   return (
     <Table
@@ -314,10 +357,16 @@ async function ReportTab({ caseId }: { caseId: string }) {
       <Card
         title="Draft report"
         subtitle="Generated from approved evidence only — proposed and rejected observations are excluded."
-        actions={<GenerateReportButton caseId={caseId} />}
+        actions={
+          <GenerateReportButton
+            caseId={caseId}
+            latestReportId={latest?.id}
+            latestStatus={latest?.status}
+          />
+        }
       >
         {!reports.ok ? (
-          <BackendNotice error={reports.error} />
+          <BackendNotice error={reports.error} status={reports.status} />
         ) : !latest ? (
           <EmptyState message="No report yet. Generate a draft from the approved evidence." />
         ) : (

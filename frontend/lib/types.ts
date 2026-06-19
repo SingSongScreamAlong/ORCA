@@ -1,6 +1,40 @@
 // TypeScript types mirroring the ORCA API contract (backend/app/schemas).
 // Kept in sync with ontology/schema and docs/ontology_v0.1.md.
 
+export type Role =
+  | "admin"
+  | "case_manager"
+  | "analyst"
+  | "reviewer"
+  | "viewer"
+  | "partner_export_viewer";
+
+export interface User {
+  id: string;
+  username: string;
+  display_name: string;
+  role: Role;
+  created_at: string;
+}
+
+export interface CurrentUser {
+  id: string;
+  username: string;
+  display_name: string;
+  role: Role;
+  capabilities: string[];
+}
+
+export interface CaseMember {
+  id: string;
+  case_id: string;
+  user_id: string;
+  username: string;
+  role: Role;
+  assigned_by: string;
+  assigned_at: string;
+}
+
 export type Origin = "system_proposed" | "analyst_created" | "imported";
 
 // v0.2 approval lifecycle (the status badges).

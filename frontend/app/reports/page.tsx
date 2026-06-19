@@ -18,7 +18,7 @@ export default async function ReportsPage() {
       </PageIntro>
 
       {!cases.ok ? (
-        <BackendNotice error={cases.error} />
+        <BackendNotice error={cases.error} status={cases.status} />
       ) : cases.data.length === 0 ? (
         <EmptyState message="No cases yet. Reports are generated within a case." />
       ) : (

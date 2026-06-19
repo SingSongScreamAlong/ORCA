@@ -14,7 +14,7 @@ export default async function EntitiesPage() {
     return (
       <div className="space-y-6">
         <Intro />
-        <BackendNotice error={entities.error} />
+        <BackendNotice error={entities.error} status={entities.status} />
       </div>
     );
   }

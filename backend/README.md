@@ -17,6 +17,14 @@ audited analyst decision.
 > create/link/decide/verify endpoints under `/evidence`, the cross-case linking guard,
 > a `quarantined` status, chain-of-custody audit events, and report citations of
 > approved evidence. See [`../docs/v0.3_evidence_locker.md`](../docs/v0.3_evidence_locker.md).
+>
+> **v0.4 — Auth/RBAC.** Adds users + case membership, six roles with a capability matrix
+> (`app/core/rbac.py`), the `X-ORCA-User` dev auth (`app/core/security.py`), the
+> `require(capability)` route guard (`app/api/deps.py`), separation of duties with an
+> audited admin override, and report publishing. Authenticate with the `X-ORCA-User`
+> header (default user is configurable via `ORCA_DEV_DEFAULT_USER`). For PostgreSQL, seed
+> users with `python -m app.db.seed` after `alembic upgrade head`. See
+> [`../docs/v0.4_auth_rbac.md`](../docs/v0.4_auth_rbac.md).
 
 ## Layout
 

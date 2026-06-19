@@ -62,10 +62,14 @@ review_item_type = postgresql.ENUM(
     "proposed_observation", "proposed_relationship", "proposed_cluster", "flagged_observation",
     name="review_item_type", create_type=False,
 )
+orca_role = postgresql.ENUM(
+    "admin", "case_manager", "analyst", "reviewer", "viewer", "partner_export_viewer",
+    name="orca_role", create_type=False,
+)
 
 _ALL_ENUMS = [
     source_type, source_reliability, evidence_type, evidence_status, entity_type, relationship_type,
-    origin, review_status, cluster_status, case_status, report_status, review_item_type,
+    origin, review_status, cluster_status, case_status, report_status, review_item_type, orca_role,
 ]
 
 
@@ -210,6 +214,7 @@ def upgrade() -> None:
         sa.Column("subject_type", sa.String(64), nullable=False),
         sa.Column("subject_id", _uuid(), nullable=False),
         sa.Column("case_id", _uuid(), sa.ForeignKey("cases.id", ondelete="SET NULL"), nullable=True),
+        sa.Column("created_by", sa.String(255), nullable=True),
         sa.Column("rationale", sa.Text(), nullable=False),
         sa.Column("confidence", sa.Float(), nullable=False, server_default="0.0"),
         sa.Column("evidence_ids", postgresql.ARRAY(_uuid()), nullable=False, server_default="{}"),
@@ -231,6 +236,29 @@ def upgrade() -> None:
         sa.Column("context", postgresql.JSONB(), nullable=False, server_default="{}"),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    )
+
+    op.create_table(
+        "users",
+        sa.Column("id", _uuid(), primary_key=True),
+        sa.Column("username", sa.String(128), nullable=False, unique=True),
+        sa.Column("display_name", sa.String(255), nullable=False),
+        sa.Column("role", orca_role, nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    )
+    op.create_index("ix_users_username", "users", ["username"])
+
+    op.create_table(
+        "case_members",
+        sa.Column("id", _uuid(), primary_key=True),
+        sa.Column("case_id", _uuid(), sa.ForeignKey("cases.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("user_id", _uuid(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("assigned_by", sa.String(128), nullable=False),
+        sa.Column("assigned_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.UniqueConstraint("case_id", "user_id", name="uq_case_member"),
     )
 
     # Association tables.
@@ -277,10 +305,10 @@ def downgrade() -> None:
     for table in (
         "case_clusters", "case_entities", "case_observations",
         "cluster_observations", "cluster_entities", "relationship_observations",
-        "observation_entities",
+        "observation_entities", "case_members",
         "audit_log", "review_items", "reports", "evidence_items",
         "relationships", "observations", "clusters", "cases",
-        "entities", "sources",
+        "entities", "sources", "users",
     ):
         op.drop_table(table)
 

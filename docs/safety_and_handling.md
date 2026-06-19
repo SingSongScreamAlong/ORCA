@@ -102,6 +102,21 @@ Collection ("Hunting Grounds") remains interface-only (see
 built, collectors will be ordinary, audited producers of observations and evidence —
 bound by every boundary on this page.
 
+## Access is enforced by the system (v0.4)
+
+Authorization is no longer a UI convention — it is enforced on every endpoint by
+role-based access control (see [`v0.4_auth_rbac.md`](v0.4_auth_rbac.md)). This hardens
+the safety posture:
+
+- **Least privilege.** Viewers read but cannot mutate; analysts propose but cannot
+  approve; only reviewers (and admins) decide.
+- **Separation of duties.** No one may approve their own proposed intelligence; an
+  admin override is required and is recorded as a distinct audit event.
+- **Partner isolation.** `partner_export_viewer` can access **only** published report
+  packages — never raw evidence or case material.
+- **Accountability.** Every privileged action is attributed to an authenticated user in
+  the append-only audit log.
+
 ## Human review is mandatory
 
 Nothing in ORCA becomes confirmed knowledge without a human decision. Observations

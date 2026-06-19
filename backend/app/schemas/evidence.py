@@ -92,6 +92,8 @@ class EvidenceDecision(str, Enum):
 class EvidenceDecisionRequest(ORCAModel):
     decision: EvidenceDecision
     note: str | None = None
+    # Admin-only: bypass the self-review block; writes a distinct override audit event.
+    override: bool = False
 
 
 class EvidenceVerifyResult(ORCAModel):

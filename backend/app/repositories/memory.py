@@ -22,6 +22,7 @@ from app.schemas.relationship import RelationshipRead
 from app.schemas.report import ReportRead
 from app.schemas.review import ReviewItemRead
 from app.schemas.source import SourceRead
+from app.schemas.user import CaseMemberRead, UserRead
 
 
 class _Base:
@@ -189,7 +190,14 @@ class MemoryReportRepository(_Base):
             values = [r for r in values if r.case_id == case_id]
         return newest_first(values)
 
+    def list_published(self) -> list[ReportRead]:
+        return newest_first(r for r in self._store.reports.values() if r.status == "final")
+
     def add(self, report: ReportRead) -> ReportRead:
+        self._store.reports[report.id] = report
+        return report
+
+    def replace(self, report: ReportRead) -> ReportRead:
         self._store.reports[report.id] = report
         return report
 
@@ -223,6 +231,38 @@ class MemoryReviewRepository(_Base):
     def replace(self, item: ReviewItemRead) -> ReviewItemRead:
         self._store.review_items[item.id] = item
         return item
+
+
+class MemoryUserRepository(_Base):
+    def get(self, user_id: UUID) -> UserRead | None:
+        return self._store.users.get(user_id)
+
+    def get_by_username(self, username: str) -> UserRead | None:
+        for user in self._store.users.values():
+            if user.username == username:
+                return user
+        return None
+
+    def list(self) -> list[UserRead]:
+        return sorted(self._store.users.values(), key=lambda u: u.username)
+
+    def add(self, user: UserRead) -> UserRead:
+        self._store.users[user.id] = user
+        return user
+
+
+class MemoryMembershipRepository(_Base):
+    def for_case(self, case_id: UUID) -> list[CaseMemberRead]:
+        return [m for m in self._store.memberships.values() if m.case_id == case_id]
+
+    def exists(self, case_id: UUID, user_id: UUID) -> bool:
+        return any(
+            m.case_id == case_id and m.user_id == user_id for m in self._store.memberships.values()
+        )
+
+    def add(self, member: CaseMemberRead) -> CaseMemberRead:
+        self._store.memberships[member.id] = member
+        return member
 
 
 class MemoryAuditRepository(_Base):

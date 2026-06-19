@@ -46,8 +46,12 @@ select = ["E", "F", "I", "UP", "B"]
 ignore = ["UP042"]
 
 [tool.ruff.lint.flake8-bugbear]
-# FastAPI's dependency-injection markers are intended as call-in-default values.
-extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body"]
+# FastAPI's dependency-injection markers (and our capability guard) are intended as
+# call-in-default values.
+extend-immutable-calls = [
+    "fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body", "fastapi.Header",
+    "app.api.deps.require",
+]
 
 [tool.ruff.lint.per-file-ignores]
 # Migrations are generated-style and favour explicit, wide column definitions.

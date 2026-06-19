@@ -1,6 +1,6 @@
 """Review-queue endpoints — the most important surface in the product.
 
-Listing is open to any analyst; deciding requires review authority and is audited.
+Listing requires read access; deciding requires review authority and is audited.
 """
 
 from __future__ import annotations
@@ -9,7 +9,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api.deps import Pagination, current_principal, get_uow, pagination
+from app.api.deps import Pagination, get_uow, pagination, require
+from app.core.rbac import Capability
 from app.core.security import Principal
 from app.models.enums import ReviewStatus
 from app.repositories.uow import UnitOfWork
@@ -28,6 +29,7 @@ def list_review_items(
         description="Filter by status. Defaults to the pending (proposed) queue.",
     ),
     case_id: UUID | None = Query(None, description="Filter by case."),
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
     uow: UnitOfWork = Depends(get_uow),
 ) -> list[ReviewItemRead]:
     return ReviewService(uow).list(
@@ -36,7 +38,11 @@ def list_review_items(
 
 
 @router.get("/{item_id}", response_model=ReviewItemRead, summary="Get a review item")
-def get_review_item(item_id: UUID, uow: UnitOfWork = Depends(get_uow)) -> ReviewItemRead:
+def get_review_item(
+    item_id: UUID,
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> ReviewItemRead:
     return ReviewService(uow).get(item_id)
 
 
@@ -48,7 +54,9 @@ def get_review_item(item_id: UUID, uow: UnitOfWork = Depends(get_uow)) -> Review
 def decide_review_item(
     item_id: UUID,
     request: ReviewDecisionRequest,
-    principal: Principal = Depends(current_principal),
+    principal: Principal = Depends(require(Capability.REVIEW_DECIDE)),
     uow: UnitOfWork = Depends(get_uow),
 ) -> ReviewItemRead:
-    return ReviewService(uow).decide(item_id, request.decision, principal, note=request.note)
+    return ReviewService(uow).decide(
+        item_id, request.decision, principal, note=request.note, override=request.override
+    )

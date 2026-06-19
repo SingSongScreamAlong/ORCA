@@ -15,7 +15,8 @@ from app.core.security import Principal
 from app.models.enums import CaseStatus, ReviewStatus
 from app.repositories.uow import UnitOfWork
 from app.schemas.case import CaseCounts, CaseCreate, CaseDetail, CaseRead
-from app.services.errors import NotFoundError
+from app.schemas.user import CaseMemberRead
+from app.services.errors import NotFoundError, ValidationError
 
 
 class CaseService:
@@ -71,3 +72,31 @@ class CaseService:
     def audit(self, case_id: UUID) -> list[AuditEntry]:
         self.get(case_id)  # 404 if missing
         return self.uow.audit.list(case_id=case_id)
+
+    def list_members(self, case_id: UUID) -> list[CaseMemberRead]:
+        self.get(case_id)
+        return self.uow.memberships.for_case(case_id)
+
+    def assign_member(self, case_id: UUID, username: str, principal: Principal) -> CaseMemberRead:
+        self.get(case_id)
+        user = self.uow.users.get_by_username(username)
+        if user is None:
+            raise ValidationError(f"User '{username}' does not exist")
+        if self.uow.memberships.exists(case_id, user.id):
+            raise ValidationError(f"User '{username}' is already assigned to this case")
+        member = CaseMemberRead(
+            id=uuid4(), case_id=case_id, user_id=user.id, username=user.username, role=user.role,
+            assigned_by=principal.username, assigned_at=datetime.now(UTC),
+        )
+        self.uow.memberships.add(member)
+        self.uow.audit.record(
+            new_audit_entry(
+                actor_id=principal.id,
+                action="case.member_assigned",
+                target_type="case",
+                target_id=case_id,
+                case_id=case_id,
+                context={"assigned_user": user.username, "role": user.role.value},
+            )
+        )
+        return member

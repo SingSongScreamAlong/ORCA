@@ -17,6 +17,7 @@ from app.core.security import Principal
 from app.models.enums import ReviewStatus
 from app.repositories.uow import UnitOfWork
 from app.schemas.review import ReviewDecision, ReviewItemRead
+from app.services.authz import authorize_decision
 from app.services.errors import NotFoundError, PermissionDenied, ValidationError
 from app.services.relationship_service import RelationshipService
 
@@ -58,6 +59,7 @@ class ReviewService:
         decision: ReviewDecision,
         principal: Principal,
         note: str | None = None,
+        override: bool = False,
     ) -> ReviewItemRead:
         if not can(principal.role, Capability.REVIEW_DECIDE):
             raise PermissionDenied("Deciding a review item requires review authority")
@@ -65,6 +67,9 @@ class ReviewService:
         item = self.get(item_id)
         if item.status not in _DECIDABLE:
             raise ValidationError(f"Review item {item_id} is already {item.status.value}")
+
+        # Separation of duties: no self-review without an admin override.
+        is_override = authorize_decision(principal, item.created_by, override)
 
         new_status = _DECISION_STATUS[decision]
         now = datetime.now(UTC)
@@ -75,16 +80,21 @@ class ReviewService:
 
         self._apply_to_subject(item, new_status, principal, now)
 
+        # An override is recorded as a distinct audit event.
+        action = "review.override" if is_override else f"review.{decision.value}"
         self.uow.audit.record(
             new_audit_entry(
                 actor_id=principal.id,
-                action=f"review.{decision.value}",
+                action=action,
                 target_type=item.subject_type,
                 target_id=item.subject_id,
                 case_id=item.case_id,
                 context={
                     "review_item_id": str(item.id),
+                    "decision": decision.value,
                     "resulting_status": new_status.value,
+                    "override": is_override,
+                    "proposer": item.created_by,
                     "note": note,
                 },
             )

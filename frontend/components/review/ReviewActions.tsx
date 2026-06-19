@@ -2,23 +2,37 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCan } from "@/components/auth/UserContext";
 import { decideReview } from "@/lib/api";
 import type { ReviewDecision } from "@/lib/types";
 
 /**
- * The three analyst actions on a review item. This is where "analysts decide"
- * happens: each action posts a decision to the backend, which records it in the
- * append-only audit log, then the view refreshes.
+ * The analyst decision controls — role-aware. Only users who can review see the
+ * buttons. If a decision is blocked by self-review and the user is an admin, it is
+ * retried as an explicit override.
  */
 export function ReviewActions({ itemId }: { itemId: string }) {
   const router = useRouter();
+  const canDecide = useCan("review_decide");
+  const canOverride = useCan("admin_override");
   const [busy, setBusy] = useState<ReviewDecision | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  if (!canDecide) {
+    return (
+      <p className="text-xs text-ink-faint">
+        Review decisions require a reviewer role. You can view the evidence but not decide.
+      </p>
+    );
+  }
 
   async function decide(decision: ReviewDecision) {
     setBusy(decision);
     setError(null);
-    const result = await decideReview(itemId, decision);
+    let result = await decideReview(itemId, decision);
+    if (!result.ok && result.status === 403 && canOverride) {
+      result = await decideReview(itemId, decision, "admin override", true);
+    }
     setBusy(null);
     if (!result.ok) {
       setError(result.error);

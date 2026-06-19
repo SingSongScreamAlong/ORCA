@@ -1,31 +1,20 @@
-"""Shared API dependencies."""
+"""Shared API dependencies: pagination, the unit of work, authentication, and the
+capability-based route guard."""
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 
-from fastapi import Query
+from fastapi import Depends, Header, Query
 
-from app.core.security import Principal, get_current_principal
+from app.core.rbac import Capability, can
+from app.core.security import Principal, resolve_principal
 from app.repositories.uow import UnitOfWork, build_unit_of_work
 
 
-def current_principal() -> Principal:
-    """FastAPI dependency returning the authenticated principal.
-
-    Backed by the development principal until authentication lands (see
-    ``app.core.security``).
-    """
-    return get_current_principal()
-
-
 def get_uow() -> Iterator[UnitOfWork]:
-    """Yield a request-scoped unit of work, committing on success.
-
-    For the PostgreSQL backend this manages the transaction; for the in-memory
-    backend commit/rollback are no-ops.
-    """
+    """Yield a request-scoped unit of work, committing on success."""
     uow = build_unit_of_work()
     try:
         yield uow
@@ -35,6 +24,32 @@ def get_uow() -> Iterator[UnitOfWork]:
         raise
     finally:
         uow.close()
+
+
+def current_principal(
+    x_orca_user: str | None = Header(default=None, alias="X-ORCA-User"),
+    uow: UnitOfWork = Depends(get_uow),
+) -> Principal:
+    """Resolve the authenticated principal from the ``X-ORCA-User`` header (dev auth)."""
+    return resolve_principal(x_orca_user, uow)
+
+
+def require(capability: Capability) -> Callable[..., Principal]:
+    """Return a dependency that requires ``capability`` and yields the principal.
+
+    A missing capability raises ``PermissionDenied`` (HTTP 403).
+    """
+
+    def guard(principal: Principal = Depends(current_principal)) -> Principal:
+        if not can(principal.role, capability):
+            from app.services.errors import PermissionDenied
+
+            raise PermissionDenied(
+                f"Role '{principal.role.value}' is not permitted to {capability.value.replace('_', ' ')}."
+            )
+        return principal
+
+    return guard
 
 
 @dataclass

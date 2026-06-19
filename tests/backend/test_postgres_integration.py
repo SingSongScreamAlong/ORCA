@@ -20,6 +20,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 PREFIX = "/api/v1"
+REVIEWER = {"X-ORCA-User": "rae"}  # decisions by a reviewer (proposer is the default admin)
 
 
 @pytest.fixture
@@ -32,7 +33,15 @@ def pg_client():
     prev_backend = os.environ.get("ORCA_STORAGE_BACKEND")
     os.environ["ORCA_STORAGE_BACKEND"] = "postgres"
     get_settings.cache_clear()
+    from app.db.seed import seed_demo_users
     from app.main import app
+    from app.repositories.uow import build_unit_of_work
+
+    # Authentication needs identities to resolve; seed demo users into the DB.
+    uow = build_unit_of_work()
+    seed_demo_users(uow)
+    uow.commit()
+    uow.close()
 
     try:
         yield TestClient(app)
@@ -82,7 +91,10 @@ def test_full_loop_against_postgres(pg_client):
     # Approve via the review queue.
     items = c.get(f"{PREFIX}/review", params={"case_id": cid, "status": "proposed"}).json()
     item_id = next(i["id"] for i in items if i["subject_id"] == obs["id"])
-    assert c.post(f"{PREFIX}/review/{item_id}/decision", json={"decision": "approve"}).json()["status"] == "approved"
+    decided = c.post(
+        f"{PREFIX}/review/{item_id}/decision", json={"decision": "approve"}, headers=REVIEWER
+    )
+    assert decided.json()["status"] == "approved"
 
     # Now the relationship persists.
     rel = c.post(
@@ -105,7 +117,7 @@ def test_full_loop_against_postgres(pg_client):
     assert ev["sha256"] and ev["has_bytes"] is True
     assert c.post(f"{PREFIX}/evidence/{ev['id']}/link", json={"observation_id": obs["id"]}).status_code == 200
     assert c.post(f"{PREFIX}/evidence/{ev['id']}/verify").json()["verified"] is True
-    c.post(f"{PREFIX}/evidence/{ev['id']}/decision", json={"decision": "approve"})
+    c.post(f"{PREFIX}/evidence/{ev['id']}/decision", json={"decision": "approve"}, headers=REVIEWER)
     assert any(e["title"] == "PG-EVIDENCE" for e in c.get(f"{PREFIX}/cases/{cid}/evidence").json())
 
     # Timeline, report, and audit all reflect the persisted state.

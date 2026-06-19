@@ -25,6 +25,13 @@ sequence is the commitment.
 The skeleton is deliberately honest: endpoints and screens exist and are wired to the
 data model, but business logic is minimal and clearly marked.
 
+> **v0.4 status.** **Auth/RBAC + Workspace Hardening** delivers the access-control parts
+> of Phase 1 and Phase 6: real authenticated identities, six roles with a capability
+> matrix enforced on every endpoint (403 on denial, 401 on unknown identity), separation
+> of duties on approvals with an explicit audited admin override, case membership /
+> assignment, report publishing for partner export, and demo users per role. See
+> [`v0.4_auth_rbac.md`](v0.4_auth_rbac.md).
+>
 > **v0.3 status.** The **Evidence Locker + Integrity Layer** advances Phase 1's
 > evidence work: a rich, case-scoped `EvidenceItem` with source attribution and file
 > metadata, **SHA-256 hashing and on-demand verification** over a content store,

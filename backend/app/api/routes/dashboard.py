@@ -8,8 +8,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from app.api.deps import get_uow
+from app.api.deps import get_uow, require
 from app.core.config import get_settings
+from app.core.rbac import Capability
+from app.core.security import Principal
 from app.repositories.uow import UnitOfWork
 from app.schemas.common import ORCAModel
 from app.schemas.observation import ObservationRead
@@ -40,7 +42,10 @@ class DashboardSummary(ORCAModel):
 
 
 @router.get("/summary", response_model=DashboardSummary, summary="Dashboard summary")
-def dashboard_summary(uow: UnitOfWork = Depends(get_uow)) -> DashboardSummary:
+def dashboard_summary(
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> DashboardSummary:
     settings = get_settings()
     return DashboardSummary(
         counts=Counts(

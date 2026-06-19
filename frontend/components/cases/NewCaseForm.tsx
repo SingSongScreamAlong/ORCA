@@ -2,16 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCan } from "@/components/auth/UserContext";
 import { createCase } from "@/lib/api";
 
 export function NewCaseForm() {
   const router = useRouter();
+  const canCreate = useCan("create_case");
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [owner, setOwner] = useState("Development Analyst");
   const [summary, setSummary] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  if (!canCreate) return null;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();

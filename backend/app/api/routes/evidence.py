@@ -1,9 +1,4 @@
-"""Evidence Locker endpoints (v0.3).
-
-Create evidence items (metadata; optional bytes hashed with SHA-256), link them to
-observations within the same case, decide them (approve / reject / needs_more_review /
-quarantine), and verify their integrity hash. Every action is audited.
-"""
+"""Evidence Locker endpoints (v0.3+), guarded by RBAC (v0.4)."""
 
 from __future__ import annotations
 
@@ -11,7 +6,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
-from app.api.deps import Pagination, current_principal, get_uow, pagination
+from app.api.deps import Pagination, get_uow, pagination, require
+from app.core.rbac import Capability
 from app.core.security import Principal
 from app.repositories.uow import UnitOfWork
 from app.schemas.evidence import (
@@ -28,7 +24,9 @@ router = APIRouter(prefix="/evidence", tags=["evidence"])
 
 @router.get("", response_model=list[EvidenceItemRead], summary="List evidence items")
 def list_evidence(
-    page: Pagination = Depends(pagination), uow: UnitOfWork = Depends(get_uow)
+    page: Pagination = Depends(pagination),
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> list[EvidenceItemRead]:
     return uow.evidence.list(limit=page.limit, offset=page.offset)
 
@@ -41,14 +39,18 @@ def list_evidence(
 )
 def create_evidence(
     payload: EvidenceItemCreate,
-    principal: Principal = Depends(current_principal),
+    principal: Principal = Depends(require(Capability.CREATE_EVIDENCE)),
     uow: UnitOfWork = Depends(get_uow),
 ) -> EvidenceItemRead:
     return EvidenceService(uow).create(payload, principal)
 
 
 @router.get("/{evidence_id}", response_model=EvidenceItemRead, summary="Get an evidence item")
-def get_evidence(evidence_id: UUID, uow: UnitOfWork = Depends(get_uow)) -> EvidenceItemRead:
+def get_evidence(
+    evidence_id: UUID,
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> EvidenceItemRead:
     return EvidenceService(uow).get(evidence_id)
 
 
@@ -60,7 +62,7 @@ def get_evidence(evidence_id: UUID, uow: UnitOfWork = Depends(get_uow)) -> Evide
 def link_evidence(
     evidence_id: UUID,
     request: EvidenceLinkRequest,
-    principal: Principal = Depends(current_principal),
+    principal: Principal = Depends(require(Capability.CREATE_EVIDENCE)),
     uow: UnitOfWork = Depends(get_uow),
 ) -> EvidenceItemRead:
     return EvidenceService(uow).link_to_observation(evidence_id, request.observation_id, principal)
@@ -74,10 +76,12 @@ def link_evidence(
 def decide_evidence(
     evidence_id: UUID,
     request: EvidenceDecisionRequest,
-    principal: Principal = Depends(current_principal),
+    principal: Principal = Depends(require(Capability.REVIEW_DECIDE)),
     uow: UnitOfWork = Depends(get_uow),
 ) -> EvidenceItemRead:
-    return EvidenceService(uow).decide(evidence_id, request.decision, principal, note=request.note)
+    return EvidenceService(uow).decide(
+        evidence_id, request.decision, principal, note=request.note, override=request.override
+    )
 
 
 @router.post(
@@ -87,7 +91,7 @@ def decide_evidence(
 )
 def verify_evidence(
     evidence_id: UUID,
-    principal: Principal = Depends(current_principal),
+    principal: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
     uow: UnitOfWork = Depends(get_uow),
 ) -> EvidenceVerifyResult:
     return EvidenceService(uow).verify(evidence_id, principal)

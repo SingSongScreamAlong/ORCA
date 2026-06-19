@@ -186,10 +186,38 @@ audit.
 backend and frontend for local development. Production topology is out of scope for
 the skeleton; the roadmap addresses it. See [`roadmap.md`](roadmap.md).
 
+## Authentication & authorization (v0.4)
+
+Authorization is enforced at the API boundary by a capability-based route guard and is
+re-checked in the service layer for decisions.
+
+- **Authentication.** A request is resolved to a `Principal` (`app/core/security.py`).
+  For local/dev, the `X-ORCA-User` header selects a seeded user; production swaps in real
+  credential verification without changing the rest of the stack. Unknown users → 401.
+- **Roles & capabilities.** Six roles map to capabilities in `app/core/rbac.py`. The
+  route guard `require(capability)` (`app/api/deps.py`) returns 403 on a missing
+  capability. See [`v0.4_auth_rbac.md`](v0.4_auth_rbac.md) for the full matrix.
+- **Separation of duties.** A user cannot decide on their own proposed intelligence; an
+  admin override bypasses this and is recorded as a distinct audit event.
+- **Case membership.** `case_members` records assignments (case managers assign users);
+  it is the foundation for per-case authorization scoping in a later milestone.
+
+```mermaid
+graph LR
+    REQ[Request + X-ORCA-User] --> AUTH[resolve_principal]
+    AUTH -->|401 unknown| OUT1[(401)]
+    AUTH --> GUARD["require(capability)"]
+    GUARD -->|missing capability| OUT2[(403)]
+    GUARD --> SVC[Service]
+    SVC -->|self-review without override| OUT2
+    SVC --> AUDIT[(append-only audit log)]
+```
+
 ## Cross-cutting concerns
 
-- **AuthN/AuthZ.** Role-based access control is described in [`security.md`](security.md)
-  and stubbed in `backend/app/core`. Roles: analyst, reviewer, admin.
+- **AuthN/AuthZ.** Role-based access control (six roles) is described in
+  [`v0.4_auth_rbac.md`](v0.4_auth_rbac.md) and [`security.md`](security.md), implemented
+  in `backend/app/core/rbac.py` and enforced by `app/api/deps.py::require`.
 - **Audit logging.** Every state transition that confirms, rejects, or deletes is
   recorded. The audit log is append-only.
 - **Configuration.** Settings load from environment variables (`backend/app/core/config.py`).

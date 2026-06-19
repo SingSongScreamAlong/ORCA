@@ -9,7 +9,9 @@ import type {
   AuditEntry,
   Case,
   CaseDetail,
+  CaseMember,
   Cluster,
+  CurrentUser,
   DashboardSummary,
   Entity,
   EvidenceDecision,
@@ -22,18 +24,46 @@ import type {
   Report,
   Source,
   TimelineEvent,
+  User,
 } from "./types";
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000/api/v1";
 
-export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string };
+export type ApiResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: string; status?: number };
+
+/**
+ * The acting user's header. The dev user switcher stores the username in the
+ * `orca_user` cookie; we forward it as `X-ORCA-User` for both server-component reads
+ * and client-component mutations so authorization is consistent.
+ */
+async function userHeaders(): Promise<Record<string, string>> {
+  if (typeof window === "undefined") {
+    try {
+      // Dynamic import keeps the server-only `next/headers` out of client bundles.
+      const { cookies } = await import("next/headers");
+      const u = cookies().get("orca_user")?.value;
+      return u ? { "X-ORCA-User": u } : {};
+    } catch {
+      return {};
+    }
+  }
+  const m = typeof document !== "undefined"
+    ? document.cookie.match(/(?:^|;\s*)orca_user=([^;]+)/)
+    : null;
+  return m ? { "X-ORCA-User": decodeURIComponent(m[1]) } : {};
+}
 
 async function apiGet<T>(path: string): Promise<ApiResult<T>> {
   try {
-    const res = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
+    const res = await fetch(`${API_BASE}${path}`, {
+      cache: "no-store",
+      headers: { ...(await userHeaders()) },
+    });
     if (!res.ok) {
-      return { ok: false, error: `Backend responded ${res.status} for ${path}` };
+      return { ok: false, status: res.status, error: `Backend responded ${res.status} for ${path}` };
     }
     return { ok: true, data: (await res.json()) as T };
   } catch {
@@ -52,7 +82,7 @@ async function apiSend<T>(
   try {
     const res = await fetch(`${API_BASE}${path}`, {
       method,
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...(await userHeaders()) },
       body: JSON.stringify(body),
     });
     if (!res.ok) {
@@ -63,7 +93,7 @@ async function apiSend<T>(
       } catch {
         /* ignore */
       }
-      return { ok: false, error: detail };
+      return { ok: false, status: res.status, error: detail };
     }
     return { ok: true, data: (await res.json()) as T };
   } catch {
@@ -93,11 +123,27 @@ export const getCaseRelationships = (id: string) =>
 export const getCaseTimeline = (id: string) => apiGet<TimelineEvent[]>(`/cases/${id}/timeline`);
 export const getCaseAudit = (id: string) => apiGet<AuditEntry[]>(`/cases/${id}/audit`);
 export const getCaseReports = (id: string) => apiGet<Report[]>(`/cases/${id}/reports`);
+export const getCaseMembers = (id: string) => apiGet<CaseMember[]>(`/cases/${id}/members`);
+
+export const getMe = () => apiGet<CurrentUser>("/me");
+export const getUsers = () => apiGet<User[]>("/users");
+export const getPublishedReports = () => apiGet<Report[]>("/reports/published");
+export const getReport = (id: string) => apiGet<Report>(`/reports/${id}`);
 
 // --- mutations (browser-side analyst actions) ----------------------------------
 
-export const decideReview = (itemId: string, decision: ReviewDecision, note?: string) =>
-  apiSend<ReviewItem>(`/review/${itemId}/decision`, "POST", { decision, note });
+export const decideReview = (
+  itemId: string,
+  decision: ReviewDecision,
+  note?: string,
+  override = false,
+) => apiSend<ReviewItem>(`/review/${itemId}/decision`, "POST", { decision, note, override });
+
+export const assignMember = (caseId: string, username: string) =>
+  apiSend<CaseMember>(`/cases/${caseId}/members`, "POST", { username });
+
+export const publishReport = (reportId: string) =>
+  apiSend<Report>(`/reports/${reportId}/publish`, "POST", {});
 
 export const createCase = (body: {
   title: string;
@@ -147,8 +193,12 @@ export interface EvidenceCreateBody {
 export const createEvidence = (body: EvidenceCreateBody) =>
   apiSend<EvidenceItem>("/evidence", "POST", body);
 
-export const decideEvidence = (evidenceId: string, decision: EvidenceDecision, note?: string) =>
-  apiSend<EvidenceItem>(`/evidence/${evidenceId}/decision`, "POST", { decision, note });
+export const decideEvidence = (
+  evidenceId: string,
+  decision: EvidenceDecision,
+  note?: string,
+  override = false,
+) => apiSend<EvidenceItem>(`/evidence/${evidenceId}/decision`, "POST", { decision, note, override });
 
 export const verifyEvidence = (evidenceId: string) =>
   apiSend<EvidenceVerifyResult>(`/evidence/${evidenceId}/verify`, "POST", {});

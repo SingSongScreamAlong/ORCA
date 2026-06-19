@@ -48,8 +48,15 @@ def _review_item_for(client, observation_id: str) -> str:
     return next(i["id"] for i in items if i["subject_id"] == observation_id)
 
 
+# Decisions are made by a reviewer (separation of duties); the proposer is the default
+# admin user, so a reviewer approving is not self-review.
+REVIEWER = {"X-ORCA-User": "rae"}
+
+
 def _decide(client, item_id: str, decision: str):
-    return client.post(f"{PREFIX}/review/{item_id}/decision", json={"decision": decision})
+    return client.post(
+        f"{PREFIX}/review/{item_id}/decision", json={"decision": decision}, headers=REVIEWER
+    )
 
 
 # --- the happy-path loop --------------------------------------------------------

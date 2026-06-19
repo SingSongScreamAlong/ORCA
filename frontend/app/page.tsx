@@ -20,7 +20,7 @@ export default async function DashboardPage() {
           The dashboard answers three questions: what is new, what changed, and what
           requires review.
         </PageIntro>
-        <BackendNotice error={result.error} />
+        <BackendNotice error={result.error} status={result.status} />
       </div>
     );
   }

@@ -20,6 +20,7 @@ class ReviewItemRead(ORCAModel):
     subject_type: str
     subject_id: UUID
     case_id: UUID | None
+    created_by: str | None  # who proposed the subject (for self-review checks)
     # Why this was surfaced — always present.
     rationale: str
     confidence: float
@@ -41,3 +42,5 @@ class ReviewDecision(str, Enum):
 class ReviewDecisionRequest(ORCAModel):
     decision: ReviewDecision
     note: str | None = None
+    # Admin-only: bypass the self-review block; writes a distinct override audit event.
+    override: bool = False

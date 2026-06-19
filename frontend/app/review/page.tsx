@@ -13,7 +13,7 @@ export default async function ReviewPage() {
     return (
       <div className="space-y-6">
         <Intro />
-        <BackendNotice error={queue.error} />
+        <BackendNotice error={queue.error} status={queue.status} />
       </div>
     );
   }

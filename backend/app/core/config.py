@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     # Storage backend selection. "memory" lets the skeleton run with no database.
     storage_backend: Literal["memory", "postgres"] = "memory"
 
+    # Dev authentication: the user assumed when no X-ORCA-User header is supplied.
+    # Suitable for local/dev only; production replaces this with real authentication.
+    dev_default_user: str = "admin"
+
     # PostgreSQL — the system of record.
     postgres_dsn: str = "postgresql+psycopg://orca:orca@localhost:5432/orca"
 

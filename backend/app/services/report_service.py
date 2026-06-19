@@ -25,11 +25,33 @@ class ReportService:
     def list(self, case_id: UUID) -> list[ReportRead]:
         return self.uow.reports.list(case_id=case_id)
 
+    def list_published(self) -> list[ReportRead]:
+        return self.uow.reports.list_published()
+
     def get(self, report_id: UUID) -> ReportRead:
         report = self.uow.reports.get(report_id)
         if report is None:
             raise NotFoundError(f"Report {report_id} not found")
         return report
+
+    def publish(self, report_id: UUID, principal: Principal) -> ReportRead:
+        """Mark a draft report as final — an approved report package."""
+        report = self.get(report_id)
+        updated = report.model_copy(
+            update={"status": ReportStatus.FINAL, "updated_at": datetime.now(UTC)}
+        )
+        self.uow.reports.replace(updated)
+        self.uow.audit.record(
+            new_audit_entry(
+                actor_id=principal.id,
+                action="report.published",
+                target_type="report",
+                target_id=report.id,
+                case_id=report.case_id,
+                context={"title": report.title},
+            )
+        )
+        return updated
 
     def generate_draft(self, case_id: UUID, principal: Principal) -> ReportRead:
         case = self.uow.cases.get(case_id)

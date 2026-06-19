@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 from app import __version__
 from app.api.router import api_router
 from app.core.config import get_settings
+from app.core.security import AuthenticationError
 from app.services.errors import NotFoundError, PermissionDenied, ValidationError
 
 
@@ -72,6 +73,10 @@ def _register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(PermissionDenied)
     async def _permission(_: Request, exc: PermissionDenied) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(exc)})
+
+    @app.exception_handler(AuthenticationError)
+    async def _auth(_: Request, exc: AuthenticationError) -> JSONResponse:
+        return JSONResponse(status_code=401, content={"detail": str(exc)})
 
 
 app = create_app()

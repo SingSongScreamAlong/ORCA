@@ -6,7 +6,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
-from app.api.deps import Pagination, current_principal, get_uow, pagination
+from app.api.deps import Pagination, get_uow, pagination, require
+from app.core.rbac import Capability
 from app.core.security import Principal
 from app.repositories.uow import UnitOfWork
 from app.schemas.cluster import ClusterCreate, ClusterRead
@@ -17,7 +18,9 @@ router = APIRouter(prefix="/clusters", tags=["clusters"])
 
 @router.get("", response_model=list[ClusterRead], summary="List clusters")
 def list_clusters(
-    page: Pagination = Depends(pagination), uow: UnitOfWork = Depends(get_uow)
+    page: Pagination = Depends(pagination),
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> list[ClusterRead]:
     return ClusterService(uow).list(limit=page.limit, offset=page.offset)
 
@@ -30,12 +33,16 @@ def list_clusters(
 )
 def create_cluster(
     payload: ClusterCreate,
-    principal: Principal = Depends(current_principal),
+    principal: Principal = Depends(require(Capability.CREATE_RELATIONSHIP)),
     uow: UnitOfWork = Depends(get_uow),
 ) -> ClusterRead:
     return ClusterService(uow).create(payload, principal)
 
 
 @router.get("/{cluster_id}", response_model=ClusterRead, summary="Get a cluster")
-def get_cluster(cluster_id: UUID, uow: UnitOfWork = Depends(get_uow)) -> ClusterRead:
+def get_cluster(
+    cluster_id: UUID,
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> ClusterRead:
     return ClusterService(uow).get(cluster_id)

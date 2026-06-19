@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCan } from "@/components/auth/UserContext";
 import { EvidenceStatusBadge, Tag } from "@/components/ui/Badges";
 import { Table, Td, Th, Tr } from "@/components/ui/Table";
 import { decideEvidence, verifyEvidence } from "@/lib/api";
@@ -25,9 +26,12 @@ export function EvidenceLocker({
   observations: Record<string, string>;
 }) {
   const router = useRouter();
+  const canDecide = useCan("review_decide");
+  const canOverride = useCan("admin_override");
   const [verifying, setVerifying] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, EvidenceVerifyResult>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   async function verify(id: string) {
     setVerifying(id);
@@ -38,8 +42,16 @@ export function EvidenceLocker({
 
   async function decide(id: string, decision: EvidenceDecision) {
     setBusy(id);
-    await decideEvidence(id, decision);
+    setErrors((e) => ({ ...e, [id]: "" }));
+    let res = await decideEvidence(id, decision);
+    if (!res.ok && res.status === 403 && canOverride) {
+      res = await decideEvidence(id, decision, "admin override", true);
+    }
     setBusy(null);
+    if (!res.ok) {
+      setErrors((e) => ({ ...e, [id]: res.error }));
+      return;
+    }
     router.refresh();
   }
 
@@ -129,19 +141,26 @@ export function EvidenceLocker({
               )}
             </Td>
             <Td>
-              <div className="flex flex-wrap gap-1">
-                {DECISIONS.map((d) => (
-                  <button
-                    key={d.key}
-                    type="button"
-                    onClick={() => decide(e.id, d.key)}
-                    disabled={busy === e.id}
-                    className={`rounded px-2 py-0.5 text-xs font-medium ring-1 ring-inset disabled:opacity-50 ${d.cls}`}
-                  >
-                    {d.label}
-                  </button>
-                ))}
-              </div>
+              {canDecide ? (
+                <div className="flex flex-col gap-1">
+                  <div className="flex flex-wrap gap-1">
+                    {DECISIONS.map((d) => (
+                      <button
+                        key={d.key}
+                        type="button"
+                        onClick={() => decide(e.id, d.key)}
+                        disabled={busy === e.id}
+                        className={`rounded px-2 py-0.5 text-xs font-medium ring-1 ring-inset disabled:opacity-50 ${d.cls}`}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
+                  {errors[e.id] && <span className="text-xs text-amber-700">{errors[e.id]}</span>}
+                </div>
+              ) : (
+                <span className="text-xs text-ink-faint">view only</span>
+              )}
             </Td>
           </Tr>
         );

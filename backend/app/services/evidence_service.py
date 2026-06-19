@@ -28,6 +28,7 @@ from app.schemas.evidence import (
     EvidenceItemRead,
     EvidenceVerifyResult,
 )
+from app.services.authz import authorize_decision
 from app.services.errors import NotFoundError, PermissionDenied, ValidationError
 
 _DECISION_STATUS: dict[EvidenceDecision, EvidenceStatus] = {
@@ -123,22 +124,36 @@ class EvidenceService:
         return updated
 
     def decide(
-        self, evidence_id: UUID, decision: EvidenceDecision, principal: Principal, note: str | None = None
+        self,
+        evidence_id: UUID,
+        decision: EvidenceDecision,
+        principal: Principal,
+        note: str | None = None,
+        override: bool = False,
     ) -> EvidenceItemRead:
         if not can(principal.role, Capability.REVIEW_DECIDE):
             raise PermissionDenied("Deciding an evidence item requires review authority")
         item = self.get(evidence_id)
+        # Separation of duties: no self-review without an admin override.
+        is_override = authorize_decision(principal, item.created_by, override)
         new_status = _DECISION_STATUS[decision]
         updated = item.model_copy(update={"status": new_status})
         self.uow.evidence.replace(updated)
+        action = "evidence.override" if is_override else f"evidence.{decision.value}"
         self.uow.audit.record(
             new_audit_entry(
                 actor_id=principal.id,
-                action=f"evidence.{decision.value}",
+                action=action,
                 target_type="evidence",
                 target_id=item.id,
                 case_id=item.case_id,
-                context={"resulting_status": new_status.value, "note": note},
+                context={
+                    "decision": decision.value,
+                    "resulting_status": new_status.value,
+                    "override": is_override,
+                    "proposer": item.created_by,
+                    "note": note,
+                },
             )
         )
         return updated

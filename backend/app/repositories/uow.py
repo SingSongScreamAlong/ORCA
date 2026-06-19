@@ -24,6 +24,8 @@ class UnitOfWork(Protocol):
     cases: object
     reports: object
     reviews: object
+    users: object
+    memberships: object
     audit: object
     graph: object
     content: object  # evidence content store (SHA-256 integrity layer)
@@ -48,11 +50,13 @@ class InMemoryUnitOfWork:
             MemoryClusterRepository,
             MemoryEntityRepository,
             MemoryEvidenceRepository,
+            MemoryMembershipRepository,
             MemoryObservationRepository,
             MemoryRelationshipRepository,
             MemoryReportRepository,
             MemoryReviewRepository,
             MemorySourceRepository,
+            MemoryUserRepository,
         )
         from app.repositories.store import store
 
@@ -65,6 +69,8 @@ class InMemoryUnitOfWork:
         self.cases = MemoryCaseRepository(store)
         self.reports = MemoryReportRepository(store)
         self.reviews = MemoryReviewRepository(store)
+        self.users = MemoryUserRepository(store)
+        self.memberships = MemoryMembershipRepository(store)
         self.audit = MemoryAuditRepository(store)
         self.graph = InMemoryGraphRepository()
         from app.core.content_store import build_content_store

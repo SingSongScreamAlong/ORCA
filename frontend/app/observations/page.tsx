@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { CapLink } from "@/components/auth/CapLink";
 import { Table, Td, Th, Tr } from "@/components/ui/Table";
 import { ConfidenceBadge, StatusBadge } from "@/components/ui/Badges";
 import { EntityChip } from "@/components/ui/EntityChip";
@@ -21,7 +21,7 @@ export default async function ObservationsPage() {
     return (
       <div className="space-y-6">
         <Intro />
-        <BackendNotice error={observations.error} />
+        <BackendNotice error={observations.error} status={observations.status} />
       </div>
     );
   }
@@ -36,12 +36,13 @@ export default async function ObservationsPage() {
   return (
     <div className="space-y-6">
       <Intro />
-      <Link
+      <CapLink
+        cap="create_observation"
         href="/intake"
         className="inline-block rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90"
       >
         + Intake observation
-      </Link>
+      </CapLink>
       {observations.data.length === 0 ? (
         <EmptyState message="No observations recorded yet." />
       ) : (

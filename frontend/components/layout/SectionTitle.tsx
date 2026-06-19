@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { TopBar } from "./TopBar";
 
 const TITLES: Record<string, string> = {
   "/": "Dashboard",
@@ -13,6 +12,7 @@ const TITLES: Record<string, string> = {
   "/relationships": "Relationships",
   "/clusters": "Clusters",
   "/reports": "Reports",
+  "/evidence": "Evidence",
   "/safety": "Safety & Handling",
 };
 
@@ -21,5 +21,5 @@ export function SectionTitle() {
   const key = Object.keys(TITLES)
     .filter((k) => (k === "/" ? pathname === "/" : pathname.startsWith(k)))
     .sort((a, b) => b.length - a.length)[0];
-  return <TopBar title={TITLES[key] ?? "ORCA"} />;
+  return <h1 className="text-base font-semibold text-ink">{TITLES[key] ?? "ORCA"}</h1>;
 }

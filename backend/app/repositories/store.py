@@ -16,6 +16,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 from app.core.content_store import memory_content_store, sha256_hex
+from app.core.rbac import Role
 from app.models.enums import (
     CaseStatus,
     ClusterStatus,
@@ -39,6 +40,7 @@ from app.schemas.relationship import RelationshipRead
 from app.schemas.report import ReportRead
 from app.schemas.review import ReviewItemRead
 from app.schemas.source import SourceRead
+from app.schemas.user import CaseMemberRead, UserRead
 
 
 class InMemoryStore:
@@ -54,12 +56,29 @@ class InMemoryStore:
         self.cases: dict[UUID, CaseRead] = {}
         self.reports: dict[UUID, ReportRead] = {}
         self.review_items: dict[UUID, ReviewItemRead] = {}
+        self.users: dict[UUID, UserRead] = {}
+        self.memberships: dict[UUID, CaseMemberRead] = {}
         self.audit: list = []  # AuditEntry objects, append-only
         self._seed()
 
     def _seed(self) -> None:
         now = datetime.now(UTC)
         observed = now - timedelta(days=2)
+
+        # --- Demo users (one per role) ---------------------------------------
+        seed_users = [
+            ("admin", "Avery Admin", Role.ADMIN),
+            ("casey", "Casey Manager", Role.CASE_MANAGER),
+            ("ana", "Ana Analyst", Role.ANALYST),
+            ("rae", "Rae Reviewer", Role.REVIEWER),
+            ("vic", "Vic Viewer", Role.VIEWER),
+            ("partner", "Partner Export", Role.PARTNER_EXPORT_VIEWER),
+        ]
+        users_by_name: dict[str, UserRead] = {}
+        for username, display, role in seed_users:
+            user = UserRead(id=uuid4(), username=username, display_name=display, role=role, created_at=now)
+            self.users[user.id] = user
+            users_by_name[username] = user
 
         case = CaseRead(
             id=uuid4(), title="Shared-phone advertisements", status=CaseStatus.ACTIVE,
@@ -69,6 +88,15 @@ class InMemoryStore:
             created_at=now, updated_at=now,
         )
         self.cases[case.id] = case
+
+        # Assign working members to the seed case (partner export viewer is not a member).
+        for username in ("casey", "ana", "rae", "vic"):
+            member = users_by_name[username]
+            membership = CaseMemberRead(
+                id=uuid4(), case_id=case.id, user_id=member.id, username=member.username,
+                role=member.role, assigned_by="admin", assigned_at=now,
+            )
+            self.memberships[membership.id] = membership
 
         source = SourceRead(
             id=uuid4(), source_type=SourceType.WEBSITE, name="Example Classifieds",
@@ -143,7 +171,7 @@ class InMemoryStore:
 
         review = ReviewItemRead(
             id=uuid4(), item_type=ReviewItemType.PROPOSED_OBSERVATION, subject_type="observation",
-            subject_id=obs_c.id, case_id=case.id,
+            subject_id=obs_c.id, case_id=case.id, created_by="seed-loader",
             rationale=(
                 "Observation intake: ad-002 referenced username 'jaye_listings'. "
                 "Awaiting analyst review before it can support relationships."
@@ -186,6 +214,8 @@ def reset_store() -> None:
     store.cases.clear()
     store.reports.clear()
     store.review_items.clear()
+    store.users.clear()
+    store.memberships.clear()
     store.audit.clear()
     memory_content_store.clear()
     store._seed()

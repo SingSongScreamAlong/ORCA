@@ -22,7 +22,7 @@ export default async function CasesPage() {
       <NewCaseForm />
 
       {!cases.ok ? (
-        <BackendNotice error={cases.error} />
+        <BackendNotice error={cases.error} status={cases.status} />
       ) : cases.data.length === 0 ? (
         <EmptyState message="No cases yet. Create one to begin the analyst loop." />
       ) : (

@@ -18,6 +18,7 @@ from app.core.database import new_session
 from app.models import (
     AuditLogEntry,
     Case,
+    CaseMembership,
     Cluster,
     Entity,
     EvidenceItem,
@@ -26,8 +27,9 @@ from app.models import (
     Report,
     ReviewItem,
     Source,
+    User,
 )
-from app.models.enums import EntityType, ReviewStatus
+from app.models.enums import EntityType, ReportStatus, ReviewStatus
 from app.schemas.case import CaseRead
 from app.schemas.cluster import ClusterRead
 from app.schemas.entity import EntityRead
@@ -38,6 +40,7 @@ from app.schemas.relationship import RelationshipRead
 from app.schemas.report import ReportRead
 from app.schemas.review import ReviewItemRead
 from app.schemas.source import SourceRead
+from app.schemas.user import CaseMemberRead, UserRead
 
 # --- mappers (ORM -> read model) -------------------------------------------------
 
@@ -86,6 +89,17 @@ def _report(o: Report) -> ReportRead:
 
 def _review(o: ReviewItem) -> ReviewItemRead:
     return ReviewItemRead.model_validate(o)
+
+
+def _user(o: User) -> UserRead:
+    return UserRead.model_validate(o)
+
+
+def _membership(o: CaseMembership, username: str, role) -> CaseMemberRead:
+    return CaseMemberRead(
+        id=o.id, case_id=o.case_id, user_id=o.user_id, username=username, role=role,
+        assigned_by=o.assigned_by, assigned_at=o.assigned_at,
+    )
 
 
 def _observation(o: Observation) -> ObservationRead:
@@ -402,6 +416,12 @@ class SqlReportRepository(_Repo):
         rows = self.s.scalars(stmt.order_by(Report.created_at.desc())).all()
         return [_report(o) for o in rows]
 
+    def list_published(self) -> list[ReportRead]:
+        rows = self.s.scalars(
+            select(Report).where(Report.status == ReportStatus.FINAL).order_by(Report.created_at.desc())
+        ).all()
+        return [_report(o) for o in rows]
+
     def add(self, read: ReportRead) -> ReportRead:
         o = Report(
             id=read.id, case_id=read.case_id, title=read.title, author=read.author,
@@ -410,6 +430,59 @@ class SqlReportRepository(_Repo):
         self.s.add(o)
         self.s.flush()
         return _report(o)
+
+    def replace(self, read: ReportRead) -> ReportRead:
+        o = self.s.get(Report, read.id)
+        o.status = read.status
+        o.title = read.title
+        o.body = read.body
+        self.s.flush()
+        return _report(o)
+
+
+class SqlUserRepository(_Repo):
+    def get(self, user_id: UUID) -> UserRead | None:
+        o = self.s.get(User, user_id)
+        return _user(o) if o else None
+
+    def get_by_username(self, username: str) -> UserRead | None:
+        o = self.s.scalars(select(User).where(User.username == username)).first()
+        return _user(o) if o else None
+
+    def list(self) -> list[UserRead]:
+        return [_user(o) for o in self.s.scalars(select(User).order_by(User.username)).all()]
+
+    def add(self, read: UserRead) -> UserRead:
+        o = User(id=read.id, username=read.username, display_name=read.display_name, role=read.role)
+        self.s.add(o)
+        self.s.flush()
+        return _user(o)
+
+
+class SqlMembershipRepository(_Repo):
+    def for_case(self, case_id: UUID) -> list[CaseMemberRead]:
+        rows = self.s.scalars(select(CaseMembership).where(CaseMembership.case_id == case_id)).all()
+        out: list[CaseMemberRead] = []
+        for m in rows:
+            user = self.s.get(User, m.user_id)
+            out.append(_membership(m, user.username if user else "", user.role if user else None))
+        return out
+
+    def exists(self, case_id: UUID, user_id: UUID) -> bool:
+        return self.s.scalars(
+            select(CaseMembership).where(
+                CaseMembership.case_id == case_id, CaseMembership.user_id == user_id
+            )
+        ).first() is not None
+
+    def add(self, member: CaseMemberRead) -> CaseMemberRead:
+        o = CaseMembership(
+            id=member.id, case_id=member.case_id, user_id=member.user_id,
+            assigned_by=member.assigned_by, assigned_at=member.assigned_at,
+        )
+        self.s.add(o)
+        self.s.flush()
+        return member
 
 
 class SqlReviewRepository(_Repo):
@@ -434,8 +507,9 @@ class SqlReviewRepository(_Repo):
     def add(self, read: ReviewItemRead) -> ReviewItemRead:
         o = ReviewItem(
             id=read.id, item_type=read.item_type, subject_type=read.subject_type,
-            subject_id=read.subject_id, case_id=read.case_id, rationale=read.rationale,
-            confidence=read.confidence, evidence_ids=list(read.evidence_ids), status=read.status,
+            subject_id=read.subject_id, case_id=read.case_id, created_by=read.created_by,
+            rationale=read.rationale, confidence=read.confidence,
+            evidence_ids=list(read.evidence_ids), status=read.status,
             decided_by=read.decided_by, decided_at=read.decided_at,
         )
         self.s.add(o)
@@ -487,6 +561,8 @@ class SqlUnitOfWork:
         self.cases = SqlCaseRepository(session)
         self.reports = SqlReportRepository(session)
         self.reviews = SqlReviewRepository(session)
+        self.users = SqlUserRepository(session)
+        self.memberships = SqlMembershipRepository(session)
         self.audit = SqlAuditRepository(session)
         self.graph = self._build_graph()
         from app.core.content_store import build_content_store
