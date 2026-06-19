@@ -128,6 +128,12 @@ _CASE_REVIEW_ROLES: frozenset[CaseRole] = frozenset({CaseRole.REVIEWER})
 _CASE_AUDIT_ROLES: frozenset[CaseRole] = frozenset({CaseRole.CASE_MANAGER, CaseRole.REVIEWER})
 # Which case roles may manage the case's membership roster.
 _CASE_MANAGE_MEMBER_ROLES: frozenset[CaseRole] = frozenset({CaseRole.CASE_MANAGER})
+# Which case roles may download raw evidence *bytes* (not just metadata). Viewers and
+# partner export viewers are excluded by default — they see metadata / approved reports
+# only. A deployment may additionally permit viewers via ``evidence_allow_viewer_download``.
+_CASE_RAW_FILE_ROLES: frozenset[CaseRole] = frozenset(
+    {CaseRole.CASE_MANAGER, CaseRole.ANALYST, CaseRole.REVIEWER}
+)
 
 
 def default_case_role(role: Role) -> CaseRole:
@@ -153,6 +159,10 @@ def case_role_can_view_audit(case_role: CaseRole) -> bool:
 
 def case_role_can_manage_members(case_role: CaseRole) -> bool:
     return case_role in _CASE_MANAGE_MEMBER_ROLES
+
+
+def case_role_can_access_raw_files(case_role: CaseRole) -> bool:
+    return case_role in _CASE_RAW_FILE_ROLES
 
 
 def case_role_can_view_reports(case_role: CaseRole) -> bool:

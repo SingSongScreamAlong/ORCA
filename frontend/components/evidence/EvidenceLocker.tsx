@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useCan } from "@/components/auth/UserContext";
 import { EvidenceStatusBadge, Tag } from "@/components/ui/Badges";
 import { Table, Td, Th, Tr } from "@/components/ui/Table";
-import { decideEvidence, verifyEvidence } from "@/lib/api";
-import { formatTimestamp, humanize, shortId } from "@/lib/format";
+import { decideEvidence, getEvidenceBlob, verifyEvidence } from "@/lib/api";
+import { formatBytes, formatTimestamp, humanize, shortId } from "@/lib/format";
 import type { EvidenceDecision, EvidenceItem, EvidenceVerifyResult } from "@/lib/types";
 
 const DECISIONS: { key: EvidenceDecision; label: string; cls: string }[] = [
@@ -28,10 +28,33 @@ export function EvidenceLocker({
   const router = useRouter();
   const canDecide = useCan("review_decide");
   const canOverride = useCan("admin_override");
+  const canCreate = useCan("create_evidence");
+  // Raw bytes are for mutating roles (create) and reviewers; viewers/partners are hidden.
+  const canDownload = canCreate || canDecide;
   const [verifying, setVerifying] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, EvidenceVerifyResult>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  async function download(id: string, filename: string | null) {
+    setDownloading(id);
+    setErrors((e) => ({ ...e, [id]: "" }));
+    const res = await getEvidenceBlob(id);
+    setDownloading(null);
+    if (!res.ok) {
+      setErrors((e) => ({ ...e, [id]: res.error }));
+      return;
+    }
+    const url = URL.createObjectURL(res.data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename || id;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
 
   async function verify(id: string) {
     setVerifying(id);
@@ -83,8 +106,14 @@ export function EvidenceLocker({
           <Tr key={e.id}>
             <Td>
               <div className="font-medium text-ink">{e.title}</div>
+              {e.original_filename && (
+                <div className="mono mt-0.5 text-xs text-ink-muted">
+                  {e.original_filename} · {humanize(e.mime_type ?? "—")} · {formatBytes(e.size_bytes)}
+                </div>
+              )}
               <div className="mt-0.5 text-xs text-ink-faint">
-                captured {e.captured_at ? formatTimestamp(e.captured_at) : "—"} · {e.access_method}
+                captured {e.captured_at ? formatTimestamp(e.captured_at) : "—"} · {e.access_method} ·
+                by {shortId(e.created_by)}
               </div>
               <div className="mt-1 flex flex-wrap gap-1">
                 {e.legal_flags.requires_legal_review && <Tag>legal review</Tag>}
@@ -141,8 +170,18 @@ export function EvidenceLocker({
               )}
             </Td>
             <Td>
-              {canDecide ? (
-                <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1">
+                {canDownload && e.has_bytes && (
+                  <button
+                    type="button"
+                    onClick={() => download(e.id, e.original_filename)}
+                    disabled={downloading === e.id}
+                    className="self-start rounded border border-surface-border px-2 py-0.5 text-xs text-ink-muted hover:bg-surface-sunken disabled:opacity-50"
+                  >
+                    {downloading === e.id ? "Preparing…" : "Download"}
+                  </button>
+                )}
+                {canDecide && (
                   <div className="flex flex-wrap gap-1">
                     {DECISIONS.map((d) => (
                       <button
@@ -156,11 +195,12 @@ export function EvidenceLocker({
                       </button>
                     ))}
                   </div>
-                  {errors[e.id] && <span className="text-xs text-amber-700">{errors[e.id]}</span>}
-                </div>
-              ) : (
-                <span className="text-xs text-ink-faint">view only</span>
-              )}
+                )}
+                {!canDecide && !(canDownload && e.has_bytes) && (
+                  <span className="text-xs text-ink-faint">view only</span>
+                )}
+                {errors[e.id] && <span className="text-xs text-amber-700">{errors[e.id]}</span>}
+              </div>
             </Td>
           </Tr>
         );

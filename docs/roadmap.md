@@ -25,6 +25,14 @@ sequence is the commitment.
 The skeleton is deliberately honest: endpoints and screens exist and are wired to the
 data model, but business logic is minimal and clearly marked.
 
+> **v0.7 status.** **Evidence File Upload + Storage Hardening** advances Phase 1's
+> evidence work: real manual upload of lawful files (`POST /cases/{id}/evidence/upload`)
+> through the content-addressed store, with SHA-256 hashing/verification, a safe-by-default
+> upload policy (reject executables, quarantine unknown types, cap size), role- and
+> case-scoped raw-byte download (`GET /evidence/{id}/download`), a mandatory safety
+> acknowledgement, and audited upload/download/verify. Upload/storage only — no
+> collection. See [`v0.7_evidence_file_upload.md`](v0.7_evidence_file_upload.md).
+>
 > **v0.6 status.** **Case Membership & Authorization Scoping** completes the access-control
 > work in Phases 1 and 6: need-to-know on top of RBAC. A non-admin must hold an active
 > membership in a case to see or act on it, and a per-case role decides what they may do
