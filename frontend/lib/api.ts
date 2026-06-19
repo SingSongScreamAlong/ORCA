@@ -215,6 +215,52 @@ export interface EvidenceCreateBody {
 export const createEvidence = (body: EvidenceCreateBody) =>
   apiSend<EvidenceItem>("/evidence", "POST", body);
 
+/**
+ * Upload a lawful evidence file (multipart). The browser sets the multipart boundary, so
+ * we must NOT set content-type ourselves; the acting user still travels as X-ORCA-User.
+ */
+export async function uploadEvidence(
+  caseId: string,
+  form: FormData,
+): Promise<ApiResult<EvidenceItem>> {
+  try {
+    const res = await fetch(`${API_BASE}/cases/${caseId}/evidence/upload`, {
+      method: "POST",
+      headers: { ...(await userHeaders()) },
+      body: form,
+    });
+    if (!res.ok) {
+      let detail = `Upload failed (${res.status}).`;
+      try {
+        const j = await res.json();
+        if (j?.detail) detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+      } catch {
+        /* ignore */
+      }
+      return { ok: false, status: res.status, error: detail };
+    }
+    return { ok: true, data: (await res.json()) as EvidenceItem };
+  } catch {
+    return { ok: false, error: `Could not reach the ORCA backend at ${API_BASE}.` };
+  }
+}
+
+/** Fetch raw evidence bytes for an authorised caller (carries X-ORCA-User). */
+export async function getEvidenceBlob(evidenceId: string): Promise<ApiResult<Blob>> {
+  try {
+    const res = await fetch(`${API_BASE}/evidence/${evidenceId}/download`, {
+      cache: "no-store",
+      headers: { ...(await userHeaders()) },
+    });
+    if (!res.ok) {
+      return { ok: false, status: res.status, error: `Download failed (${res.status}).` };
+    }
+    return { ok: true, data: await res.blob() };
+  } catch {
+    return { ok: false, error: `Could not reach the ORCA backend at ${API_BASE}.` };
+  }
+}
+
 export const decideEvidence = (
   evidenceId: string,
   decision: EvidenceDecision,

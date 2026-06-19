@@ -122,6 +122,22 @@ def test_full_loop_against_postgres(pg_client):
     c.post(f"{PREFIX}/evidence/{ev['id']}/decision", json={"decision": "approve"}, headers=REVIEWER)
     assert any(e["title"] == "PG-EVIDENCE" for e in c.get(f"{PREFIX}/cases/{cid}/evidence").json())
 
+    # Manual file upload (v0.7): multipart upload → filesystem content store → download +
+    # verify, exercising the SQL + content-store path end to end.
+    import hashlib
+
+    blob = b"pg upload bytes"
+    up = c.post(
+        f"{PREFIX}/cases/{cid}/evidence/upload",
+        files={"file": ("pg.txt", blob, "text/plain")},
+        data={"source_id": obs["source_id"], "title": "PG-UPLOAD", "acknowledged": "true"},
+    ).json()
+    assert up["sha256"] == hashlib.sha256(blob).hexdigest()
+    assert up["has_bytes"] is True
+    dl = c.get(f"{PREFIX}/evidence/{up['id']}/download")
+    assert dl.status_code == 200 and dl.content == blob
+    assert c.post(f"{PREFIX}/evidence/{up['id']}/verify").json()["verified"] is True
+
     # Timeline, report, and audit all reflect the persisted state.
     timeline = c.get(f"{PREFIX}/cases/{cid}/timeline").json()
     assert any(e["kind"] == "observation_approved" for e in timeline)
@@ -134,5 +150,6 @@ def test_full_loop_against_postgres(pg_client):
     for expected in (
         "case.created", "observation.intake", "review.approve", "relationship.created",
         "evidence.created", "evidence.linked", "evidence.verified", "evidence.approve",
+        "evidence.uploaded", "evidence.downloaded",
     ):
         assert expected in actions

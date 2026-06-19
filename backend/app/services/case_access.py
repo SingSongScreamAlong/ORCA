@@ -19,6 +19,7 @@ from app.core.rbac import (
     CaseRole,
     MembershipStatus,
     Role,
+    case_role_can_access_raw_files,
     case_role_can_manage_members,
     case_role_can_mutate,
     case_role_can_read_material,
@@ -115,3 +116,14 @@ class CaseAccessService:
     def can_view_reports(self, principal: Principal, case_id: UUID) -> bool:
         """Approved-report (export) access: any active member, or an administrator."""
         return self.has_access(principal, case_id)
+
+    def can_access_raw_file(self, principal: Principal, case_id: UUID) -> bool:
+        """Download raw evidence *bytes*: admin or an active mutating member.
+
+        Viewers and partner export viewers are excluded here; viewers may be permitted
+        for *approved* evidence separately via the ``evidence_allow_viewer_download``
+        policy, which the evidence service applies."""
+        role = self.effective_case_role(principal, case_id)
+        return role is not None and (
+            self.is_admin(principal) or case_role_can_access_raw_files(role)
+        )

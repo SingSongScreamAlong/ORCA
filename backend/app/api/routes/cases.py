@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 
 from app.api.deps import (
     get_uow,
@@ -19,13 +19,14 @@ from app.api.deps import (
     require_case_material_read,
     require_case_membership_management,
 )
+from app.core.config import get_settings
 from app.core.rbac import Capability
 from app.core.security import Principal
-from app.models.enums import ReviewStatus
+from app.models.enums import EvidenceType, ReviewStatus
 from app.repositories.uow import UnitOfWork
 from app.schemas.audit import AuditEntryRead
 from app.schemas.case import CaseCreate, CaseDetail, CaseRead
-from app.schemas.evidence import EvidenceItemRead
+from app.schemas.evidence import EvidenceItemRead, LegalFlags
 from app.schemas.graph import GraphView
 from app.schemas.observation import ObservationRead
 from app.schemas.relationship import RelationshipRead
@@ -43,6 +44,36 @@ from app.services.timeline_service import TimelineService
 router = APIRouter(prefix="/cases", tags=["cases"])
 
 _READ = Capability.READ_CASE_MATERIAL
+
+
+async def _read_capped(file: UploadFile, max_bytes: int) -> bytes:
+    """Read an upload into memory, refusing anything over ``max_bytes`` (no partial store)."""
+    from app.services.errors import ValidationError
+
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(1024 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_bytes:
+            raise ValidationError(
+                f"File exceeds the maximum upload size of {max_bytes} bytes."
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def _evidence_type(value: str | None) -> EvidenceType | None:
+    if value is None or value == "":
+        return None
+    from app.services.errors import ValidationError
+
+    try:
+        return EvidenceType(value)
+    except ValueError as exc:
+        raise ValidationError(f"Unknown evidence_type '{value}'.") from exc
 
 
 @router.get("", response_model=list[CaseRead], summary="List cases the caller may access")
@@ -102,6 +133,53 @@ def case_evidence(
     uow: UnitOfWork = Depends(get_uow),
 ) -> list[EvidenceItemRead]:
     return EvidenceService(uow).list_for_case(case_id)
+
+
+@router.post(
+    "/{case_id}/evidence/upload",
+    response_model=EvidenceItemRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload a lawful evidence file (multipart); hashed and case-scoped",
+)
+async def upload_evidence(
+    case_id: UUID,
+    file: UploadFile = File(..., description="The lawful evidence file to store."),
+    source_id: UUID = Form(...),
+    title: str = Form(..., min_length=1),
+    acknowledged: bool = Form(False, description="Safety boundaries acknowledged."),
+    evidence_type: str | None = Form(None),
+    description: str | None = Form(None),
+    observation_id: UUID | None = Form(None),
+    lawful_basis: str | None = Form(None),
+    requires_legal_review: bool = Form(False),
+    sensitive: bool = Form(False),
+    partner_approved: bool = Form(False),
+    handling_notes: str | None = Form(None),
+    principal: Principal = Depends(require(Capability.CREATE_EVIDENCE)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> EvidenceItemRead:
+    data = await _read_capped(file, get_settings().evidence_max_upload_bytes)
+    legal_flags = LegalFlags(
+        lawful_basis=lawful_basis,
+        requires_legal_review=requires_legal_review,
+        sensitive=sensitive,
+        partner_approved=partner_approved,
+    )
+    return EvidenceService(uow).create_from_upload(
+        case_id,
+        principal,
+        filename=file.filename or "upload.bin",
+        declared_mime=file.content_type,
+        data=data,
+        title=title,
+        description=description,
+        source_id=source_id,
+        observation_id=observation_id,
+        evidence_type=_evidence_type(evidence_type),
+        legal_flags=legal_flags,
+        handling_notes=handling_notes,
+        acknowledged=acknowledged,
+    )
 
 
 @router.get("/{case_id}/timeline", response_model=list[TimelineEvent], summary="Case timeline")

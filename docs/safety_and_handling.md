@@ -67,8 +67,24 @@ How the locker keeps evidence safe and accountable:
 - **Quarantine.** An item that must be isolated pending a handling decision can be
   marked `quarantined`; quarantined and rejected evidence is excluded from reports.
 
-ORCA does not implement upload of binary files in v0.3 beyond lawful text/inline
-content for hashing; it never inspects, renders, or transmits content.
+## Manual file upload (v0.7)
+
+v0.7 adds real manual upload of lawful files to the Evidence Locker (see
+[`v0.7_evidence_file_upload.md`](v0.7_evidence_file_upload.md)). It is upload/storage
+only — no collection, scraping, or external fetching.
+
+- **Acknowledgement is mandatory.** Every upload requires the analyst to confirm the
+  boundaries on this page; the backend rejects an upload that is not acknowledged.
+- **Safe-by-default policy.** Executable/script types are refused outright (never
+  stored); unknown types are stored **quarantined** pending review; only allow-listed
+  types are accepted. Oversize files are rejected before storage.
+- **Hashed and content-addressed.** Bytes are stored keyed by their SHA-256 and can be
+  re-verified; ORCA never executes, decodes, renders, or transmits content.
+- **Access-controlled.** Upload requires active, mutating case membership; raw bytes are
+  restricted to administrators and mutating roles (case manager / analyst / reviewer).
+  Viewers see metadata only (unless a deployment opts them in for approved evidence); the
+  partner export viewer reaches neither raw bytes nor raw metadata. Every upload,
+  download, and verification is audited.
 
 ## Legal & handling flags (v0.2 placeholders)
 

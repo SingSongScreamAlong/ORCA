@@ -5,6 +5,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
+from fastapi.responses import Response
 
 from app.api.deps import Pagination, get_uow, pagination, require
 from app.core.rbac import Capability
@@ -52,6 +53,25 @@ def get_evidence(
     uow: UnitOfWork = Depends(get_uow),
 ) -> EvidenceItemRead:
     return EvidenceService(uow).read(evidence_id, principal)
+
+
+@router.get(
+    "/{evidence_id}/download",
+    summary="Download stored evidence bytes (authorised roles only)",
+    response_class=Response,
+)
+def download_evidence(
+    evidence_id: UUID,
+    principal: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> Response:
+    item, data = EvidenceService(uow).download(evidence_id, principal)
+    filename = item.original_filename or f"{item.id}"
+    return Response(
+        content=data,
+        media_type=item.mime_type or "application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post(

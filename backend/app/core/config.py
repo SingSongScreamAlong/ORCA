@@ -52,6 +52,36 @@ class Settings(BaseSettings):
     # Evidence object store (local path for the skeleton).
     evidence_store: str = "./.evidence"
 
+    # Evidence file upload (v0.7) — safe-by-default manual upload policy.
+    # Maximum accepted upload size in bytes (default 25 MiB). Oversize uploads are rejected.
+    evidence_max_upload_bytes: int = 26_214_400
+    # Allow-list of MIME types stored as normal evidence. Anything not allowed (and not
+    # blocked) is stored *quarantined* pending review. Conservative by default.
+    evidence_allowed_mime_types: str = (
+        "application/pdf,image/png,image/jpeg,image/gif,image/webp,image/tiff,"
+        "text/plain,text/csv,text/markdown,application/json"
+    )
+    # File extensions that are refused outright (never stored) — executables and scripts.
+    evidence_blocked_extensions: str = (
+        ".exe,.dll,.so,.dylib,.sh,.bash,.bat,.cmd,.ps1,.psm1,.js,.mjs,.jar,.msi,.scr,"
+        ".com,.bin,.app,.deb,.rpm,.apk,.dmg,.vbs,.wsf"
+    )
+    # Whether case viewers may download approved raw bytes (default off — viewers see
+    # metadata only; mutating roles and admins always may). "Policy explicitly allows."
+    evidence_allow_viewer_download: bool = False
+
+    @property
+    def evidence_allowed_mime_set(self) -> set[str]:
+        return {m.strip().lower() for m in self.evidence_allowed_mime_types.split(",") if m.strip()}
+
+    @property
+    def evidence_blocked_extension_set(self) -> set[str]:
+        return {
+            (e if e.startswith(".") else f".{e}").strip().lower()
+            for e in self.evidence_blocked_extensions.split(",")
+            if e.strip()
+        }
+
     # CORS origins permitted to call the API.
     cors_origins: str = "http://localhost:3000"
 

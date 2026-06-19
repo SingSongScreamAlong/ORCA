@@ -6,6 +6,7 @@ import { GenerateReportButton } from "@/components/cases/GenerateReportButton";
 import { CapLink } from "@/components/auth/CapLink";
 import { CaseGraph } from "@/components/graph/CaseGraph";
 import { EvidenceLocker } from "@/components/evidence/EvidenceLocker";
+import { EvidenceUploadForm } from "@/components/evidence/EvidenceUploadForm";
 import { ConfidenceBadge, OriginBadge, StatusBadge, Tag } from "@/components/ui/Badges";
 import { Card } from "@/components/ui/Card";
 import { EntityChip } from "@/components/ui/EntityChip";
@@ -296,11 +297,12 @@ async function EvidenceTab({ caseId }: { caseId: string }) {
         <CapLink
           cap="create_evidence"
           href={`/evidence/new?case=${caseId}`}
-          className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          className="rounded-md border border-surface-border px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface-sunken"
         >
-          + Add evidence
+          + Record metadata only
         </CapLink>
       </div>
+      <EvidenceUploadForm caseId={caseId} sources={sources.ok ? sources.data : []} />
       <EvidenceLocker items={evidence.data} sources={sourceNames} observations={observationLabels} />
     </div>
   );

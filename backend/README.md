@@ -41,6 +41,14 @@ audited analyst decision.
 > add/role-change/deactivate lifecycle (`PATCH`/`DELETE /cases/{id}/members/...`), and
 > denials are a generic 403 that never reveals a case's existence. See
 > [`../docs/v0.6_case_membership.md`](../docs/v0.6_case_membership.md).
+>
+> **v0.7 — Evidence File Upload + Storage Hardening.** Adds multipart upload
+> (`POST /cases/{id}/evidence/upload`) that hashes and content-addresses bytes via the
+> existing content store, a safe-by-default policy (`app/core/upload_policy.py`: reject
+> blocked extensions, quarantine unknown MIME types, allow-list the rest; size cap in
+> config), role/case-scoped raw download (`GET /evidence/{id}/download`), a mandatory
+> safety acknowledgement, and audited upload/download/verify. Upload/storage only. See
+> [`../docs/v0.7_evidence_file_upload.md`](../docs/v0.7_evidence_file_upload.md).
 
 ## Layout
 

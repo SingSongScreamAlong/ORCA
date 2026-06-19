@@ -17,16 +17,19 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from app.core.audit import new_audit_entry
+from app.core.config import get_settings
 from app.core.content_store import sha256_hex
-from app.core.rbac import Capability, can
+from app.core.rbac import Capability, CaseRole, can
 from app.core.security import Principal
-from app.models.enums import EvidenceStatus
+from app.core.upload_policy import UploadDecision, assess_upload
+from app.models.enums import EvidenceStatus, EvidenceType
 from app.repositories.uow import UnitOfWork
 from app.schemas.evidence import (
     EvidenceDecision,
     EvidenceItemCreate,
     EvidenceItemRead,
     EvidenceVerifyResult,
+    LegalFlags,
 )
 from app.services.authz import authorize_decision
 from app.services.case_access import FORBIDDEN_MESSAGE, CaseAccessService
@@ -124,6 +127,164 @@ class EvidenceService:
             )
         )
         return item
+
+    def create_from_upload(
+        self,
+        case_id: UUID,
+        principal: Principal,
+        *,
+        filename: str,
+        declared_mime: str | None,
+        data: bytes,
+        title: str,
+        description: str | None,
+        source_id: UUID,
+        observation_id: UUID | None,
+        evidence_type: EvidenceType | None,
+        legal_flags: LegalFlags,
+        handling_notes: str | None,
+        acknowledged: bool,
+    ) -> EvidenceItemRead:
+        """Store a manually uploaded lawful file as an evidence item (v0.7).
+
+        Enforces the safety acknowledgement, case mutation access, and the upload policy
+        (dangerous types refused; unknown types quarantined; allowed types accepted). The
+        bytes are hashed and content-addressed; the hash is the integrity anchor.
+        """
+        if not acknowledged:
+            raise ValidationError(
+                "You must acknowledge the safety boundaries before uploading evidence."
+            )
+        if self.uow.cases.get(case_id) is None:
+            raise ValidationError(f"Case {case_id} does not exist")
+        if not CaseAccessService(self.uow).can_mutate(principal, case_id):
+            raise PermissionDenied(FORBIDDEN_MESSAGE)
+        if self.uow.sources.get(source_id) is None:
+            raise ValidationError(f"Source {source_id} does not exist")
+        if observation_id is not None:
+            self._check_same_case(observation_id, case_id)
+
+        settings = get_settings()
+        assessment = assess_upload(
+            filename,
+            declared_mime,
+            allowed_mimes=settings.evidence_allowed_mime_set,
+            blocked_extensions=settings.evidence_blocked_extension_set,
+        )
+        if assessment.decision is UploadDecision.REJECT:
+            # Refused outright — bytes are never stored.
+            raise ValidationError(assessment.reason)
+
+        digest = self.uow.content.put(data)
+        status = (
+            EvidenceStatus.QUARANTINED
+            if assessment.decision is UploadDecision.QUARANTINE
+            else EvidenceStatus.PROPOSED
+        )
+        now = datetime.now(UTC)
+        item = EvidenceItemRead(
+            id=uuid4(),
+            case_id=case_id,
+            source_id=source_id,
+            observation_id=observation_id,
+            title=title,
+            description=description,
+            evidence_type=evidence_type or self._derive_type(assessment.effective_mime),
+            storage_uri=f"orca-content://{digest}",
+            original_filename=filename,
+            mime_type=assessment.effective_mime,
+            size_bytes=len(data),
+            sha256=digest,
+            captured_at=now,
+            captured_by=principal.id,
+            access_method="manual_upload",
+            legal_flags=legal_flags,
+            handling_notes=handling_notes,
+            status=status,
+            has_bytes=True,
+            created_by=principal.id,
+            created_at=now,
+        )
+        self.uow.evidence.add(item)
+        self.uow.audit.record(
+            new_audit_entry(
+                actor_id=principal.id,
+                action="evidence.uploaded",
+                target_type="evidence",
+                target_id=item.id,
+                case_id=case_id,
+                context={
+                    "sha256": digest,
+                    "size_bytes": len(data),
+                    "mime_type": assessment.effective_mime,
+                    "original_filename": filename,
+                    "decision": assessment.decision.value,
+                },
+            )
+        )
+        if status is EvidenceStatus.QUARANTINED:
+            self.uow.audit.record(
+                new_audit_entry(
+                    actor_id=principal.id,
+                    action="evidence.quarantined",
+                    target_type="evidence",
+                    target_id=item.id,
+                    case_id=case_id,
+                    context={"reason": assessment.reason, "trigger": "upload_policy"},
+                )
+            )
+        return item
+
+    def download(self, evidence_id: UUID, principal: Principal) -> tuple[EvidenceItemRead, bytes]:
+        """Return an evidence item and its stored bytes for an authorised caller.
+
+        Raw bytes are restricted to administrators and mutating members (case manager /
+        analyst / reviewer); viewers and partner export viewers are refused unless a
+        deployment opts viewers in for approved evidence. Every download is audited."""
+        item = self.get(evidence_id)
+        if not self._can_download(principal, item):
+            raise PermissionDenied(FORBIDDEN_MESSAGE)
+        if not item.has_bytes or not item.sha256:
+            raise NotFoundError("This evidence item has no stored bytes to download")
+        data = self.uow.content.get(item.sha256)
+        if data is None:
+            raise NotFoundError("Stored bytes for this evidence item are unavailable")
+        self.uow.audit.record(
+            new_audit_entry(
+                actor_id=principal.id,
+                action="evidence.downloaded",
+                target_type="evidence",
+                target_id=item.id,
+                case_id=item.case_id,
+                context={
+                    "sha256": item.sha256,
+                    "size_bytes": item.size_bytes,
+                    "original_filename": item.original_filename,
+                },
+            )
+        )
+        return item, data
+
+    def _can_download(self, principal: Principal, item: EvidenceItemRead) -> bool:
+        access = CaseAccessService(self.uow)
+        if access.can_access_raw_file(principal, item.case_id):
+            return True
+        # Policy hook: case viewers may download APPROVED bytes only if explicitly enabled.
+        return (
+            get_settings().evidence_allow_viewer_download
+            and item.status is EvidenceStatus.APPROVED
+            and access.effective_case_role(principal, item.case_id) is CaseRole.VIEWER
+        )
+
+    @staticmethod
+    def _derive_type(mime: str) -> EvidenceType:
+        if mime.startswith("image/"):
+            return EvidenceType.IMAGE
+        if mime.startswith("video/"):
+            return EvidenceType.VIDEO
+        if mime == "application/pdf" or mime.startswith("text/"):
+            return EvidenceType.DOCUMENT
+        return EvidenceType.OTHER
 
     def link_to_observation(
         self, evidence_id: UUID, observation_id: UUID, principal: Principal
