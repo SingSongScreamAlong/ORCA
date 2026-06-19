@@ -14,6 +14,7 @@ from app.repositories.uow import UnitOfWork
 from app.schemas.audit import AuditEntryRead
 from app.schemas.case import CaseCreate, CaseDetail, CaseRead
 from app.schemas.evidence import EvidenceItemRead
+from app.schemas.graph import GraphView
 from app.schemas.observation import ObservationRead
 from app.schemas.relationship import RelationshipRead
 from app.schemas.report import ReportRead
@@ -21,6 +22,7 @@ from app.schemas.timeline import TimelineEvent
 from app.schemas.user import CaseMemberCreate, CaseMemberRead
 from app.services.case_service import CaseService
 from app.services.evidence_service import EvidenceService
+from app.services.graph_query_service import GraphQueryService
 from app.services.observation_service import ObservationService
 from app.services.relationship_service import RelationshipService
 from app.services.report_service import ReportService
@@ -89,6 +91,17 @@ def case_timeline(
     case_id: UUID, _: Principal = Depends(require(_READ)), uow: UnitOfWork = Depends(get_uow)
 ) -> list[TimelineEvent]:
     return TimelineService(uow).for_case(case_id)
+
+
+@router.get(
+    "/{case_id}/graph",
+    response_model=GraphView,
+    summary="Relationship subgraph for a case (approved relationships only)",
+)
+def case_graph(
+    case_id: UUID, _: Principal = Depends(require(_READ)), uow: UnitOfWork = Depends(get_uow)
+) -> GraphView:
+    return GraphQueryService(uow).case_subgraph(case_id)
 
 
 @router.get("/{case_id}/audit", response_model=list[AuditEntryRead], summary="Case audit log")

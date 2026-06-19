@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AssignMemberForm } from "@/components/cases/AssignMemberForm";
 import { GenerateReportButton } from "@/components/cases/GenerateReportButton";
 import { CapLink } from "@/components/auth/CapLink";
+import { CaseGraph } from "@/components/graph/CaseGraph";
 import { EvidenceLocker } from "@/components/evidence/EvidenceLocker";
 import { ConfidenceBadge, OriginBadge, StatusBadge, Tag } from "@/components/ui/Badges";
 import { Card } from "@/components/ui/Card";
@@ -14,6 +15,7 @@ import {
   getCase,
   getCaseAudit,
   getCaseEvidence,
+  getCaseGraph,
   getCaseMembers,
   getCaseObservations,
   getCaseRelationships,
@@ -33,6 +35,7 @@ const TABS = [
   ["observations", "Observations"],
   ["evidence", "Evidence Locker"],
   ["relationships", "Relationships"],
+  ["graph", "Graph"],
   ["timeline", "Timeline"],
   ["members", "Members"],
   ["audit", "Audit log"],
@@ -97,6 +100,7 @@ export default async function CaseDetailPage({
       {tab === "observations" && <Observations caseId={c.id} />}
       {tab === "evidence" && <EvidenceTab caseId={c.id} />}
       {tab === "relationships" && <Relationships caseId={c.id} />}
+      {tab === "graph" && <Graph caseId={c.id} />}
       {tab === "timeline" && <Timeline caseId={c.id} />}
       {tab === "members" && <Members caseId={c.id} />}
       {tab === "audit" && <Audit caseId={c.id} />}
@@ -224,6 +228,24 @@ async function Relationships({ caseId }: { caseId: string }) {
         </Tr>
       ))}
     </Table>
+  );
+}
+
+async function Graph({ caseId }: { caseId: string }) {
+  const graph = await getCaseGraph(caseId);
+  if (!graph.ok) return <BackendNotice error={graph.error} status={graph.status} />;
+  if (graph.data.edges.length === 0) {
+    return (
+      <EmptyState message="No approved relationships to graph yet. Approve observations and link entities." />
+    );
+  }
+  return (
+    <Card
+      title="Relationship graph"
+      subtitle="Approved relationships only. Nodes are entities; edges are the links between them."
+    >
+      <CaseGraph view={graph.data} />
+    </Card>
   );
 }
 

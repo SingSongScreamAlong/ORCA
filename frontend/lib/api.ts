@@ -17,6 +17,7 @@ import type {
   EvidenceDecision,
   EvidenceItem,
   EvidenceVerifyResult,
+  GraphView,
   Observation,
   Relationship,
   ReviewDecision,
@@ -124,6 +125,7 @@ export const getCaseTimeline = (id: string) => apiGet<TimelineEvent[]>(`/cases/$
 export const getCaseAudit = (id: string) => apiGet<AuditEntry[]>(`/cases/${id}/audit`);
 export const getCaseReports = (id: string) => apiGet<Report[]>(`/cases/${id}/reports`);
 export const getCaseMembers = (id: string) => apiGet<CaseMember[]>(`/cases/${id}/members`);
+export const getCaseGraph = (id: string) => apiGet<GraphView>(`/cases/${id}/graph`);
 
 export const getMe = () => apiGet<CurrentUser>("/me");
 export const getUsers = () => apiGet<User[]>("/users");

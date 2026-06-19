@@ -25,6 +25,13 @@ sequence is the commitment.
 The skeleton is deliberately honest: endpoints and screens exist and are wired to the
 data model, but business logic is minimal and clearly marked.
 
+> **v0.5 status.** **Relationship Graph & Discovery** begins Phase 4: graph queries over
+> the approved-relationship record — entity neighbourhoods, case subgraphs, and shortest
+> paths — exposed as RBAC-gated read endpoints and a calm node-link Graph tab. Queries
+> read the authoritative relational record; the Neo4j projection mirrors the same edges
+> when enabled. Assistive proposals already route through the review queue (v0.2).
+> See [`v0.5_graph_discovery.md`](v0.5_graph_discovery.md).
+>
 > **v0.4 status.** **Auth/RBAC + Workspace Hardening** delivers the access-control parts
 > of Phase 1 and Phase 6: real authenticated identities, six roles with a capability
 > matrix enforced on every endpoint (403 on denial, 401 on unknown identity), separation

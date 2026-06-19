@@ -273,6 +273,25 @@ export interface EvidenceVerifyResult {
   message: string;
 }
 
+export interface GraphNode {
+  id: string;
+  entity_type: EntityType;
+  value: string;
+}
+
+export interface GraphEdge {
+  id: string;
+  source_entity_id: string;
+  target_entity_id: string;
+  relationship_type: RelationshipType;
+  confidence: number;
+}
+
+export interface GraphView {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
 export interface DashboardSummary {
   counts: {
     observations: number;

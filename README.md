@@ -74,6 +74,7 @@ These principles are not decoration. They are encoded in the data model (see
 | [v0.2 Analyst Loop](docs/v0.2_analyst_loop.md)       | The end-to-end intake → review → report loop.          |
 | [v0.3 Evidence Locker](docs/v0.3_evidence_locker.md) | Evidence items, SHA-256 integrity, chain-of-custody.   |
 | [v0.4 Auth/RBAC](docs/v0.4_auth_rbac.md)             | Roles, capability matrix, separation of duties.        |
+| [v0.5 Graph & Discovery](docs/v0.5_graph_discovery.md)| Neighbourhoods, case subgraphs, shortest paths.        |
 | [Roadmap](docs/roadmap.md)                            | Phased delivery, starting from this skeleton.          |
 
 ---
@@ -89,11 +90,14 @@ These principles are not decoration. They are encoded in the data model (see
   attribution, file metadata, **SHA-256 hashing + verification**, quarantine,
   chain-of-custody audit events, and report citations. See
   [`docs/v0.3_evidence_locker.md`](docs/v0.3_evidence_locker.md).
-- **v0.4 — Auth/RBAC + Workspace Hardening (current).** Real authenticated identities,
+- **v0.4 — Auth/RBAC + Workspace Hardening.** Real authenticated identities,
   **six roles** with a capability matrix enforced on every endpoint (403/401),
   **separation of duties** on approvals with an audited admin override, case
   membership/assignment, and report publishing for partner export. See
   [`docs/v0.4_auth_rbac.md`](docs/v0.4_auth_rbac.md).
+- **v0.5 — Relationship Graph & Discovery (current).** Graph queries over approved
+  relationships — entity neighbourhoods, case subgraphs, and shortest paths — with a
+  calm node-link Graph tab. See [`docs/v0.5_graph_discovery.md`](docs/v0.5_graph_discovery.md).
 
 Collection ("Hunting Grounds") remains an interface only — no collection logic, no
 scraping, no autonomous hunting. ORCA stays evidence-first, lawful, and analyst-controlled
