@@ -2,16 +2,35 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useCan } from "@/components/auth/UserContext";
 import { assignMember } from "@/lib/api";
 import { humanize } from "@/lib/format";
-import type { User } from "@/lib/types";
+import type { CaseRole, User } from "@/lib/types";
 
-/** Assign a user to a case. Visible only to case managers / admins. */
-export function AssignMemberForm({ caseId, users }: { caseId: string; users: User[] }) {
+const CASE_ROLES: CaseRole[] = [
+  "case_manager",
+  "analyst",
+  "reviewer",
+  "viewer",
+  "partner_export_viewer",
+];
+
+/**
+ * Assign a user to a case with an explicit case role. Rendered only when the viewer may
+ * manage this case's roster (an administrator or the case's manager); the backend
+ * enforces the same rule regardless.
+ */
+export function AssignMemberForm({
+  caseId,
+  users,
+  canManage,
+}: {
+  caseId: string;
+  users: User[];
+  canManage: boolean;
+}) {
   const router = useRouter();
-  const canManage = useCan("manage_case");
   const [username, setUsername] = useState(users[0]?.username ?? "");
+  const [caseRole, setCaseRole] = useState<CaseRole | "">("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,7 +40,7 @@ export function AssignMemberForm({ caseId, users }: { caseId: string; users: Use
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const res = await assignMember(caseId, username);
+    const res = await assignMember(caseId, username, caseRole || undefined);
     setBusy(false);
     if (!res.ok) {
       setError(res.error);
@@ -31,7 +50,7 @@ export function AssignMemberForm({ caseId, users }: { caseId: string; users: Use
   }
 
   return (
-    <form onSubmit={submit} className="flex items-end gap-2">
+    <form onSubmit={submit} className="flex flex-wrap items-end gap-2">
       <div>
         <label className="mb-1 block text-xs font-medium text-ink-muted">Assign user</label>
         <select
@@ -42,6 +61,21 @@ export function AssignMemberForm({ caseId, users }: { caseId: string; users: Use
           {users.map((u) => (
             <option key={u.id} value={u.username}>
               {u.display_name} · {humanize(u.role)}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-ink-muted">Case role</label>
+        <select
+          value={caseRole}
+          onChange={(e) => setCaseRole(e.target.value as CaseRole | "")}
+          className="rounded-md border border-surface-border bg-surface px-2 py-1.5 text-sm"
+        >
+          <option value="">From global role</option>
+          {CASE_ROLES.map((r) => (
+            <option key={r} value={r}>
+              {humanize(r)}
             </option>
           ))}
         </select>

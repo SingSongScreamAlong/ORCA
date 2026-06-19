@@ -16,7 +16,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 from app.core.content_store import memory_content_store, sha256_hex
-from app.core.rbac import Role
+from app.core.rbac import MembershipStatus, Role, default_case_role
 from app.models.enums import (
     CaseStatus,
     ClusterStatus,
@@ -65,7 +65,7 @@ class InMemoryStore:
         now = datetime.now(UTC)
         observed = now - timedelta(days=2)
 
-        # --- Demo users (one per role) ---------------------------------------
+        # --- Demo users (one per role, plus one deliberately unassigned) ------
         seed_users = [
             ("admin", "Avery Admin", Role.ADMIN),
             ("casey", "Casey Manager", Role.CASE_MANAGER),
@@ -73,6 +73,9 @@ class InMemoryStore:
             ("rae", "Rae Reviewer", Role.REVIEWER),
             ("vic", "Vic Viewer", Role.VIEWER),
             ("partner", "Partner Export", Role.PARTNER_EXPORT_VIEWER),
+            # 'nomad' has analyst authority globally but is assigned to NO case, so the
+            # need-to-know boundary (not the global role) is what blocks their access.
+            ("nomad", "Noa Unassigned", Role.ANALYST),
         ]
         users_by_name: dict[str, UserRead] = {}
         for username, display, role in seed_users:
@@ -89,12 +92,17 @@ class InMemoryStore:
         )
         self.cases[case.id] = case
 
-        # Assign working members to the seed case (partner export viewer is not a member).
-        for username in ("casey", "ana", "rae", "vic"):
+        # Assign one member per role to the demo case (the partner export viewer is a
+        # member too, but the RBAC layer still limits them to approved reports). 'nomad'
+        # is intentionally left off so the unassigned-user path can be demonstrated.
+        for username in ("casey", "ana", "rae", "vic", "partner"):
             member = users_by_name[username]
             membership = CaseMemberRead(
                 id=uuid4(), case_id=case.id, user_id=member.id, username=member.username,
-                role=member.role, assigned_by="admin", assigned_at=now,
+                display_name=member.display_name, global_role=member.role,
+                case_role=default_case_role(member.role), status=MembershipStatus.ACTIVE,
+                assigned_by="admin", assigned_at=now, notes=None,
+                created_at=now, updated_at=now,
             )
             self.memberships[membership.id] = membership
 

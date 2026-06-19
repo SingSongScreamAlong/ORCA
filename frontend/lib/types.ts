@@ -25,14 +25,30 @@ export interface CurrentUser {
   capabilities: string[];
 }
 
+// v0.6 per-case authorization.
+export type CaseRole =
+  | "case_manager"
+  | "analyst"
+  | "reviewer"
+  | "viewer"
+  | "partner_export_viewer";
+
+export type MembershipStatus = "active" | "inactive" | "revoked";
+
 export interface CaseMember {
-  id: string;
+  id: string; // membership id
   case_id: string;
   user_id: string;
   username: string;
-  role: Role;
+  display_name: string;
+  global_role: Role;
+  case_role: CaseRole;
+  status: MembershipStatus;
   assigned_by: string;
   assigned_at: string;
+  notes: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 export type Origin = "system_proposed" | "analyst_created" | "imported";

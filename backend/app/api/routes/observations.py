@@ -22,11 +22,12 @@ def list_observations(
     page: Pagination = Depends(pagination),
     case_id: UUID | None = Query(None, description="Filter by case."),
     status_filter: ReviewStatus | None = Query(None, alias="status", description="Filter by status."),
-    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    principal: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
     uow: UnitOfWork = Depends(get_uow),
 ) -> list[ObservationRead]:
     return ObservationService(uow).list(
-        limit=page.limit, offset=page.offset, case_id=case_id, status=status_filter
+        limit=page.limit, offset=page.offset, case_id=case_id, status=status_filter,
+        principal=principal,
     )
 
 
@@ -47,7 +48,7 @@ def create_observation(
 @router.get("/{observation_id}", response_model=ObservationRead, summary="Get an observation")
 def get_observation(
     observation_id: UUID,
-    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    principal: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
     uow: UnitOfWork = Depends(get_uow),
 ) -> ObservationRead:
-    return ObservationService(uow).get(observation_id)
+    return ObservationService(uow).read(observation_id, principal)

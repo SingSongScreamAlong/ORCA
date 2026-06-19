@@ -28,3 +28,6 @@ out/
 .idea/
 .vscode/
 *.swp
+
+# Local evidence content store (runtime artifact)
+.evidence/

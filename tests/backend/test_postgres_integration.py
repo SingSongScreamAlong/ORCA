@@ -59,6 +59,8 @@ def test_full_loop_against_postgres(pg_client):
 
     case = c.post(f"{PREFIX}/cases", json={"title": "PG loop", "owner": "analyst"}).json()
     cid = case["id"]
+    # Assign the reviewer so they may decide in this case (v0.6 per-case authorization).
+    c.post(f"{PREFIX}/cases/{cid}/members", json={"username": "rae", "case_role": "reviewer"})
 
     a = c.post(f"{PREFIX}/entities", json={"entity_type": "phone_number", "value": "+15555559000"}).json()["id"]
     b = c.post(f"{PREFIX}/entities", json={"entity_type": "advertisement", "value": "ad-pg"}).json()["id"]

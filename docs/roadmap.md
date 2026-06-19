@@ -25,6 +25,15 @@ sequence is the commitment.
 The skeleton is deliberately honest: endpoints and screens exist and are wired to the
 data model, but business logic is minimal and clearly marked.
 
+> **v0.6 status.** **Case Membership & Authorization Scoping** completes the access-control
+> work in Phases 1 and 6: need-to-know on top of RBAC. A non-admin must hold an active
+> membership in a case to see or act on it, and a per-case role decides what they may do
+> there; case listing, detail, observations, evidence, relationships, graph, audit,
+> review queue, and report/export access are all scoped. A membership roster with an
+> audited add/role-change/deactivate lifecycle is exposed, and denials are generic 403s
+> that never reveal a case's existence or contents. See
+> [`v0.6_case_membership.md`](v0.6_case_membership.md).
+>
 > **v0.5 status.** **Relationship Graph & Discovery** begins Phase 4: graph queries over
 > the approved-relationship record — entity neighbourhoods, case subgraphs, and shortest
 > paths — exposed as RBAC-gated read endpoints and a calm node-link Graph tab. Queries

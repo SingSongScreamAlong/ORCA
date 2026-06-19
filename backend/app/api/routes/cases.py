@@ -1,4 +1,9 @@
-"""Case endpoints — the analyst's workspace, guarded by RBAC (v0.4)."""
+"""Case endpoints — the analyst's workspace, guarded by RBAC and case membership.
+
+Reads of a case's material require an active, reading membership (admins see all). The
+list endpoint is scoped to the caller's cases. Every denial is a generic 403 that does
+not reveal whether the case exists. See ``docs/v0.6_case_membership.md``.
+"""
 
 from __future__ import annotations
 
@@ -6,7 +11,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from app.api.deps import get_uow, require
+from app.api.deps import (
+    get_uow,
+    require,
+    require_case_access,
+    require_case_audit_access,
+    require_case_material_read,
+    require_case_membership_management,
+)
 from app.core.rbac import Capability
 from app.core.security import Principal
 from app.models.enums import ReviewStatus
@@ -19,7 +31,7 @@ from app.schemas.observation import ObservationRead
 from app.schemas.relationship import RelationshipRead
 from app.schemas.report import ReportRead
 from app.schemas.timeline import TimelineEvent
-from app.schemas.user import CaseMemberCreate, CaseMemberRead
+from app.schemas.user import CaseMemberCreate, CaseMemberRead, CaseMemberUpdate
 from app.services.case_service import CaseService
 from app.services.evidence_service import EvidenceService
 from app.services.graph_query_service import GraphQueryService
@@ -33,11 +45,11 @@ router = APIRouter(prefix="/cases", tags=["cases"])
 _READ = Capability.READ_CASE_MATERIAL
 
 
-@router.get("", response_model=list[CaseRead], summary="List cases")
+@router.get("", response_model=list[CaseRead], summary="List cases the caller may access")
 def list_cases(
-    _: Principal = Depends(require(_READ)), uow: UnitOfWork = Depends(get_uow)
+    principal: Principal = Depends(require(_READ)), uow: UnitOfWork = Depends(get_uow)
 ) -> list[CaseRead]:
-    return CaseService(uow).list()
+    return CaseService(uow).list(principal)
 
 
 @router.post("", response_model=CaseRead, status_code=status.HTTP_201_CREATED, summary="Create a case")
@@ -51,7 +63,9 @@ def create_case(
 
 @router.get("/{case_id}", response_model=CaseDetail, summary="Case overview with counts")
 def get_case(
-    case_id: UUID, _: Principal = Depends(require(_READ)), uow: UnitOfWork = Depends(get_uow)
+    case_id: UUID,
+    _: Principal = Depends(require_case_material_read),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> CaseDetail:
     return CaseService(uow).detail(case_id)
 
@@ -60,7 +74,7 @@ def get_case(
 def case_observations(
     case_id: UUID,
     status_filter: ReviewStatus | None = Query(None, alias="status"),
-    _: Principal = Depends(require(_READ)),
+    _: Principal = Depends(require_case_material_read),
     uow: UnitOfWork = Depends(get_uow),
 ) -> list[ObservationRead]:
     CaseService(uow).get(case_id)
@@ -73,7 +87,9 @@ def case_observations(
     summary="Relationships in a case",
 )
 def case_relationships(
-    case_id: UUID, _: Principal = Depends(require(_READ)), uow: UnitOfWork = Depends(get_uow)
+    case_id: UUID,
+    _: Principal = Depends(require_case_material_read),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> list[RelationshipRead]:
     CaseService(uow).get(case_id)
     return RelationshipService(uow).list(case_id=case_id, limit=1000)
@@ -81,15 +97,20 @@ def case_relationships(
 
 @router.get("/{case_id}/evidence", response_model=list[EvidenceItemRead], summary="Evidence items in a case")
 def case_evidence(
-    case_id: UUID, _: Principal = Depends(require(_READ)), uow: UnitOfWork = Depends(get_uow)
+    case_id: UUID,
+    _: Principal = Depends(require_case_material_read),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> list[EvidenceItemRead]:
     return EvidenceService(uow).list_for_case(case_id)
 
 
 @router.get("/{case_id}/timeline", response_model=list[TimelineEvent], summary="Case timeline")
 def case_timeline(
-    case_id: UUID, _: Principal = Depends(require(_READ)), uow: UnitOfWork = Depends(get_uow)
+    case_id: UUID,
+    _: Principal = Depends(require_case_material_read),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> list[TimelineEvent]:
+    CaseService(uow).get(case_id)
     return TimelineService(uow).for_case(case_id)
 
 
@@ -99,7 +120,9 @@ def case_timeline(
     summary="Relationship subgraph for a case (approved relationships only)",
 )
 def case_graph(
-    case_id: UUID, _: Principal = Depends(require(_READ)), uow: UnitOfWork = Depends(get_uow)
+    case_id: UUID,
+    _: Principal = Depends(require_case_material_read),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> GraphView:
     return GraphQueryService(uow).case_subgraph(case_id)
 
@@ -107,7 +130,7 @@ def case_graph(
 @router.get("/{case_id}/audit", response_model=list[AuditEntryRead], summary="Case audit log")
 def case_audit(
     case_id: UUID,
-    _: Principal = Depends(require(Capability.VIEW_AUDIT)),
+    _: Principal = Depends(require_case_audit_access),
     uow: UnitOfWork = Depends(get_uow),
 ) -> list[AuditEntryRead]:
     entries = CaseService(uow).audit(case_id)
@@ -116,7 +139,9 @@ def case_audit(
 
 @router.get("/{case_id}/reports", response_model=list[ReportRead], summary="Report drafts for a case")
 def case_reports(
-    case_id: UUID, _: Principal = Depends(require(_READ)), uow: UnitOfWork = Depends(get_uow)
+    case_id: UUID,
+    _: Principal = Depends(require_case_material_read),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> list[ReportRead]:
     CaseService(uow).get(case_id)
     return ReportService(uow).list(case_id)
@@ -138,7 +163,9 @@ def generate_report(
 
 @router.get("/{case_id}/members", response_model=list[CaseMemberRead], summary="List case members")
 def case_members(
-    case_id: UUID, _: Principal = Depends(require(_READ)), uow: UnitOfWork = Depends(get_uow)
+    case_id: UUID,
+    _: Principal = Depends(require_case_access),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> list[CaseMemberRead]:
     return CaseService(uow).list_members(case_id)
 
@@ -152,7 +179,36 @@ def case_members(
 def assign_member(
     case_id: UUID,
     payload: CaseMemberCreate,
-    principal: Principal = Depends(require(Capability.MANAGE_CASE)),
+    principal: Principal = Depends(require_case_membership_management),
     uow: UnitOfWork = Depends(get_uow),
 ) -> CaseMemberRead:
-    return CaseService(uow).assign_member(case_id, payload.username, principal)
+    return CaseService(uow).assign_member(case_id, payload, principal)
+
+
+@router.patch(
+    "/{case_id}/members/{membership_id}",
+    response_model=CaseMemberRead,
+    summary="Change a member's case role or status",
+)
+def update_member(
+    case_id: UUID,
+    membership_id: UUID,
+    payload: CaseMemberUpdate,
+    principal: Principal = Depends(require_case_membership_management),
+    uow: UnitOfWork = Depends(get_uow),
+) -> CaseMemberRead:
+    return CaseService(uow).update_member(case_id, membership_id, payload, principal)
+
+
+@router.delete(
+    "/{case_id}/members/{membership_id}",
+    response_model=CaseMemberRead,
+    summary="Remove (revoke) a member's access to a case",
+)
+def remove_member(
+    case_id: UUID,
+    membership_id: UUID,
+    principal: Principal = Depends(require_case_membership_management),
+    uow: UnitOfWork = Depends(get_uow),
+) -> CaseMemberRead:
+    return CaseService(uow).deactivate_member(case_id, membership_id, principal)

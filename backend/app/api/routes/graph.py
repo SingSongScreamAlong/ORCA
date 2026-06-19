@@ -24,10 +24,10 @@ _READ = Capability.READ_CASE_MATERIAL
 @router.get("/neighbors/{entity_id}", response_model=GraphView, summary="An entity's neighbours")
 def neighbors(
     entity_id: UUID,
-    _: Principal = Depends(require(_READ)),
+    principal: Principal = Depends(require(_READ)),
     uow: UnitOfWork = Depends(get_uow),
 ) -> GraphView:
-    return GraphQueryService(uow).neighbors(entity_id)
+    return GraphQueryService(uow).neighbors(entity_id, principal=principal)
 
 
 @router.get("/path", response_model=PathView, summary="Shortest path between two entities")
@@ -35,7 +35,7 @@ def path(
     source: UUID = Query(..., description="Source entity id."),
     target: UUID = Query(..., description="Target entity id."),
     max_depth: int = Query(6, ge=1, le=12, description="Maximum hops to search."),
-    _: Principal = Depends(require(_READ)),
+    principal: Principal = Depends(require(_READ)),
     uow: UnitOfWork = Depends(get_uow),
 ) -> PathView:
-    return GraphQueryService(uow).shortest_path(source, target, max_depth=max_depth)
+    return GraphQueryService(uow).shortest_path(source, target, max_depth=max_depth, principal=principal)

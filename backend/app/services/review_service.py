@@ -18,6 +18,7 @@ from app.models.enums import ReviewStatus
 from app.repositories.uow import UnitOfWork
 from app.schemas.review import ReviewDecision, ReviewItemRead
 from app.services.authz import authorize_decision
+from app.services.case_access import FORBIDDEN_MESSAGE, CaseAccessService
 from app.services.errors import NotFoundError, PermissionDenied, ValidationError
 from app.services.relationship_service import RelationshipService
 
@@ -41,8 +42,16 @@ class ReviewService:
         offset: int = 0,
         status: ReviewStatus | None = ReviewStatus.PROPOSED,
         case_id: UUID | None = None,
+        principal: Principal | None = None,
     ) -> list[ReviewItemRead]:
-        return self.uow.reviews.list(limit=limit, offset=offset, status=status, case_id=case_id)
+        results = self.uow.reviews.list(limit=limit, offset=offset, status=status, case_id=case_id)
+        if principal is None:
+            return results
+        # The review queue only shows items from cases the principal may review.
+        scoped = CaseAccessService(self.uow).reviewable_case_ids(principal)
+        if scoped is None:  # administrator
+            return results
+        return [i for i in results if i.case_id in scoped]
 
     def pending_count(self) -> int:
         return self.uow.reviews.pending_count()
@@ -51,6 +60,15 @@ class ReviewService:
         item = self.uow.reviews.get(item_id)
         if item is None:
             raise NotFoundError(f"Review item {item_id} not found")
+        return item
+
+    def read(self, item_id: UUID, principal: Principal) -> ReviewItemRead:
+        """Fetch a review item, enforcing case read access (need-to-know)."""
+        item = self.get(item_id)
+        if item.case_id is not None and not CaseAccessService(self.uow).can_read_material(
+            principal, item.case_id
+        ):
+            raise PermissionDenied(FORBIDDEN_MESSAGE)
         return item
 
     def decide(
@@ -65,6 +83,11 @@ class ReviewService:
             raise PermissionDenied("Deciding a review item requires review authority")
 
         item = self.get(item_id)
+        # Need-to-know: a reviewer may only decide items in cases they review.
+        if item.case_id is not None and not CaseAccessService(self.uow).can_review(
+            principal, item.case_id
+        ):
+            raise PermissionDenied(FORBIDDEN_MESSAGE)
         if item.status not in _DECIDABLE:
             raise ValidationError(f"Review item {item_id} is already {item.status.value}")
 

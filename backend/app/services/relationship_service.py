@@ -23,7 +23,8 @@ from app.models.enums import Origin, RelationshipType, ReviewItemType, ReviewSta
 from app.repositories.uow import UnitOfWork
 from app.schemas.relationship import RelationshipCreate, RelationshipRead
 from app.schemas.review import ReviewItemRead
-from app.services.errors import NotFoundError, ValidationError
+from app.services.case_access import FORBIDDEN_MESSAGE, CaseAccessService
+from app.services.errors import NotFoundError, PermissionDenied, ValidationError
 
 
 class RelationshipService:
@@ -37,8 +38,17 @@ class RelationshipService:
         offset: int = 0,
         case_id: UUID | None = None,
         status: ReviewStatus | None = None,
+        principal: Principal | None = None,
     ) -> list[RelationshipRead]:
-        return self.uow.relationships.list(limit=limit, offset=offset, case_id=case_id, status=status)
+        results = self.uow.relationships.list(
+            limit=limit, offset=offset, case_id=case_id, status=status
+        )
+        if principal is None:
+            return results
+        scoped = CaseAccessService(self.uow).readable_case_ids(principal)
+        if scoped is None:  # administrator
+            return results
+        return [r for r in results if r.case_id in scoped]
 
     def get(self, relationship_id: UUID) -> RelationshipRead:
         relationship = self.uow.relationships.get(relationship_id)
@@ -46,9 +56,20 @@ class RelationshipService:
             raise NotFoundError(f"Relationship {relationship_id} not found")
         return relationship
 
+    def read(self, relationship_id: UUID, principal: Principal) -> RelationshipRead:
+        """Fetch a relationship, enforcing case read access (need-to-know)."""
+        relationship = self.get(relationship_id)
+        if relationship.case_id is not None and not CaseAccessService(self.uow).can_read_material(
+            principal, relationship.case_id
+        ):
+            raise PermissionDenied(FORBIDDEN_MESSAGE)
+        return relationship
+
     def create(self, payload: RelationshipCreate, principal: Principal) -> RelationshipRead:
         self._validate_endpoints(payload.source_entity_id, payload.target_entity_id)
         case_id = self._require_approved_observations(payload.observation_ids, payload.case_id)
+        if case_id is not None and not CaseAccessService(self.uow).can_mutate(principal, case_id):
+            raise PermissionDenied(FORBIDDEN_MESSAGE)
 
         now = datetime.now(UTC)
         relationship = RelationshipRead(

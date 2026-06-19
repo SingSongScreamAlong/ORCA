@@ -117,6 +117,20 @@ the safety posture:
 - **Accountability.** Every privileged action is attributed to an authenticated user in
   the append-only audit log.
 
+## Need-to-know is enforced per case (v0.6)
+
+RBAC bounds what a *kind* of user may do; v0.6 adds **case membership** so analysts see
+only the cases they are assigned to (see [`v0.6_case_membership.md`](v0.6_case_membership.md)).
+
+- **Least exposure.** A non-administrator must hold an active membership in a case to
+  open, mutate, graph, review, or export it; an unassigned user sees nothing — not even
+  whether the case exists. Denials are generic, so the system cannot be used to
+  enumerate cases or leak titles, counts, or evidence metadata.
+- **Per-case roles.** The same person can be a reviewer on one case and only a viewer on
+  another; the case role, not just the global role, governs what they may do there.
+- **Auditable roster.** Adding, re-roling, or revoking a member is an audited action,
+  keeping access to sensitive cases reviewable after the fact.
+
 ## Human review is mandatory
 
 Nothing in ORCA becomes confirmed knowledge without a human decision. Observations

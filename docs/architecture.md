@@ -199,8 +199,14 @@ re-checked in the service layer for decisions.
   capability. See [`v0.4_auth_rbac.md`](v0.4_auth_rbac.md) for the full matrix.
 - **Separation of duties.** A user cannot decide on their own proposed intelligence; an
   admin override bypasses this and is recorded as a distinct audit event.
-- **Case membership.** `case_members` records assignments (case managers assign users);
-  it is the foundation for per-case authorization scoping in a later milestone.
+- **Case membership (v0.6).** On top of RBAC, `case_members` (case_id, user_id,
+  case_role, status) enforces **need-to-know**: a non-admin must hold an *active*
+  membership to see or act on a case, and the per-case role decides what they may do.
+  `app/services/case_access.py` centralises the predicates; the case-keyed guards in
+  `app/api/deps.py` (`require_case_material_read`, `require_case_audit_access`,
+  `require_case_membership_management`, …) and service-layer checks scope every read,
+  mutation, review, export, and listing. Denials are a single generic 403 that never
+  reveals a case's existence. See [`v0.6_case_membership.md`](v0.6_case_membership.md).
 
 ```mermaid
 graph LR
@@ -208,7 +214,9 @@ graph LR
     AUTH -->|401 unknown| OUT1[(401)]
     AUTH --> GUARD["require(capability)"]
     GUARD -->|missing capability| OUT2[(403)]
-    GUARD --> SVC[Service]
+    GUARD --> CASE["case membership + case role"]
+    CASE -->|not a member / wrong case role| OUT3[(403 generic)]
+    CASE --> SVC[Service]
     SVC -->|self-review without override| OUT2
     SVC --> AUDIT[(append-only audit log)]
 ```
@@ -217,7 +225,9 @@ graph LR
 
 - **AuthN/AuthZ.** Role-based access control (six roles) is described in
   [`v0.4_auth_rbac.md`](v0.4_auth_rbac.md) and [`security.md`](security.md), implemented
-  in `backend/app/core/rbac.py` and enforced by `app/api/deps.py::require`.
+  in `backend/app/core/rbac.py` and enforced by `app/api/deps.py::require`. Per-case
+  need-to-know scoping (v0.6) layers on top — see
+  [`v0.6_case_membership.md`](v0.6_case_membership.md) and `app/services/case_access.py`.
 - **Audit logging.** Every state transition that confirms, rejects, or deletes is
   recorded. The audit log is append-only.
 - **Configuration.** Settings load from environment variables (`backend/app/core/config.py`).

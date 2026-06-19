@@ -18,7 +18,8 @@ from app.repositories.uow import UnitOfWork
 from app.schemas.observation import ObservationCreate, ObservationRead
 from app.schemas.review import ReviewItemRead
 from app.schemas.source import SourceRead
-from app.services.errors import NotFoundError, ValidationError
+from app.services.case_access import FORBIDDEN_MESSAGE, CaseAccessService
+from app.services.errors import NotFoundError, PermissionDenied, ValidationError
 
 
 class ObservationService:
@@ -32,8 +33,17 @@ class ObservationService:
         offset: int = 0,
         case_id: UUID | None = None,
         status: ReviewStatus | None = None,
+        principal: Principal | None = None,
     ) -> list[ObservationRead]:
-        return self.uow.observations.list(limit=limit, offset=offset, case_id=case_id, status=status)
+        results = self.uow.observations.list(
+            limit=limit, offset=offset, case_id=case_id, status=status
+        )
+        if principal is None:
+            return results
+        scoped = CaseAccessService(self.uow).readable_case_ids(principal)
+        if scoped is None:  # administrator
+            return results
+        return [o for o in results if o.case_id in scoped]
 
     def get(self, observation_id: UUID) -> ObservationRead:
         observation = self.uow.observations.get(observation_id)
@@ -41,11 +51,24 @@ class ObservationService:
             raise NotFoundError(f"Observation {observation_id} not found")
         return observation
 
+    def read(self, observation_id: UUID, principal: Principal) -> ObservationRead:
+        """Fetch an observation, enforcing case read access (need-to-know)."""
+        observation = self.get(observation_id)
+        if observation.case_id is not None and not CaseAccessService(self.uow).can_read_material(
+            principal, observation.case_id
+        ):
+            raise PermissionDenied(FORBIDDEN_MESSAGE)
+        return observation
+
     def intake(self, payload: ObservationCreate, principal: Principal) -> ObservationRead:
         source_id = self._resolve_source(payload)
 
-        if payload.case_id is not None and self.uow.cases.get(payload.case_id) is None:
-            raise ValidationError(f"Case {payload.case_id} does not exist")
+        if payload.case_id is not None:
+            if self.uow.cases.get(payload.case_id) is None:
+                raise ValidationError(f"Case {payload.case_id} does not exist")
+            # Need-to-know: only an assigned, mutating member may record into a case.
+            if not CaseAccessService(self.uow).can_mutate(principal, payload.case_id):
+                raise PermissionDenied(FORBIDDEN_MESSAGE)
 
         for entity_id in payload.entity_ids:
             if self.uow.entities.get(entity_id) is None:

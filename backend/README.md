@@ -25,6 +25,22 @@ audited analyst decision.
 > header (default user is configurable via `ORCA_DEV_DEFAULT_USER`). For PostgreSQL, seed
 > users with `python -m app.db.seed` after `alembic upgrade head`. See
 > [`../docs/v0.4_auth_rbac.md`](../docs/v0.4_auth_rbac.md).
+>
+> **v0.5 — Relationship Graph & Discovery.** Adds `GraphQueryService`
+> (`app/services/graph_query_service.py`) over approved relationships — entity
+> neighbourhoods, case subgraphs, and shortest paths — behind `/cases/{id}/graph`,
+> `/graph/neighbors/{id}`, and `/graph/path`. See
+> [`../docs/v0.5_graph_discovery.md`](../docs/v0.5_graph_discovery.md).
+>
+> **v0.6 — Case Membership & Authorization Scoping.** Adds need-to-know on top of RBAC:
+> `case_members` gains a `case_role` and `status`, `app/services/case_access.py`
+> centralises the per-case predicates, and case-keyed guards in `app/api/deps.py`
+> (`require_case_material_read`, `require_case_audit_access`,
+> `require_case_membership_management`, …) plus service-layer checks scope every read,
+> mutation, review, export, and listing. The membership roster has an audited
+> add/role-change/deactivate lifecycle (`PATCH`/`DELETE /cases/{id}/members/...`), and
+> denials are a generic 403 that never reveals a case's existence. See
+> [`../docs/v0.6_case_membership.md`](../docs/v0.6_case_membership.md).
 
 ## Layout
 

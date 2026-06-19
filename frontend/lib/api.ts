@@ -10,6 +10,7 @@ import type {
   Case,
   CaseDetail,
   CaseMember,
+  CaseRole,
   Cluster,
   CurrentUser,
   DashboardSummary,
@@ -18,6 +19,7 @@ import type {
   EvidenceItem,
   EvidenceVerifyResult,
   GraphView,
+  MembershipStatus,
   Observation,
   Relationship,
   ReviewDecision,
@@ -77,14 +79,14 @@ async function apiGet<T>(path: string): Promise<ApiResult<T>> {
 
 async function apiSend<T>(
   path: string,
-  method: "POST",
-  body: unknown,
+  method: "POST" | "PATCH" | "DELETE",
+  body?: unknown,
 ): Promise<ApiResult<T>> {
   try {
     const res = await fetch(`${API_BASE}${path}`, {
       method,
       headers: { "content-type": "application/json", ...(await userHeaders()) },
-      body: JSON.stringify(body),
+      body: body === undefined ? undefined : JSON.stringify(body),
     });
     if (!res.ok) {
       let detail = `Request failed (${res.status}).`;
@@ -141,8 +143,26 @@ export const decideReview = (
   override = false,
 ) => apiSend<ReviewItem>(`/review/${itemId}/decision`, "POST", { decision, note, override });
 
-export const assignMember = (caseId: string, username: string) =>
-  apiSend<CaseMember>(`/cases/${caseId}/members`, "POST", { username });
+export const assignMember = (
+  caseId: string,
+  username: string,
+  caseRole?: CaseRole,
+  notes?: string,
+) =>
+  apiSend<CaseMember>(`/cases/${caseId}/members`, "POST", {
+    username,
+    case_role: caseRole,
+    notes,
+  });
+
+export const updateMember = (
+  caseId: string,
+  membershipId: string,
+  changes: { case_role?: CaseRole; status?: MembershipStatus; notes?: string },
+) => apiSend<CaseMember>(`/cases/${caseId}/members/${membershipId}`, "PATCH", changes);
+
+export const deactivateMember = (caseId: string, membershipId: string) =>
+  apiSend<CaseMember>(`/cases/${caseId}/members/${membershipId}`, "DELETE");
 
 export const publishReport = (reportId: string) =>
   apiSend<Report>(`/reports/${reportId}/publish`, "POST", {});

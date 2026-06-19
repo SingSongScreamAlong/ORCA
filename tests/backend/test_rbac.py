@@ -168,6 +168,13 @@ def test_case_manager_can_assign_users_but_analyst_cannot(client):
 def test_privileged_actions_write_audit_events(client):
     src = _source(client)
     case_id = client.post(f"{PREFIX}/cases", json={"title": "Audited", "owner": "casey"}, headers=H("casey")).json()["id"]
+    # casey (the creator / case manager) enrols the analyst and reviewer for this case.
+    for username, case_role in (("ana", "analyst"), ("rae", "reviewer")):
+        client.post(
+            f"{PREFIX}/cases/{case_id}/members",
+            json={"username": username, "case_role": case_role},
+            headers=H("casey"),
+        )
     obs = _intake(client, "ana", case_id, src)
     item = _item_for(client, obs)
     client.post(f"{PREFIX}/review/{item}/decision", json={"decision": "approve"}, headers=H("rae"))

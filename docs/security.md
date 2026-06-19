@@ -44,6 +44,33 @@ Authentication issues short-lived tokens; authorization maps the authenticated
 identity to a role and checks it on every mutating operation. The skeleton stubs this
 in `backend/app/core/security.py` and `backend/app/core/rbac.py`.
 
+> The implemented model (v0.4) defines six roles — `admin`, `case_manager`, `analyst`,
+> `reviewer`, `viewer`, `partner_export_viewer` — with a capability matrix enforced on
+> every endpoint. See [`v0.4_auth_rbac.md`](v0.4_auth_rbac.md).
+
+### Need-to-know: case membership (v0.6)
+
+RBAC answers *what kind of user are you?*. It does not, by itself, stop an analyst from
+reading **every** case. v0.6 adds **case membership** on top: a non-administrator must
+hold an **active** membership in a case to see or act on it, and the membership's
+**case role** decides what they may do there (read, mutate, review, manage the roster,
+or — for a partner — reach only the approved report package). Administrators access and
+manage every case.
+
+- **Effective permission** is the intersection of the global capability, an active
+  membership, and the case role. A global reviewer who is only a *viewer* on a case
+  cannot approve in it; an unassigned user cannot see it at all.
+- **No leakage on denial.** An unauthorised case access returns a single generic 403
+  that reveals neither the case's contents nor whether it exists — a non-member gets the
+  same response for a real and a non-existent case id, so the API cannot be used to
+  enumerate cases.
+- **Audited lifecycle.** Every membership change (add, role change, status change,
+  reactivate, revoke) writes an append-only audit event recording the actor, target
+  user, case role, and resulting status.
+
+See [`v0.6_case_membership.md`](v0.6_case_membership.md) for the per-case permission
+matrix and walkthrough.
+
 ## Evidence integrity
 
 Evidence is the most important data in the system, so it is the most strongly
@@ -80,7 +107,8 @@ Logged actions include:
 - confirming, rejecting, or flagging a review item,
 - creating or deleting a case or report,
 - any evidence integrity check that fails,
-- role and permission changes.
+- role and permission changes,
+- case membership changes (assign, role change, revoke).
 
 Each audit entry records: the actor, the action, the target object, a timestamp, and
 relevant context (for example, the prior and new status). The audit log is

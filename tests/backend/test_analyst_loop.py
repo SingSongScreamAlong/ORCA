@@ -16,9 +16,15 @@ PREFIX = "/api/v1"
 
 
 def _make_case(client, title="Case") -> str:
-    return client.post(
+    # Created by the default admin; assign the reviewer so they may decide in this case
+    # (v0.6 per-case authorization). Intake/relationships here are done by the admin.
+    case_id = client.post(
         f"{PREFIX}/cases", json={"title": title, "owner": "analyst", "summary": "s"}
     ).json()["id"]
+    client.post(
+        f"{PREFIX}/cases/{case_id}/members", json={"username": "rae", "case_role": "reviewer"}
+    )
+    return case_id
 
 
 def _entity(client, entity_type: str, value: str) -> str:

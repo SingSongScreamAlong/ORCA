@@ -28,6 +28,13 @@ CREATE TYPE case_status        AS ENUM ('open', 'active', 'on_hold', 'closed');
 CREATE TYPE report_status      AS ENUM ('draft', 'in_review', 'final');
 CREATE TYPE review_item_type   AS ENUM ('proposed_observation', 'proposed_relationship',
                                         'proposed_cluster', 'flagged_observation');
+CREATE TYPE orca_role          AS ENUM ('admin', 'case_manager', 'analyst', 'reviewer',
+                                        'viewer', 'partner_export_viewer');
+-- v0.6 per-case authorization: a user's role within a specific case, and the
+-- lifecycle of that membership.
+CREATE TYPE case_role          AS ENUM ('case_manager', 'analyst', 'reviewer',
+                                        'viewer', 'partner_export_viewer');
+CREATE TYPE membership_status  AS ENUM ('active', 'inactive', 'revoked');
 
 -- --- Core objects -----------------------------------------------------------
 
@@ -155,6 +162,7 @@ CREATE TABLE review_items (
     subject_type VARCHAR(64) NOT NULL,
     subject_id   UUID NOT NULL,
     case_id      UUID REFERENCES cases(id) ON DELETE SET NULL,
+    created_by   VARCHAR(255),                   -- proposer, for self-review checks
     rationale    TEXT NOT NULL,                  -- why surfaced; never null
     confidence   DOUBLE PRECISION NOT NULL DEFAULT 0.0,
     evidence_ids UUID[] NOT NULL DEFAULT '{}',
@@ -179,6 +187,36 @@ CREATE TABLE audit_log (
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX ix_audit_log_case ON audit_log (case_id);
+
+-- --- Users & case membership (v0.4 Auth/RBAC) -------------------------------
+
+CREATE TABLE users (
+    id           UUID PRIMARY KEY,
+    username     VARCHAR(128) NOT NULL UNIQUE,
+    display_name VARCHAR(255) NOT NULL,
+    role         orca_role NOT NULL,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_users_username ON users (username);
+
+-- A user's membership in a case (v0.6). One row per (case, user); re-adding a removed
+-- member reactivates the same row, so there is at most one — let alone one active.
+CREATE TABLE case_members (
+    id          UUID PRIMARY KEY,
+    case_id     UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    case_role   case_role NOT NULL,
+    status      membership_status NOT NULL DEFAULT 'active',
+    assigned_by VARCHAR(128) NOT NULL,
+    assigned_at TIMESTAMPTZ NOT NULL,
+    notes       TEXT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_case_member UNIQUE (case_id, user_id)
+);
+CREATE INDEX ix_case_members_user ON case_members (user_id);
+CREATE INDEX ix_case_members_case ON case_members (case_id);
 
 -- --- Association tables (many-to-many) --------------------------------------
 

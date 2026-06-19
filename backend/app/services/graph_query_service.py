@@ -11,10 +11,12 @@ from __future__ import annotations
 from collections import deque
 from uuid import UUID
 
+from app.core.security import Principal
 from app.models.enums import ReviewStatus
 from app.repositories.uow import UnitOfWork
 from app.schemas.graph import GraphEdge, GraphNode, GraphView, PathView
 from app.schemas.relationship import RelationshipRead
+from app.services.case_access import CaseAccessService
 from app.services.errors import NotFoundError
 
 
@@ -24,10 +26,22 @@ class GraphQueryService:
 
     # --- helpers -----------------------------------------------------------------
 
-    def _approved(self, case_id: UUID | None = None) -> list[RelationshipRead]:
-        return self.uow.relationships.list(
+    def _approved(
+        self, case_id: UUID | None = None, accessible: set[UUID] | None = None
+    ) -> list[RelationshipRead]:
+        rels = self.uow.relationships.list(
             limit=100_000, status=ReviewStatus.APPROVED, case_id=case_id
         )
+        if accessible is None:  # administrator, or unscoped internal call
+            return rels
+        # Discovery only traverses edges in cases the caller may read.
+        return [r for r in rels if r.case_id in accessible]
+
+    def _accessible(self, principal: Principal | None) -> set[UUID] | None:
+        """Readable case ids for ``principal`` (``None`` = all / unscoped)."""
+        if principal is None:
+            return None
+        return CaseAccessService(self.uow).readable_case_ids(principal)
 
     def _node(self, entity_id: UUID) -> GraphNode | None:
         entity = self.uow.entities.get(entity_id)
@@ -57,12 +71,13 @@ class GraphQueryService:
 
     # --- queries -----------------------------------------------------------------
 
-    def neighbors(self, entity_id: UUID) -> GraphView:
+    def neighbors(self, entity_id: UUID, principal: Principal | None = None) -> GraphView:
         if self.uow.entities.get(entity_id) is None:
             raise NotFoundError(f"Entity {entity_id} not found")
+        accessible = self._accessible(principal)
         connected = [
             rel
-            for rel in self._approved()
+            for rel in self._approved(accessible=accessible)
             if entity_id in (rel.source_entity_id, rel.target_entity_id)
         ]
         return self._view(connected)
@@ -72,7 +87,9 @@ class GraphQueryService:
             raise NotFoundError(f"Case {case_id} not found")
         return self._view(self._approved(case_id=case_id))
 
-    def shortest_path(self, source: UUID, target: UUID, max_depth: int = 6) -> PathView:
+    def shortest_path(
+        self, source: UUID, target: UUID, max_depth: int = 6, principal: Principal | None = None
+    ) -> PathView:
         for entity_id in (source, target):
             if self.uow.entities.get(entity_id) is None:
                 raise NotFoundError(f"Entity {entity_id} not found")
@@ -81,9 +98,10 @@ class GraphQueryService:
             node = self._node(source)
             return PathView(found=True, length=0, nodes=[node] if node else [], edges=[])
 
+        accessible = self._accessible(principal)
         # Build an undirected adjacency over approved relationships.
         adjacency: dict[UUID, list[tuple[UUID, RelationshipRead]]] = {}
-        for rel in self._approved():
+        for rel in self._approved(accessible=accessible):
             adjacency.setdefault(rel.source_entity_id, []).append((rel.target_entity_id, rel))
             adjacency.setdefault(rel.target_entity_id, []).append((rel.source_entity_id, rel))
 

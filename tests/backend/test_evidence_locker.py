@@ -23,7 +23,15 @@ REVIEWER = {"X-ORCA-User": "rae"}
 
 
 def _case(client, title="Case"):
-    return client.post(f"{PREFIX}/cases", json={"title": title, "owner": "analyst"}).json()["id"]
+    # Created by the default admin; assign the reviewer so they may decide evidence in
+    # this case (v0.6 per-case authorization).
+    case_id = client.post(
+        f"{PREFIX}/cases", json={"title": title, "owner": "analyst"}
+    ).json()["id"]
+    client.post(
+        f"{PREFIX}/cases/{case_id}/members", json={"username": "rae", "case_role": "reviewer"}
+    )
+    return case_id
 
 
 def _source(client):
