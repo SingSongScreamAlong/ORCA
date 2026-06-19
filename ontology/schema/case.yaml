@@ -1,0 +1,24 @@
+version: "0.1"
+object: Case
+summary: >
+  An analyst work product. A curated view over observations, entities, clusters, and
+  reports. A case is NOT the source of truth.
+
+properties:
+  id:         { type: uuid, required: true, system_set: true }
+  title:      { type: string, required: true }
+  status:     { type: enum, required: true, ref: enums.case_status, default: open }
+  owner:      { type: string, required: true, note: "Analyst responsible for the case." }
+  summary:    { type: text, required: false }
+  created_at: { type: datetime, required: true, system_set: true }
+  updated_at: { type: datetime, required: true, system_set: true }
+
+references:
+  observations: { target: Observation, cardinality: many }
+  entities:     { target: Entity, cardinality: many }
+  clusters:     { target: Cluster, cardinality: many }
+  reports:      { target: Report, cardinality: many }
+
+invariants:
+  - A Case references evidence; it does not own it.
+  - Deleting a Case never deletes referenced observations, entities, or evidence.

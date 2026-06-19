@@ -1,0 +1,125 @@
+version: "0.1"
+description: Shared enumerations used across ORCA object definitions.
+
+confidence:
+  type: float
+  range: [0.0, 1.0]
+  bands:
+    - { name: unverified, min: 0.00, max: 0.19, meaning: "Recorded, not yet assessed." }
+    - { name: low,        min: 0.20, max: 0.39, meaning: "Weak support." }
+    - { name: medium,     min: 0.40, max: 0.69, meaning: "Moderate, corroborating support." }
+    - { name: high,       min: 0.70, max: 0.89, meaning: "Strong support." }
+    - { name: confirmed,  min: 0.90, max: 1.00, meaning: "Analyst-confirmed against evidence." }
+  note: >
+    Confidence describes the strength of evidentiary support, not a probability of
+    guilt.
+
+origin:
+  description: How an object came to exist.
+  values:
+    - system_proposed   # produced by the system; must pass review to be confirmed
+    - analyst_created   # created directly by an analyst
+    - imported          # ingested from an external dataset
+
+review_status:
+  description: >
+    Approval lifecycle (v0.2) for observations, relationships, and review items.
+    These are the status badges shown in the analyst interface.
+  values:
+    - proposed
+    - approved
+    - rejected
+    - needs_more_review
+
+review_item_type:
+  description: The kind of subject a review-queue item concerns.
+  values:
+    - proposed_observation   # v0.2: observation intake awaiting approval
+    - proposed_relationship
+    - proposed_cluster
+    - flagged_observation
+
+entity_type:
+  values:
+    - phone_number
+    - alias
+    - account
+    - username
+    - location
+    - vehicle
+    - image
+    - advertisement
+    - tattoo_marker
+
+relationship_type:
+  observational:        # may be proposed by the system from evidence
+    - shared_phone
+    - shared_image
+    - shared_location
+    - shared_account
+    - appears_with
+  analyst_only:         # may only be set by a person
+    - analyst_confirmed
+
+evidence_type:
+  description: Kind of evidence item (v0.3 Evidence Locker).
+  values:
+    - screenshot
+    - document
+    - image
+    - video
+    - web_archive
+    - analyst_note
+    - partner_file
+    - other
+
+evidence_status:
+  description: Evidence-item lifecycle (v0.3). Adds 'quarantined' to the review states.
+  values:
+    - proposed
+    - approved
+    - rejected
+    - needs_more_review
+    - quarantined
+
+source_type:
+  values:
+    - website
+    - dataset
+    - manual_upload
+    - tip
+    - document
+
+source_reliability:
+  values:
+    - unknown
+    - low
+    - medium
+    - high
+
+cluster_status:
+  values:
+    - proposed
+    - active
+    - archived
+    - rejected
+
+case_status:
+  values:
+    - open
+    - active
+    - on_hold
+    - closed
+
+report_status:
+  values:
+    - draft
+    - in_review
+    - final
+
+role:
+  description: Role-based access control roles.
+  values:
+    - analyst
+    - reviewer
+    - admin

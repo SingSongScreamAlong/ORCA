@@ -1,0 +1,23 @@
+version: "0.1"
+object: Report
+summary: >
+  An authored analytic product derived from a case. The human-readable output; it
+  cites the observations and evidence it rests on.
+
+properties:
+  id:         { type: uuid, required: true, system_set: true }
+  case_id:    { type: uuid, required: true, ref: Case }
+  title:      { type: string, required: true }
+  author:     { type: string, required: true }
+  status:     { type: enum, required: true, ref: enums.report_status, default: draft }
+  body:       { type: text, required: false, note: "Report content (markdown)." }
+  created_at: { type: datetime, required: true, system_set: true }
+  updated_at: { type: datetime, required: true, system_set: true }
+
+relationships:
+  belongs_to_case: { target: Case, cardinality: one }
+  cites:           { target: Observation, cardinality: many }
+
+invariants:
+  - A Report belongs to exactly one Case.
+  - Claims in a Report should cite supporting observations.

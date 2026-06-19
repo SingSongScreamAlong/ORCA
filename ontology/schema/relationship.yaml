@@ -1,0 +1,29 @@
+version: "0.1"
+object: Relationship
+summary: >
+  An evidence-backed link between two entities. The unit of discovery. Relationships
+  persist beyond cases and must reference the observations that support them.
+
+properties:
+  id:                { type: uuid, required: true, system_set: true }
+  case_id:           { type: uuid, required: false, ref: Case, note: "v0.2: case the relationship belongs to." }
+  source_entity_id:  { type: uuid, required: true, ref: Entity }
+  target_entity_id:  { type: uuid, required: true, ref: Entity }
+  relationship_type: { type: enum, required: true, ref: enums.relationship_type }
+  confidence:        { type: float, required: true, range: [0.0, 1.0] }
+  origin:            { type: enum, required: true, ref: enums.origin, default: system_proposed }
+  status:            { type: enum, required: true, ref: enums.review_status, default: proposed }
+  observation_ids:   { type: array, items: uuid, required: true, ref: Observation, min_items: 1 }
+  created_at:        { type: datetime, required: true, system_set: true }
+  updated_at:        { type: datetime, required: true, system_set: true }
+
+relationships:
+  connects:               { target: Entity, cardinality: two, note: "source_entity_id -> target_entity_id" }
+  supported_by_observation: { target: Observation, cardinality: many }
+
+invariants:
+  - A Relationship must reference at least one supporting Observation.
+  - Every cited supporting Observation must be 'approved' (v0.2).
+  - relationship_type 'analyst_confirmed' may only be set by a person.
+  - status may not become 'approved' without an analyst action recorded in the audit log.
+  - source_entity_id and target_entity_id must differ.

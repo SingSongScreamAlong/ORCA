@@ -1,0 +1,20 @@
+version: "0.1"
+object: Source
+summary: >
+  Where an observation came from: a website, dataset, manual upload, tip, or
+  document. Sources let analysts weigh observations by provenance.
+
+properties:
+  id:          { type: uuid, required: true, system_set: true }
+  source_type: { type: enum, required: true, ref: enums.source_type }
+  name:        { type: string, required: true }
+  identifier:  { type: string, required: false, note: "URL, dataset id, or other locator." }
+  reliability: { type: enum, required: true, ref: enums.source_reliability, default: unknown }
+  description: { type: text, required: false }
+
+relationships:
+  attributes_observation: { target: Observation, cardinality: many }
+  captured_evidence:      { target: Evidence, cardinality: many }
+
+invariants:
+  - A Source has a stable name and type.

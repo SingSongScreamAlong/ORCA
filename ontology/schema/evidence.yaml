@@ -1,0 +1,44 @@
+version: "0.1"
+object: EvidenceItem
+summary: >
+  v0.3 Evidence Locker. A case-scoped, auditable record of a piece of evidence:
+  metadata, source attribution, an optional link to one observation, legal/handling
+  flags, and a SHA-256 integrity hash when bytes are available. Bytes (when held) live
+  in the content store, addressed by their hash. The locker is for metadata, lawful
+  files, and partner-approved workflows only.
+
+properties:
+  id:                { type: uuid, required: true, system_set: true, note: "The evidence_id." }
+  case_id:           { type: uuid, required: true, ref: Case }
+  source_id:         { type: uuid, required: true, ref: Source }
+  observation_id:    { type: uuid, required: false, ref: Observation, note: "Optional link (same case only)." }
+  title:             { type: string, required: true }
+  description:       { type: text, required: false }
+  evidence_type:     { type: enum, required: true, ref: enums.evidence_type }
+  storage_uri:       { type: string, required: false, note: "Content reference (orca-content://<sha256> or external)." }
+  original_filename: { type: string, required: false }
+  mime_type:         { type: string, required: false }
+  size_bytes:        { type: integer, required: false }
+  sha256:            { type: string, required: false, note: "Integrity anchor; re-hashed on verify." }
+  captured_at:       { type: datetime, required: false }
+  captured_by:       { type: string, required: false }
+  access_method:     { type: string, required: true, default: manual_upload }
+  legal_flags:       { type: object, required: false, note: "lawful_basis / requires_legal_review / sensitive / partner_approved." }
+  handling_notes:    { type: text, required: false }
+  status:            { type: enum, required: true, ref: enums.evidence_status, default: proposed }
+  has_bytes:         { type: bool, required: true, default: false, note: "Whether ORCA holds the bytes (so the hash can be re-verified)." }
+  created_by:        { type: string, required: true }
+  created_at:        { type: datetime, required: true, system_set: true }
+
+relationships:
+  in_case:           { target: Case, cardinality: one }
+  attributed_to:     { target: Source, cardinality: one }
+  supports:          { target: Observation, cardinality: one, note: "Optional; same case only." }
+
+invariants:
+  - An EvidenceItem belongs to exactly one Case.
+  - An EvidenceItem may only link to an Observation in the same case.
+  - When bytes are provided, sha256 is computed by the system and re-verified on demand.
+  - Evidence is created 'proposed'; status changes (approve / reject / needs_more_review / quarantine) are audited.
+  - Reports cite only APPROVED evidence under APPROVED observations.
+  - The locker must never hold material prohibited by docs/safety_and_handling.md.
