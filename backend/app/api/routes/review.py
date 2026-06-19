@@ -29,21 +29,22 @@ def list_review_items(
         description="Filter by status. Defaults to the pending (proposed) queue.",
     ),
     case_id: UUID | None = Query(None, description="Filter by case."),
-    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    principal: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
     uow: UnitOfWork = Depends(get_uow),
 ) -> list[ReviewItemRead]:
     return ReviewService(uow).list(
-        limit=page.limit, offset=page.offset, status=status_filter, case_id=case_id
+        limit=page.limit, offset=page.offset, status=status_filter, case_id=case_id,
+        principal=principal,
     )
 
 
 @router.get("/{item_id}", response_model=ReviewItemRead, summary="Get a review item")
 def get_review_item(
     item_id: UUID,
-    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    principal: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
     uow: UnitOfWork = Depends(get_uow),
 ) -> ReviewItemRead:
-    return ReviewService(uow).get(item_id)
+    return ReviewService(uow).read(item_id, principal)
 
 
 @router.post(

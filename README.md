@@ -75,6 +75,7 @@ These principles are not decoration. They are encoded in the data model (see
 | [v0.3 Evidence Locker](docs/v0.3_evidence_locker.md) | Evidence items, SHA-256 integrity, chain-of-custody.   |
 | [v0.4 Auth/RBAC](docs/v0.4_auth_rbac.md)             | Roles, capability matrix, separation of duties.        |
 | [v0.5 Graph & Discovery](docs/v0.5_graph_discovery.md)| Neighbourhoods, case subgraphs, shortest paths.        |
+| [v0.6 Case Membership](docs/v0.6_case_membership.md) | Per-case authorization, need-to-know, membership roster.|
 | [Roadmap](docs/roadmap.md)                            | Phased delivery, starting from this skeleton.          |
 
 ---
@@ -95,9 +96,14 @@ These principles are not decoration. They are encoded in the data model (see
   **separation of duties** on approvals with an audited admin override, case
   membership/assignment, and report publishing for partner export. See
   [`docs/v0.4_auth_rbac.md`](docs/v0.4_auth_rbac.md).
-- **v0.5 — Relationship Graph & Discovery (current).** Graph queries over approved
+- **v0.5 — Relationship Graph & Discovery.** Graph queries over approved
   relationships — entity neighbourhoods, case subgraphs, and shortest paths — with a
   calm node-link Graph tab. See [`docs/v0.5_graph_discovery.md`](docs/v0.5_graph_discovery.md).
+- **v0.6 — Case Membership & Authorization Scoping (current).** Need-to-know access on
+  top of RBAC: non-admins see and act on only the cases they are assigned to, scoped by a
+  per-case role; a membership roster with an audited lifecycle; and generic 403s that
+  never leak a case's existence or contents. See
+  [`docs/v0.6_case_membership.md`](docs/v0.6_case_membership.md).
 
 Collection ("Hunting Grounds") remains an interface only — no collection logic, no
 scraping, no autonomous hunting. ORCA stays evidence-first, lawful, and analyst-controlled

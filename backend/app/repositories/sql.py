@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.core.audit import AuditEntry
 from app.core.config import get_settings
 from app.core.database import new_session
+from app.core.rbac import MembershipStatus, Role
 from app.models import (
     AuditLogEntry,
     Case,
@@ -95,10 +96,21 @@ def _user(o: User) -> UserRead:
     return UserRead.model_validate(o)
 
 
-def _membership(o: CaseMembership, username: str, role) -> CaseMemberRead:
+def _membership(o: CaseMembership, user: User | None) -> CaseMemberRead:
     return CaseMemberRead(
-        id=o.id, case_id=o.case_id, user_id=o.user_id, username=username, role=role,
-        assigned_by=o.assigned_by, assigned_at=o.assigned_at,
+        id=o.id,
+        case_id=o.case_id,
+        user_id=o.user_id,
+        username=user.username if user else "",
+        display_name=user.display_name if user else "",
+        global_role=user.role if user else Role.VIEWER,
+        case_role=o.case_role,
+        status=o.status,
+        assigned_by=o.assigned_by,
+        assigned_at=o.assigned_at,
+        notes=o.notes,
+        created_at=o.created_at,
+        updated_at=o.updated_at,
     )
 
 
@@ -460,29 +472,68 @@ class SqlUserRepository(_Repo):
 
 
 class SqlMembershipRepository(_Repo):
-    def for_case(self, case_id: UUID) -> list[CaseMemberRead]:
-        rows = self.s.scalars(select(CaseMembership).where(CaseMembership.case_id == case_id)).all()
-        out: list[CaseMemberRead] = []
-        for m in rows:
-            user = self.s.get(User, m.user_id)
-            out.append(_membership(m, user.username if user else "", user.role if user else None))
-        return out
+    def _read(self, o: CaseMembership) -> CaseMemberRead:
+        return _membership(o, self.s.get(User, o.user_id))
 
-    def exists(self, case_id: UUID, user_id: UUID) -> bool:
+    def for_case(self, case_id: UUID) -> list[CaseMemberRead]:
+        rows = self.s.scalars(
+            select(CaseMembership).where(CaseMembership.case_id == case_id)
+        ).all()
+        return sorted((self._read(m) for m in rows), key=lambda m: m.username)
+
+    def for_user(self, user_id: UUID) -> list[CaseMemberRead]:
+        rows = self.s.scalars(
+            select(CaseMembership).where(CaseMembership.user_id == user_id)
+        ).all()
+        return [self._read(m) for m in rows]
+
+    def get(self, membership_id: UUID) -> CaseMemberRead | None:
+        o = self.s.get(CaseMembership, membership_id)
+        return self._read(o) if o else None
+
+    def _row(self, case_id: UUID, user_id: UUID) -> CaseMembership | None:
         return self.s.scalars(
             select(CaseMembership).where(
                 CaseMembership.case_id == case_id, CaseMembership.user_id == user_id
             )
-        ).first() is not None
+        ).first()
+
+    def find(self, case_id: UUID, user_id: UUID) -> CaseMemberRead | None:
+        o = self._row(case_id, user_id)
+        return self._read(o) if o else None
+
+    def get_active(self, case_id: UUID, user_id: UUID) -> CaseMemberRead | None:
+        o = self.s.scalars(
+            select(CaseMembership).where(
+                CaseMembership.case_id == case_id,
+                CaseMembership.user_id == user_id,
+                CaseMembership.status == MembershipStatus.ACTIVE,
+            )
+        ).first()
+        return self._read(o) if o else None
+
+    def exists(self, case_id: UUID, user_id: UUID) -> bool:
+        return self._row(case_id, user_id) is not None
 
     def add(self, member: CaseMemberRead) -> CaseMemberRead:
         o = CaseMembership(
             id=member.id, case_id=member.case_id, user_id=member.user_id,
-            assigned_by=member.assigned_by, assigned_at=member.assigned_at,
+            case_role=member.case_role, status=member.status,
+            assigned_by=member.assigned_by, assigned_at=member.assigned_at, notes=member.notes,
         )
         self.s.add(o)
         self.s.flush()
-        return member
+        return self._read(o)
+
+    def replace(self, member: CaseMemberRead) -> CaseMemberRead:
+        o = self.s.get(CaseMembership, member.id)
+        o.case_role = member.case_role
+        o.status = member.status
+        o.notes = member.notes
+        o.assigned_by = member.assigned_by
+        o.assigned_at = member.assigned_at
+        self.s.flush()
+        return self._read(o)
 
 
 class SqlReviewRepository(_Repo):

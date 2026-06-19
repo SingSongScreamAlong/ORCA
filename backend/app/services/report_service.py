@@ -15,7 +15,8 @@ from app.core.security import Principal
 from app.models.enums import EvidenceStatus, ReportStatus, ReviewStatus
 from app.repositories.uow import UnitOfWork
 from app.schemas.report import ReportRead
-from app.services.errors import NotFoundError
+from app.services.case_access import FORBIDDEN_MESSAGE, CaseAccessService
+from app.services.errors import NotFoundError, PermissionDenied
 
 
 class ReportService:
@@ -25,8 +26,14 @@ class ReportService:
     def list(self, case_id: UUID) -> list[ReportRead]:
         return self.uow.reports.list(case_id=case_id)
 
-    def list_published(self) -> list[ReportRead]:
-        return self.uow.reports.list_published()
+    def list_published(self, principal: Principal | None = None) -> list[ReportRead]:
+        reports = self.uow.reports.list_published()
+        if principal is None:
+            return reports
+        scoped = CaseAccessService(self.uow).accessible_case_ids(principal)
+        if scoped is None:  # administrator
+            return reports
+        return [r for r in reports if r.case_id in scoped]
 
     def get(self, report_id: UUID) -> ReportRead:
         report = self.uow.reports.get(report_id)
@@ -37,6 +44,8 @@ class ReportService:
     def publish(self, report_id: UUID, principal: Principal) -> ReportRead:
         """Mark a draft report as final — an approved report package."""
         report = self.get(report_id)
+        if not CaseAccessService(self.uow).can_mutate(principal, report.case_id):
+            raise PermissionDenied(FORBIDDEN_MESSAGE)
         updated = report.model_copy(
             update={"status": ReportStatus.FINAL, "updated_at": datetime.now(UTC)}
         )
@@ -57,6 +66,8 @@ class ReportService:
         case = self.uow.cases.get(case_id)
         if case is None:
             raise NotFoundError(f"Case {case_id} not found")
+        if not CaseAccessService(self.uow).can_mutate(principal, case_id):
+            raise PermissionDenied(FORBIDDEN_MESSAGE)
 
         approved_observations = [
             o for o in self.uow.observations.for_case(case_id) if o.status is ReviewStatus.APPROVED

@@ -334,3 +334,11 @@ views of evidence, not the source of truth.
 3. `Evidence` is immutable; its `sha256` is verified on read.
 4. No object reaches `approved` without an analyst action recorded in the audit log.
 5. Deleting a `Case` never deletes referenced observations, entities, or evidence.
+
+## Access-control metadata is not part of the evidence ontology
+
+`User` and `CaseMembership` are **access-control** records, deliberately kept separate
+from the evidence object model above. A membership (case_id, user_id, case_role, status)
+governs *who may see and act on a case* (need-to-know) — it is not evidence, is never
+cited by a relationship or report, and does not change what is true. See
+[`v0.4_auth_rbac.md`](v0.4_auth_rbac.md) and [`v0.6_case_membership.md`](v0.6_case_membership.md).

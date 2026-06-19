@@ -66,10 +66,18 @@ orca_role = postgresql.ENUM(
     "admin", "case_manager", "analyst", "reviewer", "viewer", "partner_export_viewer",
     name="orca_role", create_type=False,
 )
+case_role = postgresql.ENUM(
+    "case_manager", "analyst", "reviewer", "viewer", "partner_export_viewer",
+    name="case_role", create_type=False,
+)
+membership_status = postgresql.ENUM(
+    "active", "inactive", "revoked", name="membership_status", create_type=False,
+)
 
 _ALL_ENUMS = [
     source_type, source_reliability, evidence_type, evidence_status, entity_type, relationship_type,
     origin, review_status, cluster_status, case_status, report_status, review_item_type, orca_role,
+    case_role, membership_status,
 ]
 
 
@@ -254,12 +262,18 @@ def upgrade() -> None:
         sa.Column("id", _uuid(), primary_key=True),
         sa.Column("case_id", _uuid(), sa.ForeignKey("cases.id", ondelete="CASCADE"), nullable=False),
         sa.Column("user_id", _uuid(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("case_role", case_role, nullable=False),
+        sa.Column("status", membership_status, nullable=False, server_default="active"),
         sa.Column("assigned_by", sa.String(128), nullable=False),
         sa.Column("assigned_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("notes", sa.Text(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        # One membership per (case, user); re-adding reactivates the same row.
         sa.UniqueConstraint("case_id", "user_id", name="uq_case_member"),
     )
+    op.create_index("ix_case_members_user", "case_members", ["user_id"])
+    op.create_index("ix_case_members_case", "case_members", ["case_id"])
 
     # Association tables.
     op.create_table(

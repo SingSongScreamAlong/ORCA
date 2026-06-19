@@ -25,10 +25,10 @@ router = APIRouter(prefix="/evidence", tags=["evidence"])
 @router.get("", response_model=list[EvidenceItemRead], summary="List evidence items")
 def list_evidence(
     page: Pagination = Depends(pagination),
-    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    principal: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
     uow: UnitOfWork = Depends(get_uow),
 ) -> list[EvidenceItemRead]:
-    return uow.evidence.list(limit=page.limit, offset=page.offset)
+    return EvidenceService(uow).list(limit=page.limit, offset=page.offset, principal=principal)
 
 
 @router.post(
@@ -48,10 +48,10 @@ def create_evidence(
 @router.get("/{evidence_id}", response_model=EvidenceItemRead, summary="Get an evidence item")
 def get_evidence(
     evidence_id: UUID,
-    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    principal: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
     uow: UnitOfWork = Depends(get_uow),
 ) -> EvidenceItemRead:
-    return EvidenceService(uow).get(evidence_id)
+    return EvidenceService(uow).read(evidence_id, principal)
 
 
 @router.post(

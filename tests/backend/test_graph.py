@@ -17,7 +17,15 @@ def _source(client) -> str:
 
 
 def _case(client, title="Graph case") -> str:
-    return client.post(f"{PREFIX}/cases", json={"title": title, "owner": "admin"}).json()["id"]
+    # Created by the default admin; assign the reviewer so observations can be approved
+    # in this case (v0.6 per-case authorization).
+    case_id = client.post(
+        f"{PREFIX}/cases", json={"title": title, "owner": "admin"}
+    ).json()["id"]
+    client.post(
+        f"{PREFIX}/cases/{case_id}/members", json={"username": "rae", "case_role": "reviewer"}
+    )
+    return case_id
 
 
 def _entity(client, value: str, etype="username") -> str:

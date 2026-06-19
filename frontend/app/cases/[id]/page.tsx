@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AssignMemberForm } from "@/components/cases/AssignMemberForm";
+import { MemberControls } from "@/components/cases/MemberControls";
 import { GenerateReportButton } from "@/components/cases/GenerateReportButton";
 import { CapLink } from "@/components/auth/CapLink";
 import { CaseGraph } from "@/components/graph/CaseGraph";
@@ -22,11 +23,12 @@ import {
   getCaseReports,
   getCaseTimeline,
   getEntities,
+  getMe,
   getSources,
   getUsers,
 } from "@/lib/api";
 import { formatTimestamp, humanize, shortId } from "@/lib/format";
-import type { Case, CaseCounts, Entity } from "@/lib/types";
+import type { Case, CaseCounts, CaseMember, Entity } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +59,15 @@ export default async function CaseDetailPage({
   const { case: c, counts } = detail.data;
   const tab = searchParams.tab ?? "overview";
 
+  // The viewer's standing on THIS case (need-to-know): their case role and whether they
+  // may manage the roster. Administrators act as case managers everywhere.
+  const [meRes, membersRes] = await Promise.all([getMe(), getCaseMembers(params.id)]);
+  const me = meRes.ok ? meRes.data : null;
+  const members = membersRes.ok ? membersRes.data : [];
+  const myMembership = members.find((m) => me && m.user_id === me.id && m.status === "active");
+  const myCaseRole = me?.role === "admin" ? "admin" : myMembership?.case_role ?? null;
+  const canManage = me?.role === "admin" || myMembership?.case_role === "case_manager";
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -64,6 +75,11 @@ export default async function CaseDetailPage({
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold text-ink">{c.title}</h2>
             <Tag>{humanize(c.status)}</Tag>
+            {myCaseRole && (
+              <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-xs text-ink-muted">
+                Your access: {humanize(myCaseRole)}
+              </span>
+            )}
           </div>
           <p className="mt-1 text-sm text-ink-faint">
             Owner {c.owner} · created {formatTimestamp(c.created_at)}
@@ -102,7 +118,14 @@ export default async function CaseDetailPage({
       {tab === "relationships" && <Relationships caseId={c.id} />}
       {tab === "graph" && <Graph caseId={c.id} />}
       {tab === "timeline" && <Timeline caseId={c.id} />}
-      {tab === "members" && <Members caseId={c.id} />}
+      {tab === "members" && (
+        <Members
+          caseId={c.id}
+          members={members}
+          canManage={canManage}
+          currentUserId={me?.id ?? null}
+        />
+      )}
       {tab === "audit" && <Audit caseId={c.id} />}
       {tab === "report" && <ReportTab caseId={c.id} />}
     </div>
@@ -283,38 +306,82 @@ async function EvidenceTab({ caseId }: { caseId: string }) {
   );
 }
 
-async function Members({ caseId }: { caseId: string }) {
-  const [members, users] = await Promise.all([getCaseMembers(caseId), getUsers()]);
-  if (!members.ok) return <BackendNotice error={members.error} status={members.status} />;
+async function Members({
+  caseId,
+  members,
+  canManage,
+  currentUserId,
+}: {
+  caseId: string;
+  members: CaseMember[];
+  canManage: boolean;
+  currentUserId: string | null;
+}) {
+  const users = await getUsers();
   return (
     <div className="space-y-4">
-      <AssignMemberForm caseId={caseId} users={users.ok ? users.data : []} />
-      {members.data.length === 0 ? (
+      <p className="text-sm text-ink-faint">
+        Access is need-to-know: only active members may open this case, and each member&apos;s
+        case role decides what they can do here. Membership changes are audited.
+      </p>
+      <AssignMemberForm caseId={caseId} users={users.ok ? users.data : []} canManage={canManage} />
+      {members.length === 0 ? (
         <EmptyState message="No members assigned to this case yet." />
       ) : (
         <Table
           head={
             <>
               <Th>User</Th>
-              <Th>Role</Th>
+              <Th>Global role</Th>
+              <Th>Case role</Th>
+              <Th>Status</Th>
               <Th>Assigned by</Th>
               <Th>When</Th>
+              {canManage && <Th>Manage</Th>}
             </>
           }
         >
-          {members.data.map((m) => (
+          {members.map((m) => (
             <Tr key={m.id}>
-              <Td>{m.username}</Td>
               <Td>
-                <Tag>{humanize(m.role)}</Tag>
+                <div className="text-ink">{m.display_name}</div>
+                <div className="mono mt-0.5 text-xs text-ink-faint">{m.username}</div>
+              </Td>
+              <Td>
+                <Tag>{humanize(m.global_role)}</Tag>
+              </Td>
+              <Td>
+                <Tag>{humanize(m.case_role)}</Tag>
+              </Td>
+              <Td>
+                <MemberStatus status={m.status} />
               </Td>
               <Td>{m.assigned_by}</Td>
               <Td>{formatTimestamp(m.assigned_at)}</Td>
+              {canManage && (
+                <Td>
+                  {m.user_id === currentUserId ? (
+                    <span className="text-xs text-ink-faint">—</span>
+                  ) : (
+                    <MemberControls member={m} />
+                  )}
+                </Td>
+              )}
             </Tr>
           ))}
         </Table>
       )}
     </div>
+  );
+}
+
+function MemberStatus({ status }: { status: CaseMember["status"] }) {
+  const tone =
+    status === "active"
+      ? "bg-emerald-50 text-emerald-700"
+      : "bg-slate-100 text-ink-muted";
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-xs ${tone}`}>{humanize(status)}</span>
   );
 }
 

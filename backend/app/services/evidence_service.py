@@ -29,6 +29,7 @@ from app.schemas.evidence import (
     EvidenceVerifyResult,
 )
 from app.services.authz import authorize_decision
+from app.services.case_access import FORBIDDEN_MESSAGE, CaseAccessService
 from app.services.errors import NotFoundError, PermissionDenied, ValidationError
 
 _DECISION_STATUS: dict[EvidenceDecision, EvidenceStatus] = {
@@ -49,6 +50,24 @@ class EvidenceService:
             raise NotFoundError(f"Evidence item {evidence_id} not found")
         return item
 
+    def read(self, evidence_id: UUID, principal: Principal) -> EvidenceItemRead:
+        """Fetch an evidence item, enforcing case read access (need-to-know)."""
+        item = self.get(evidence_id)
+        if not CaseAccessService(self.uow).can_read_material(principal, item.case_id):
+            raise PermissionDenied(FORBIDDEN_MESSAGE)
+        return item
+
+    def list(
+        self, *, limit: int = 50, offset: int = 0, principal: Principal | None = None
+    ) -> list[EvidenceItemRead]:
+        results = self.uow.evidence.list(limit=limit, offset=offset)
+        if principal is None:
+            return results
+        scoped = CaseAccessService(self.uow).readable_case_ids(principal)
+        if scoped is None:  # administrator
+            return results
+        return [e for e in results if e.case_id in scoped]
+
     def list_for_case(self, case_id: UUID) -> list[EvidenceItemRead]:
         if self.uow.cases.get(case_id) is None:
             raise NotFoundError(f"Case {case_id} not found")
@@ -57,6 +76,8 @@ class EvidenceService:
     def create(self, payload: EvidenceItemCreate, principal: Principal) -> EvidenceItemRead:
         if self.uow.cases.get(payload.case_id) is None:
             raise ValidationError(f"Case {payload.case_id} does not exist")
+        if not CaseAccessService(self.uow).can_mutate(principal, payload.case_id):
+            raise PermissionDenied(FORBIDDEN_MESSAGE)
         if self.uow.sources.get(payload.source_id) is None:
             raise ValidationError(f"Source {payload.source_id} does not exist")
         if payload.observation_id is not None:
@@ -108,6 +129,8 @@ class EvidenceService:
         self, evidence_id: UUID, observation_id: UUID, principal: Principal
     ) -> EvidenceItemRead:
         item = self.get(evidence_id)
+        if not CaseAccessService(self.uow).can_mutate(principal, item.case_id):
+            raise PermissionDenied(FORBIDDEN_MESSAGE)
         self._check_same_case(observation_id, item.case_id)
         updated = item.model_copy(update={"observation_id": observation_id})
         self.uow.evidence.replace(updated)
@@ -134,6 +157,9 @@ class EvidenceService:
         if not can(principal.role, Capability.REVIEW_DECIDE):
             raise PermissionDenied("Deciding an evidence item requires review authority")
         item = self.get(evidence_id)
+        # Need-to-know: a reviewer may only decide evidence in cases they review.
+        if not CaseAccessService(self.uow).can_review(principal, item.case_id):
+            raise PermissionDenied(FORBIDDEN_MESSAGE)
         # Separation of duties: no self-review without an admin override.
         is_override = authorize_decision(principal, item.created_by, override)
         new_status = _DECISION_STATUS[decision]
@@ -160,6 +186,8 @@ class EvidenceService:
 
     def verify(self, evidence_id: UUID, principal: Principal) -> EvidenceVerifyResult:
         item = self.get(evidence_id)
+        if not CaseAccessService(self.uow).can_read_material(principal, item.case_id):
+            raise PermissionDenied(FORBIDDEN_MESSAGE)
         recorded = item.sha256
         computed: str | None = None
         verified: bool | None = None

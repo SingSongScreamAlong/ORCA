@@ -10,6 +10,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from app.core.audit import AuditEntry
+from app.core.rbac import MembershipStatus
 from app.models.enums import EntityType, ReviewStatus
 from app.repositories.base import newest_first, paginate
 from app.repositories.store import InMemoryStore
@@ -253,14 +254,36 @@ class MemoryUserRepository(_Base):
 
 class MemoryMembershipRepository(_Base):
     def for_case(self, case_id: UUID) -> list[CaseMemberRead]:
-        return [m for m in self._store.memberships.values() if m.case_id == case_id]
-
-    def exists(self, case_id: UUID, user_id: UUID) -> bool:
-        return any(
-            m.case_id == case_id and m.user_id == user_id for m in self._store.memberships.values()
+        return sorted(
+            (m for m in self._store.memberships.values() if m.case_id == case_id),
+            key=lambda m: m.username,
         )
 
+    def for_user(self, user_id: UUID) -> list[CaseMemberRead]:
+        return [m for m in self._store.memberships.values() if m.user_id == user_id]
+
+    def get(self, membership_id: UUID) -> CaseMemberRead | None:
+        return self._store.memberships.get(membership_id)
+
+    def find(self, case_id: UUID, user_id: UUID) -> CaseMemberRead | None:
+        """The membership for a (case, user) pair regardless of status, if any."""
+        for m in self._store.memberships.values():
+            if m.case_id == case_id and m.user_id == user_id:
+                return m
+        return None
+
+    def get_active(self, case_id: UUID, user_id: UUID) -> CaseMemberRead | None:
+        m = self.find(case_id, user_id)
+        return m if m and m.status == MembershipStatus.ACTIVE else None
+
+    def exists(self, case_id: UUID, user_id: UUID) -> bool:
+        return self.find(case_id, user_id) is not None
+
     def add(self, member: CaseMemberRead) -> CaseMemberRead:
+        self._store.memberships[member.id] = member
+        return member
+
+    def replace(self, member: CaseMemberRead) -> CaseMemberRead:
         self._store.memberships[member.id] = member
         return member
 
