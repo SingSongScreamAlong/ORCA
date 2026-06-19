@@ -8,7 +8,9 @@ version = "0.1.0"
 description = "ORCA — observation, evidence, and relationship platform for intelligence analysts."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { file = "../LICENSE" }
+# Full terms in the repository-root LICENSE file. An inline string is used here
+# because build backends reject license files outside the project directory.
+license = { text = "Proprietary — All rights reserved. See LICENSE." }
 dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
