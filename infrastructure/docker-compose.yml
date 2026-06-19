@@ -1,0 +1,80 @@
+# Local orchestration for ORCA.
+#
+# Brings up the two data stores and, optionally, the backend and frontend. The default
+# backend storage is in-memory, so PostgreSQL and Neo4j are not required to run the API
+# — they are here for Phase 1 onward and for working against the real schema.
+#
+#   cp env/.env.example .env
+#   docker compose up -d postgres neo4j          # just the stores
+#   docker compose up -d                          # everything
+
+name: orca
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-orca}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orca}
+      POSTGRES_DB: ${POSTGRES_DB:-orca}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Canonical schema is applied on first start.
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-orca} -d ${POSTGRES_DB:-orca}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  neo4j:
+    image: neo4j:5
+    environment:
+      NEO4J_AUTH: ${NEO4J_AUTH:-neo4j/please-change-me}
+    ports:
+      - "${NEO4J_HTTP_PORT:-7474}:7474"
+      - "${NEO4J_BOLT_PORT:-7687}:7687"
+    volumes:
+      - neo4j_data:/data
+      # Constraints are applied manually (see infrastructure/README.md).
+      - ./neo4j/init:/var/lib/neo4j/import/init:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ../backend
+    environment:
+      ORCA_STORAGE_BACKEND: ${ORCA_STORAGE_BACKEND:-memory}
+      ORCA_POSTGRES_DSN: postgresql+psycopg://${POSTGRES_USER:-orca}:${POSTGRES_PASSWORD:-orca}@postgres:5432/${POSTGRES_DB:-orca}
+      ORCA_NEO4J_URI: bolt://neo4j:7687
+      ORCA_NEO4J_USER: neo4j
+      ORCA_CORS_ORIGINS: http://localhost:${FRONTEND_PORT:-3000}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_started
+    profiles: ["app"]
+
+  frontend:
+    build:
+      context: ../frontend
+    environment:
+      NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:8000/api/v1}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - backend
+    profiles: ["app"]
+
+volumes:
+  postgres_data:
+  neo4j_data:

@@ -1,0 +1,30 @@
+# --- Python (backend) ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.env
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+# Local evidence object store for the skeleton backend.
+backend/.evidence/
+
+# --- Node / Next.js (frontend) ---
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# --- Environment files (never commit real secrets) ---
+.env.local
+.env.*.local
+*.env
+
+# --- Editors / OS ---
+.DS_Store
+.idea/
+.vscode/
+*.swp

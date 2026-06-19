@@ -1,0 +1,22 @@
+version: "0.1"
+object: Evidence
+summary: >
+  A preserved artifact that supports an observation. Immutable once stored; integrity
+  is anchored by a SHA-256 content hash.
+
+properties:
+  id:            { type: uuid, required: true, system_set: true }
+  evidence_type: { type: enum, required: true, ref: enums.evidence_type }
+  sha256:        { type: string, required: true, note: "Content hash; the integrity anchor." }
+  storage_uri:   { type: string, required: true, note: "Where the bytes live (object store / path)." }
+  content_type:  { type: string, required: false, note: "MIME type." }
+  captured_at:   { type: datetime, required: true }
+  source_id:     { type: uuid, required: false, ref: Source }
+  description:   { type: text, required: false }
+
+relationships:
+  supports_observation: { target: Observation, cardinality: many }
+
+invariants:
+  - Evidence is write-once; bytes and core fields are never updated.
+  - sha256 is verified against the stored bytes on read.

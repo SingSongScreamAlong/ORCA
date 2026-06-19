@@ -1,0 +1,20 @@
+version: "0.1"
+object: Cluster
+summary: >
+  A grouping of related entities and observations — a candidate pattern. May be
+  proposed by the system or assembled by an analyst.
+
+properties:
+  id:         { type: uuid, required: true, system_set: true }
+  title:      { type: string, required: true }
+  status:     { type: enum, required: true, ref: enums.cluster_status, default: proposed }
+  confidence: { type: float, required: true, range: [0.0, 1.0] }
+  origin:     { type: enum, required: true, ref: enums.origin, default: system_proposed }
+  created_at: { type: datetime, required: true, system_set: true }
+
+relationships:
+  contains_entity:      { target: Entity, cardinality: many }
+  contains_observation: { target: Observation, cardinality: many }
+
+invariants:
+  - A Cluster groups existing entities and observations; it does not own them.

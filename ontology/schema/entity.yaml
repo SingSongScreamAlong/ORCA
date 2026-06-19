@@ -1,0 +1,19 @@
+version: "0.1"
+object: Entity
+summary: >
+  A real-world thing referenced by observations. Entities are deduplicated by
+  (entity_type, value): the same value observed twice is one entity.
+
+properties:
+  id:          { type: uuid, required: true, system_set: true }
+  entity_type: { type: enum, required: true, ref: enums.entity_type }
+  value:       { type: string, required: true, note: "Canonicalized value (e.g. E.164 for phones)." }
+  confidence:  { type: float, required: true, range: [0.0, 1.0], note: "Confidence the entity is correctly resolved." }
+
+relationships:
+  appears_in_observation: { target: Observation, cardinality: many }
+  related_to_entity:      { target: Entity, cardinality: many, via: Relationship }
+
+invariants:
+  - The pair (entity_type, value) is unique.
+  - value is stored in canonical form for its entity_type.

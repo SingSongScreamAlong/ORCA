@@ -1,0 +1,22 @@
+ORCA — Observation, Reconnaissance, Collection, Analysis
+
+Copyright (c) 2025 The ORCA Authors. All rights reserved.
+
+This software and its documentation are provided for authorized intelligence-analysis
+and anti-trafficking work, and for security research and educational purposes, subject
+to the mission boundaries described in docs/mission.md.
+
+No license to use, copy, modify, or distribute this software is granted by default.
+Permission must be obtained from the copyright holders. If and when the project adopts
+an open-source license, this file will be replaced with that license's text.
+
+Use of ORCA is conditioned on the boundaries in docs/mission.md. ORCA must not be used
+as a hacking, surveillance, undercover, or law-enforcement-action platform, nor as an
+automated accusation engine. All conclusions must remain human-reviewed.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+THE USE OR OTHER DEALINGS IN THE SOFTWARE.
