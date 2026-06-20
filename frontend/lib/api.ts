@@ -6,6 +6,7 @@
 // analyst decisions the backend validates and audits.
 
 import type {
+  AiAssistResult,
   AuditEntry,
   Case,
   CaseDetail,
@@ -141,6 +142,22 @@ export const getReportPackages = () => apiGet<ReportPackageSummary[]>("/report-p
 
 export const generateReportPackage = (caseId: string) =>
   apiSend<ReportPackageSummary>(`/cases/${caseId}/report/package`, "POST", {});
+
+// --- Analyst Copilot (v1.0, propose-only) --------------------------------------
+
+export type AiAssistKind =
+  | "summarize"
+  | "extract-entities"
+  | "suggest-relationships"
+  | "draft-report-section"
+  | "check-citations"
+  | "timeline-summary";
+
+export const aiAssist = (
+  caseId: string,
+  kind: AiAssistKind,
+  body: { note?: string; section_title?: string; draft_text?: string } = {},
+) => apiSend<AiAssistResult>(`/cases/${caseId}/ai/${kind}`, "POST", body);
 
 /** Fetch a package artifact (report markdown, manifest JSON, or ZIP) as a blob. */
 export async function getPackageArtifact(

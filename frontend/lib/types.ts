@@ -235,6 +235,71 @@ export interface ReportPackageSummary {
   created_at: string;
 }
 
+// v1.0 Analyst Copilot (propose-only AI assistance).
+export interface AiMeta {
+  generated_by_ai: boolean;
+  provider: string;
+  generated_at: string;
+  source_material_ids: string[];
+  status: string;
+  requires_human_review: boolean;
+}
+
+export interface AiSuggestion {
+  kind: string;
+  text: string;
+  rationale: string | null;
+}
+
+export interface AiProposedEntity {
+  entity_type: string;
+  value: string;
+  confidence: number;
+  rationale: string;
+  source_observation_ids: string[];
+  possible_duplicate_of: string | null;
+}
+
+export interface AiProposedRelationship {
+  relationship_type: string;
+  source_value: string;
+  target_value: string;
+  confidence: number;
+  rationale: string;
+  supporting_observation_ids: string[];
+}
+
+export interface AiReportDraftSuggestion {
+  section_title: string;
+  draft_markdown: string;
+  cited_observation_ids: string[];
+}
+
+export interface AiCitationGap {
+  location: string;
+  claim: string;
+  issue: string;
+}
+
+export interface AiUnsupportedClaimFlag {
+  claim: string;
+  reason: string;
+}
+
+export interface AiAssistResult {
+  case_id: string;
+  assist_type: string;
+  meta: AiMeta;
+  summary: string | null;
+  suggestions: AiSuggestion[];
+  proposed_entities: AiProposedEntity[];
+  proposed_relationships: AiProposedRelationship[];
+  report_draft: AiReportDraftSuggestion | null;
+  citation_gaps: AiCitationGap[];
+  unsupported_claims: AiUnsupportedClaimFlag[];
+  notes: string[];
+}
+
 export type TimelineEventKind =
   | "observation_approved"
   | "relationship_created"
