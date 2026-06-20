@@ -1,0 +1,173 @@
+[
+  {
+    "api_name": "caseContainsSource",
+    "cardinality": "ONE_TO_MANY",
+    "description": "",
+    "orca_basis": "Sources referenced by a case's observations/evidence.",
+    "source_object": "OrcaCase",
+    "target_object": "OrcaSource",
+    "title": "Case contains Source"
+  },
+  {
+    "api_name": "caseContainsObservation",
+    "cardinality": "ONE_TO_MANY",
+    "description": "",
+    "orca_basis": "Observation.case_id.",
+    "source_object": "OrcaCase",
+    "target_object": "OrcaObservation",
+    "title": "Case contains Observation"
+  },
+  {
+    "api_name": "caseContainsEvidenceItem",
+    "cardinality": "ONE_TO_MANY",
+    "description": "",
+    "orca_basis": "EvidenceItem.case_id.",
+    "source_object": "OrcaCase",
+    "target_object": "OrcaEvidenceItem",
+    "title": "Case contains Evidence Item"
+  },
+  {
+    "api_name": "caseContainsEntity",
+    "cardinality": "MANY_TO_MANY",
+    "description": "",
+    "orca_basis": "Entities referenced by a case's observations (entities persist across cases).",
+    "source_object": "OrcaCase",
+    "target_object": "OrcaEntity",
+    "title": "Case contains Entity"
+  },
+  {
+    "api_name": "caseContainsRelationship",
+    "cardinality": "ONE_TO_MANY",
+    "description": "",
+    "orca_basis": "Relationship.case_id.",
+    "source_object": "OrcaCase",
+    "target_object": "OrcaRelationship",
+    "title": "Case contains Relationship"
+  },
+  {
+    "api_name": "caseContainsReport",
+    "cardinality": "ONE_TO_MANY",
+    "description": "",
+    "orca_basis": "Report.case_id.",
+    "source_object": "OrcaCase",
+    "target_object": "OrcaReport",
+    "title": "Case contains Report"
+  },
+  {
+    "api_name": "caseContainsReportPackage",
+    "cardinality": "ONE_TO_MANY",
+    "description": "",
+    "orca_basis": "ReportPackage.case_id.",
+    "source_object": "OrcaCase",
+    "target_object": "OrcaReportPackage",
+    "title": "Case contains Report Package"
+  },
+  {
+    "api_name": "caseHasCaseMembership",
+    "cardinality": "ONE_TO_MANY",
+    "description": "",
+    "orca_basis": "CaseMembership.case_id \u2014 the need-to-know roster.",
+    "source_object": "OrcaCase",
+    "target_object": "OrcaCaseMembership",
+    "title": "Case has Case Membership"
+  },
+  {
+    "api_name": "sourceSupportsObservation",
+    "cardinality": "ONE_TO_MANY",
+    "description": "",
+    "orca_basis": "Observation.source_id.",
+    "source_object": "OrcaSource",
+    "target_object": "OrcaObservation",
+    "title": "Source supports Observation"
+  },
+  {
+    "api_name": "observationCitesEvidenceItem",
+    "cardinality": "ONE_TO_MANY",
+    "description": "",
+    "orca_basis": "EvidenceItem.observation_id.",
+    "source_object": "OrcaObservation",
+    "target_object": "OrcaEvidenceItem",
+    "title": "Observation cites Evidence Item"
+  },
+  {
+    "api_name": "observationSupportsRelationship",
+    "cardinality": "MANY_TO_MANY",
+    "description": "",
+    "orca_basis": "Relationship.observation_ids \u2014 supporting observations must be approved.",
+    "source_object": "OrcaObservation",
+    "target_object": "OrcaRelationship",
+    "title": "Observation supports Relationship"
+  },
+  {
+    "api_name": "entityParticipatesInRelationship",
+    "cardinality": "MANY_TO_MANY",
+    "description": "",
+    "orca_basis": "Relationship.source_entity_id / target_entity_id.",
+    "source_object": "OrcaEntity",
+    "target_object": "OrcaRelationship",
+    "title": "Entity participates in Relationship"
+  },
+  {
+    "api_name": "reportCitesObservation",
+    "cardinality": "MANY_TO_MANY",
+    "description": "",
+    "orca_basis": "Reports cite approved observations only.",
+    "source_object": "OrcaReport",
+    "target_object": "OrcaObservation",
+    "title": "Report cites Observation"
+  },
+  {
+    "api_name": "reportPackageIncludesReport",
+    "cardinality": "ONE_TO_ONE",
+    "description": "",
+    "orca_basis": "The package's rendered report (approved material only).",
+    "source_object": "OrcaReportPackage",
+    "target_object": "OrcaReport",
+    "title": "Report Package includes Report"
+  },
+  {
+    "api_name": "reportPackageIncludesEvidenceManifest",
+    "cardinality": "MANY_TO_MANY",
+    "description": "",
+    "orca_basis": "Manifest entries reference approved evidence by metadata + SHA-256 (no raw bytes).",
+    "source_object": "OrcaReportPackage",
+    "target_object": "OrcaEvidenceItem",
+    "title": "Report Package includes Evidence Manifest"
+  },
+  {
+    "api_name": "reviewDecisionAppliesToObservation",
+    "cardinality": "MANY_TO_ONE",
+    "description": "",
+    "orca_basis": "ReviewDecision over an observation.",
+    "source_object": "OrcaReviewDecision",
+    "target_object": "OrcaObservation",
+    "title": "Review Decision applies to Observation"
+  },
+  {
+    "api_name": "reviewDecisionAppliesToEvidenceItem",
+    "cardinality": "MANY_TO_ONE",
+    "description": "",
+    "orca_basis": "ReviewDecision over an evidence item.",
+    "source_object": "OrcaReviewDecision",
+    "target_object": "OrcaEvidenceItem",
+    "title": "Review Decision applies to Evidence Item"
+  },
+  {
+    "api_name": "reviewDecisionAppliesToRelationship",
+    "cardinality": "MANY_TO_ONE",
+    "description": "",
+    "orca_basis": "ReviewDecision over a relationship.",
+    "source_object": "OrcaReviewDecision",
+    "target_object": "OrcaRelationship",
+    "title": "Review Decision applies to Relationship"
+  },
+  {
+    "api_name": "auditEventRecordsActionOnObject",
+    "cardinality": "MANY_TO_ONE",
+    "description": "",
+    "orca_basis": "AuditEvent.target_type/target_id \u2014 append-only record of a consequential action.",
+    "source_object": "OrcaAuditEvent",
+    "target_object": "OrcaCase",
+    "title": "Audit Event records action on object"
+  }
+]

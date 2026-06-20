@@ -25,6 +25,16 @@ sequence is the commitment.
 The skeleton is deliberately honest: endpoints and screens exist and are wired to the
 data model, but business logic is minimal and clearly marked.
 
+> **v0.9 status.** **Palantir Foundry Ontology Mapping** supports Phase 6 (operations /
+> integration): a Foundry-ready ontology **specification and local mapping module**
+> (`backend/app/foundry_mapping/`, exported to `foundry/*.json`) describing ORCA's objects,
+> links, actions, and permissions as Foundry concepts. It is mapping/spec only — no live
+> Palantir calls, sync, production writes, or AIP automation — and preserves every ORCA
+> invariant (approved-only reports/graph, need-to-know membership, no raw evidence for
+> partner export viewers, audited actions, no CSAM handling). Permission rules are derived
+> from ORCA's real RBAC predicates so the spec cannot drift. See
+> [`v0.9_palantir_foundry_mapping.md`](v0.9_palantir_foundry_mapping.md).
+>
 > **v0.8 status.** **Report Package Export** advances Phase 3's reporting work: an
 > immutable, partner-ready export snapshot per case (`POST /cases/{id}/report/package`) —
 > a Markdown report plus a JSON evidence manifest with SHA-256 hashes and an optional ZIP,

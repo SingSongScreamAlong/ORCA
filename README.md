@@ -59,6 +59,7 @@ These principles are not decoration. They are encoded in the data model (see
 | `backend/`        | FastAPI service, data models, services, repositories, and workers.  |
 | `frontend/`       | Next.js analyst application (evidence-first, information dense).     |
 | `infrastructure/` | Local orchestration (PostgreSQL, Neo4j) and environment templates.  |
+| `foundry/`        | Exported ORCA → Palantir Foundry ontology mapping (JSON spec).       |
 | `tests/`          | Structure and contract tests across the repository.                 |
 
 ## Documentation
@@ -78,6 +79,7 @@ These principles are not decoration. They are encoded in the data model (see
 | [v0.6 Case Membership](docs/v0.6_case_membership.md) | Per-case authorization, need-to-know, membership roster.|
 | [v0.7 Evidence Upload](docs/v0.7_evidence_file_upload.md)| Manual file upload, hashing, upload policy, scoped download.|
 | [v0.8 Report Package Export](docs/v0.8_report_package_export.md)| Partner-ready report + evidence manifest, hashes, scoped export.|
+| [v0.9 Foundry Mapping](docs/v0.9_palantir_foundry_mapping.md)| ORCA → Palantir Foundry ontology mapping (spec + local scaffolding).|
 | [Roadmap](docs/roadmap.md)                            | Phased delivery, starting from this skeleton.          |
 
 ---
@@ -112,12 +114,19 @@ These principles are not decoration. They are encoded in the data model (see
   case-scoped raw-byte download, a mandatory safety acknowledgement, and audited
   upload/download. Upload/storage only — no collection. See
   [`docs/v0.7_evidence_file_upload.md`](docs/v0.7_evidence_file_upload.md).
-- **v0.8 — Report Package Export (current).** Partner-ready export packages built from
+- **v0.8 — Report Package Export.** Partner-ready export packages built from
   **approved material only**: a Markdown report plus a JSON evidence manifest with
   SHA-256 hashes (and an optional ZIP). Generation is role-gated; partner export viewers
   can view/download packages for assigned cases but never raw evidence, the graph, or the
   audit log; proposed/rejected/quarantined material is excluded; generation and downloads
   are audited. See [`docs/v0.8_report_package_export.md`](docs/v0.8_report_package_export.md).
+- **v0.9 — Palantir Foundry Ontology Mapping (current).** A Foundry-ready ontology
+  **specification and local mapping module** (`backend/app/foundry_mapping/`, exported to
+  `foundry/*.json`) describing ORCA's objects, links, actions, and permissions as Foundry
+  concepts — **mapping/spec only, no live Palantir calls or sync**. The mapping preserves
+  every ORCA invariant (approved-only reports/graph, need-to-know membership, no raw
+  evidence for partner export viewers, audited actions, no CSAM handling). See
+  [`docs/v0.9_palantir_foundry_mapping.md`](docs/v0.9_palantir_foundry_mapping.md).
 
 Collection ("Hunting Grounds") remains an interface only — no collection logic, no
 scraping, no autonomous hunting. ORCA stays evidence-first, lawful, and analyst-controlled
