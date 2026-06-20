@@ -13,6 +13,7 @@ from app.api.routes import (
     evidence,
     graph,
     health,
+    integrations,
     observations,
     relationships,
     report_packages,
@@ -37,4 +38,5 @@ api_router.include_router(reports.router)
 api_router.include_router(report_packages.router)
 api_router.include_router(graph.router)
 api_router.include_router(ai.router)
+api_router.include_router(integrations.router)
 api_router.include_router(sources.router)

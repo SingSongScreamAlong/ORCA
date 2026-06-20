@@ -236,6 +236,12 @@ graph LR
   case-membership-gated endpoints under `/cases/{id}/ai/...`. Every result is marked
   `generated_by_ai` / `requires_human_review`, is audited, and never writes case material.
   See [`v1.0_aip_assisted_analyst_copilot.md`](v1.0_aip_assisted_analyst_copilot.md).
+- **Foundry connection spike (v1.1).** `backend/app/foundry/` is read-only connection
+  *scaffolding*: a `FoundryConfig` (env-driven, disabled by default, secrets redacted), a
+  `FoundryClient` protocol, a deterministic `MockFoundryClient`, an honest `RealFoundryClient`
+  placeholder, and a secret-free health check (`GET /integrations/foundry/health`,
+  `python -m app.foundry.health`). No live calls, no sync, no credentials required for
+  dev/CI. See [`v1.1_foundry_connection_spike.md`](v1.1_foundry_connection_spike.md).
 - **Foundry ontology mapping (v0.9).** `backend/app/foundry_mapping/` is a
   specification + scaffolding layer that maps ORCA's models, relationships, workflows, and
   permissions onto Palantir Foundry object/link/action/permission concepts and exports them

@@ -25,6 +25,14 @@ sequence is the commitment.
 The skeleton is deliberately honest: endpoints and screens exist and are wired to the
 data model, but business logic is minimal and clearly marked.
 
+> **v1.1 status.** **Foundry Connection Spike** begins Phase 6 integration work: the
+> smallest safe step from *Palantir-ready* to *Palantir-connected* — a Foundry connection
+> config shape, a **read-only** client abstraction, a deterministic mock client, honest
+> real-client scaffolding, and a secret-free health check
+> (`GET /integrations/foundry/health`, `python -m app.foundry.health`). Disabled by default;
+> no credentials needed for dev/CI; no secrets committed; not full sync and not live AIP.
+> See [`v1.1_foundry_connection_spike.md`](v1.1_foundry_connection_spike.md).
+>
 > **v1.0 status.** **AIP-assisted Analyst Copilot (propose-only)** completes Phase 4's
 > assistance goal: a local, provider-agnostic AI layer (`backend/app/ai_assist/`) that
 > summarizes approved material, proposes candidate entities/relationships, drafts report

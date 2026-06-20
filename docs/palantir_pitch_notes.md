@@ -43,6 +43,13 @@ ORCA would remain the **system of record and authorization authority**; Foundry 
 call back into ORCA's services so RBAC, membership, separation of duties, and audit still
 apply (one-directional, audited backfill — not the live sync the prototype forbids).
 
+> **v1.1 connection spike.** ORCA already includes read-only connection *scaffolding*
+> (`backend/app/foundry/`): a config shape, a client abstraction, a deterministic mock
+> client, an honest real-client placeholder, and a secret-free health check
+> (`python -m app.foundry.health`). It is disabled by default and needs no credentials —
+> the natural place to wire a real OSDK in a pilot. See
+> [`v1.1_foundry_connection_spike.md`](v1.1_foundry_connection_spike.md).
+
 ## Why AIP is propose-only
 
 The mission rule is non-negotiable: AI never produces an authoritative finding about a

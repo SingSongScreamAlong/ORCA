@@ -58,6 +58,14 @@ audited analyst decision.
 > case membership (partner-accessible, no raw evidence/graph/audit). See
 > [`../docs/v0.8_report_package_export.md`](../docs/v0.8_report_package_export.md).
 
+> **v1.1 — Foundry Connection Spike.** Adds `app/foundry/` (read-only connection
+> scaffolding): `FoundryConfig` (env-driven, disabled by default, secrets redacted), a
+> `FoundryClient` protocol, a deterministic `MockFoundryClient`, an honest `RealFoundryClient`
+> placeholder, and a secret-free health check (`GET /integrations/foundry/health`,
+> `python -m app.foundry.health`). No live Palantir calls or credentials are needed for
+> dev/CI. See [`../docs/v1.1_foundry_connection_spike.md`](../docs/v1.1_foundry_connection_spike.md)
+> and [`../docs/foundry_connection_setup.md`](../docs/foundry_connection_setup.md).
+
 ## Layout
 
 ```

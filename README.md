@@ -106,6 +106,8 @@ These principles are not decoration. They are encoded in the data model (see
 | [v0.8 Report Package Export](docs/v0.8_report_package_export.md)| Partner-ready report + evidence manifest, hashes, scoped export.|
 | [v0.9 Foundry Mapping](docs/v0.9_palantir_foundry_mapping.md)| ORCA → Palantir Foundry ontology mapping (spec + local scaffolding).|
 | [v1.0 Analyst Copilot](docs/v1.0_aip_assisted_analyst_copilot.md)| Local, propose-only AI assistance (AI proposes, analysts decide).|
+| [v1.1 Foundry Connection Spike](docs/v1.1_foundry_connection_spike.md)| Read-only Foundry connection scaffolding (mock by default).|
+| [Foundry connection setup](docs/foundry_connection_setup.md)| Manual procedure to test against a real Foundry tenant.|
 | [Demo walkthrough](docs/demo_walkthrough.md)         | End-to-end demo path across every v1.0 capability.     |
 | [Threat model](docs/threat_model.md)                 | Threats, mitigations, and non-goals.                   |
 | [Known limitations](docs/known_limitations.md)       | What v1.0 is deliberately not (yet).                   |
@@ -165,6 +167,13 @@ These principles are not decoration. They are encoded in the data model (see
   Default offline deterministic mock provider (no credentials); designed to map onto
   Palantir AIP later. Partner export viewers cannot access it. See
   [`docs/v1.0_aip_assisted_analyst_copilot.md`](docs/v1.0_aip_assisted_analyst_copilot.md).
+- **v1.1 — Foundry Connection Spike (current).** The smallest safe step from
+  *Palantir-ready* toward *Palantir-connected*: a Foundry connection **configuration shape**,
+  a **read-only** client abstraction, a deterministic **mock client**, honest real-client
+  scaffolding, and a secret-free **health check** (`GET /api/v1/integrations/foundry/health`
+  and `python -m app.foundry.health`). Disabled by default; **no credentials needed** for
+  dev/CI; **no secrets committed**; not full sync and not live AIP. See
+  [`docs/v1.1_foundry_connection_spike.md`](docs/v1.1_foundry_connection_spike.md).
 
 Collection ("Hunting Grounds") remains an interface only — no collection logic, no
 scraping, no autonomous hunting. ORCA stays evidence-first, lawful, and analyst-controlled
@@ -253,6 +262,7 @@ commit; create the GitHub release from the tag.)
 | `v0.8.0-report-package-export`          | Report package export                  |
 | `v0.9.0-palantir-foundry-mapping`       | Palantir Foundry ontology mapping      |
 | `v1.0.0-aip-assisted-analyst-copilot`   | AIP-assisted Analyst Copilot (propose-only)|
+| `v1.0.1-release-hardening-demo-audit`   | Release hardening / demo audit         |
 
 ## License
 
