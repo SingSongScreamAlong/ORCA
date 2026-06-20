@@ -80,6 +80,7 @@ These principles are not decoration. They are encoded in the data model (see
 | [v0.7 Evidence Upload](docs/v0.7_evidence_file_upload.md)| Manual file upload, hashing, upload policy, scoped download.|
 | [v0.8 Report Package Export](docs/v0.8_report_package_export.md)| Partner-ready report + evidence manifest, hashes, scoped export.|
 | [v0.9 Foundry Mapping](docs/v0.9_palantir_foundry_mapping.md)| ORCA → Palantir Foundry ontology mapping (spec + local scaffolding).|
+| [v1.0 Analyst Copilot](docs/v1.0_aip_assisted_analyst_copilot.md)| Local, propose-only AI assistance (AI proposes, analysts decide).|
 | [Roadmap](docs/roadmap.md)                            | Phased delivery, starting from this skeleton.          |
 
 ---
@@ -120,13 +121,20 @@ These principles are not decoration. They are encoded in the data model (see
   can view/download packages for assigned cases but never raw evidence, the graph, or the
   audit log; proposed/rejected/quarantined material is excluded; generation and downloads
   are audited. See [`docs/v0.8_report_package_export.md`](docs/v0.8_report_package_export.md).
-- **v0.9 — Palantir Foundry Ontology Mapping (current).** A Foundry-ready ontology
+- **v0.9 — Palantir Foundry Ontology Mapping.** A Foundry-ready ontology
   **specification and local mapping module** (`backend/app/foundry_mapping/`, exported to
   `foundry/*.json`) describing ORCA's objects, links, actions, and permissions as Foundry
   concepts — **mapping/spec only, no live Palantir calls or sync**. The mapping preserves
   every ORCA invariant (approved-only reports/graph, need-to-know membership, no raw
   evidence for partner export viewers, audited actions, no CSAM handling). See
   [`docs/v0.9_palantir_foundry_mapping.md`](docs/v0.9_palantir_foundry_mapping.md).
+- **v1.0 — AIP-assisted Analyst Copilot, propose-only (current).** A local,
+  provider-agnostic AI assistance layer (`backend/app/ai_assist/`) that summarizes approved
+  material, proposes candidate entities/relationships, drafts report sections, checks
+  citations, and flags review gaps — **always proposed-only, human-reviewed, and audited**.
+  Default offline deterministic mock provider (no credentials); designed to map onto
+  Palantir AIP later. Partner export viewers cannot access it. See
+  [`docs/v1.0_aip_assisted_analyst_copilot.md`](docs/v1.0_aip_assisted_analyst_copilot.md).
 
 Collection ("Hunting Grounds") remains an interface only — no collection logic, no
 scraping, no autonomous hunting. ORCA stays evidence-first, lawful, and analyst-controlled

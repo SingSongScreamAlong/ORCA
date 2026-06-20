@@ -70,6 +70,10 @@ class Settings(BaseSettings):
     # metadata only; mutating roles and admins always may). "Policy explicitly allows."
     evidence_allow_viewer_download: bool = False
 
+    # Analyst Copilot (v1.0). The default "mock" provider is offline and deterministic and
+    # needs no credentials; AI output is always proposed-only and human-reviewed.
+    ai_provider: str = "mock"
+
     @property
     def evidence_allowed_mime_set(self) -> set[str]:
         return {m.strip().lower() for m in self.evidence_allowed_mime_types.split(",") if m.strip()}

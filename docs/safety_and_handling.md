@@ -161,6 +161,24 @@ by design:
 - **Scoped and audited.** A partner sees packages only for cases they are assigned to;
   generation and every download are recorded in the append-only audit log.
 
+## AI assistance is propose-only (v1.0)
+
+The Analyst Copilot ([`v1.0_aip_assisted_analyst_copilot.md`](v1.0_aip_assisted_analyst_copilot.md))
+assists analysts without ever deciding for them:
+
+- **Proposed only.** Every AI result is a suggestion/draft/candidate marked
+  `generated_by_ai` and `requires_human_review`; it never becomes authoritative case
+  material automatically, and the Copilot has no write path into the record.
+- **Approved material only.** The Copilot reasons over approved observations, evidence, and
+  relationships the caller may read — never proposed/rejected/quarantined material, and
+  never anything outside the caller's case membership. Partner export viewers cannot use it.
+- **Forbidden uses are not implemented:** no autonomous collection, scraping, dark-web
+  browsing, face recognition/matching, victim/offender targeting, identity claims without
+  review, direct-contact suggestions, law-enforcement conclusions, risk scoring of real
+  people, automated report approval, or AI claims in partner exports.
+- **Local and credential-free** by default (deterministic mock provider); audited on every
+  request. AI proposes; analysts decide.
+
 ## Human review is mandatory
 
 Nothing in ORCA becomes confirmed knowledge without a human decision. Observations

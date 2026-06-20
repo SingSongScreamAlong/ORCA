@@ -7,6 +7,7 @@ import { CapLink } from "@/components/auth/CapLink";
 import { CaseGraph } from "@/components/graph/CaseGraph";
 import { EvidenceLocker } from "@/components/evidence/EvidenceLocker";
 import { EvidenceUploadForm } from "@/components/evidence/EvidenceUploadForm";
+import { CopilotPanel } from "@/components/ai/CopilotPanel";
 import { ReportPackages } from "@/components/reports/ReportPackages";
 import { ConfidenceBadge, OriginBadge, StatusBadge, Tag } from "@/components/ui/Badges";
 import { Card } from "@/components/ui/Card";
@@ -46,6 +47,7 @@ const TABS = [
   ["audit", "Audit log"],
   ["report", "Draft report"],
   ["export", "Export"],
+  ["copilot", "Copilot"],
 ] as const;
 
 export default async function CaseDetailPage({
@@ -137,6 +139,14 @@ export default async function CaseDetailPage({
           caseId={c.id}
           canGenerate={!!me?.capabilities.includes("generate_report")}
         />
+      )}
+      {tab === "copilot" && (
+        <Card
+          title="Analyst Copilot"
+          subtitle="Local, propose-only AI assistance over approved material. AI proposes; analysts decide."
+        >
+          <CopilotPanel caseId={c.id} />
+        </Card>
       )}
     </div>
   );

@@ -25,6 +25,16 @@ sequence is the commitment.
 The skeleton is deliberately honest: endpoints and screens exist and are wired to the
 data model, but business logic is minimal and clearly marked.
 
+> **v1.0 status.** **AIP-assisted Analyst Copilot (propose-only)** completes Phase 4's
+> assistance goal: a local, provider-agnostic AI layer (`backend/app/ai_assist/`) that
+> summarizes approved material, proposes candidate entities/relationships, drafts report
+> sections, checks citations, and flags review gaps. Every output is **proposed-only**,
+> carries `generated_by_ai` / `requires_human_review` metadata, is case-membership gated
+> (partners excluded), and is audited — AI proposes, analysts decide. The default provider
+> is an offline deterministic mock (no credentials); it maps onto Palantir AIP later via
+> the `AiProvider` seam. No autonomous collection, no AI-generated evidence, no automated
+> approval. See [`v1.0_aip_assisted_analyst_copilot.md`](v1.0_aip_assisted_analyst_copilot.md).
+>
 > **v0.9 status.** **Palantir Foundry Ontology Mapping** supports Phase 6 (operations /
 > integration): a Foundry-ready ontology **specification and local mapping module**
 > (`backend/app/foundry_mapping/`, exported to `foundry/*.json`) describing ORCA's objects,

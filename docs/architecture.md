@@ -230,6 +230,12 @@ graph LR
   [`v0.6_case_membership.md`](v0.6_case_membership.md) and `app/services/case_access.py`.
 - **Audit logging.** Every state transition that confirms, rejects, or deletes is
   recorded. The audit log is append-only.
+- **Analyst Copilot (v1.0).** `backend/app/ai_assist/` is a local, provider-agnostic,
+  **propose-only** AI layer: an `AiProvider` protocol with an offline deterministic
+  `MockProvider`, a service that reasons over **approved** material only, and
+  case-membership-gated endpoints under `/cases/{id}/ai/...`. Every result is marked
+  `generated_by_ai` / `requires_human_review`, is audited, and never writes case material.
+  See [`v1.0_aip_assisted_analyst_copilot.md`](v1.0_aip_assisted_analyst_copilot.md).
 - **Foundry ontology mapping (v0.9).** `backend/app/foundry_mapping/` is a
   specification + scaffolding layer that maps ORCA's models, relationships, workflows, and
   permissions onto Palantir Foundry object/link/action/permission concepts and exports them
