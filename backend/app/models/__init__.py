@@ -14,6 +14,7 @@ from app.models.evidence import EvidenceItem
 from app.models.observation import Observation
 from app.models.relationship import Relationship
 from app.models.report import Report
+from app.models.report_package import ReportPackage
 from app.models.review import ReviewItem
 from app.models.source import Source
 from app.models.user import CaseMembership, User
@@ -29,6 +30,7 @@ __all__ = [
     "Observation",
     "Relationship",
     "Report",
+    "ReportPackage",
     "ReviewItem",
     "Source",
     "User",

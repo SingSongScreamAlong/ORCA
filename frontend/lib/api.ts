@@ -25,6 +25,7 @@ import type {
   ReviewDecision,
   ReviewItem,
   Report,
+  ReportPackageSummary,
   Source,
   TimelineEvent,
   User,
@@ -133,6 +134,32 @@ export const getMe = () => apiGet<CurrentUser>("/me");
 export const getUsers = () => apiGet<User[]>("/users");
 export const getPublishedReports = () => apiGet<Report[]>("/reports/published");
 export const getReport = (id: string) => apiGet<Report>(`/reports/${id}`);
+
+// --- report packages (v0.8 export) ---------------------------------------------
+
+export const getReportPackages = () => apiGet<ReportPackageSummary[]>("/report-packages");
+
+export const generateReportPackage = (caseId: string) =>
+  apiSend<ReportPackageSummary>(`/cases/${caseId}/report/package`, "POST", {});
+
+/** Fetch a package artifact (report markdown, manifest JSON, or ZIP) as a blob. */
+export async function getPackageArtifact(
+  packageId: string,
+  kind: "report" | "manifest" | "package",
+): Promise<ApiResult<Blob>> {
+  try {
+    const res = await fetch(`${API_BASE}/report-packages/${packageId}/${kind}`, {
+      cache: "no-store",
+      headers: { ...(await userHeaders()) },
+    });
+    if (!res.ok) {
+      return { ok: false, status: res.status, error: `Download failed (${res.status}).` };
+    }
+    return { ok: true, data: await res.blob() };
+  } catch {
+    return { ok: false, error: `Could not reach the ORCA backend at ${API_BASE}.` };
+  }
+}
 
 // --- mutations (browser-side analyst actions) ----------------------------------
 

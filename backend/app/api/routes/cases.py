@@ -31,6 +31,7 @@ from app.schemas.graph import GraphView
 from app.schemas.observation import ObservationRead
 from app.schemas.relationship import RelationshipRead
 from app.schemas.report import ReportRead
+from app.schemas.report_package import ReportPackageSummary
 from app.schemas.timeline import TimelineEvent
 from app.schemas.user import CaseMemberCreate, CaseMemberRead, CaseMemberUpdate
 from app.services.case_service import CaseService
@@ -38,6 +39,7 @@ from app.services.evidence_service import EvidenceService
 from app.services.graph_query_service import GraphQueryService
 from app.services.observation_service import ObservationService
 from app.services.relationship_service import RelationshipService
+from app.services.report_package_service import ReportPackageService
 from app.services.report_service import ReportService
 from app.services.timeline_service import TimelineService
 
@@ -237,6 +239,20 @@ def generate_report(
     uow: UnitOfWork = Depends(get_uow),
 ) -> ReportRead:
     return ReportService(uow).generate_draft(case_id, principal)
+
+
+@router.post(
+    "/{case_id}/report/package",
+    response_model=ReportPackageSummary,
+    status_code=status.HTTP_201_CREATED,
+    summary="Generate a partner-ready report package (approved material only)",
+)
+def generate_report_package(
+    case_id: UUID,
+    principal: Principal = Depends(require(Capability.GENERATE_REPORT)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> ReportPackageSummary:
+    return ReportPackageService(uow).generate(case_id, principal)
 
 
 @router.get("/{case_id}/members", response_model=list[CaseMemberRead], summary="List case members")

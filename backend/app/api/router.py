@@ -14,6 +14,7 @@ from app.api.routes import (
     health,
     observations,
     relationships,
+    report_packages,
     reports,
     review,
     sources,
@@ -32,5 +33,6 @@ api_router.include_router(clusters.router)
 api_router.include_router(review.router)
 api_router.include_router(evidence.router)
 api_router.include_router(reports.router)
+api_router.include_router(report_packages.router)
 api_router.include_router(graph.router)
 api_router.include_router(sources.router)

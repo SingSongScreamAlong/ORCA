@@ -215,6 +215,26 @@ export interface Report {
   updated_at: string;
 }
 
+export interface ReportPackageCounts {
+  approved_observations: number;
+  approved_relationships: number;
+  cited_evidence: number;
+}
+
+export interface ReportPackageSummary {
+  id: string;
+  case_id: string;
+  title: string;
+  status: "draft" | "in_review" | "final";
+  handling_level: string;
+  generated_by: string;
+  counts: ReportPackageCounts;
+  caveats: string[];
+  report_sha256: string;
+  manifest_sha256: string;
+  created_at: string;
+}
+
 export type TimelineEventKind =
   | "observation_approved"
   | "relationship_created"

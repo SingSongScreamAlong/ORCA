@@ -25,6 +25,15 @@ sequence is the commitment.
 The skeleton is deliberately honest: endpoints and screens exist and are wired to the
 data model, but business logic is minimal and clearly marked.
 
+> **v0.8 status.** **Report Package Export** advances Phase 3's reporting work: an
+> immutable, partner-ready export snapshot per case (`POST /cases/{id}/report/package`) —
+> a Markdown report plus a JSON evidence manifest with SHA-256 hashes and an optional ZIP,
+> built from **approved** material only. Generation is role-gated; listing/download is
+> scoped to case membership (the partner export viewer's window, with no raw evidence /
+> graph / audit access); proposed, rejected, and quarantined material is excluded; and
+> generation and downloads are audited. See
+> [`v0.8_report_package_export.md`](v0.8_report_package_export.md).
+>
 > **v0.7 status.** **Evidence File Upload + Storage Hardening** advances Phase 1's
 > evidence work: real manual upload of lawful files (`POST /cases/{id}/evidence/upload`)
 > through the content-addressed store, with SHA-256 hashing/verification, a safe-by-default

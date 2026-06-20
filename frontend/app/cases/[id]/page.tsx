@@ -7,6 +7,7 @@ import { CapLink } from "@/components/auth/CapLink";
 import { CaseGraph } from "@/components/graph/CaseGraph";
 import { EvidenceLocker } from "@/components/evidence/EvidenceLocker";
 import { EvidenceUploadForm } from "@/components/evidence/EvidenceUploadForm";
+import { ReportPackages } from "@/components/reports/ReportPackages";
 import { ConfidenceBadge, OriginBadge, StatusBadge, Tag } from "@/components/ui/Badges";
 import { Card } from "@/components/ui/Card";
 import { EntityChip } from "@/components/ui/EntityChip";
@@ -25,6 +26,7 @@ import {
   getCaseTimeline,
   getEntities,
   getMe,
+  getReportPackages,
   getSources,
   getUsers,
 } from "@/lib/api";
@@ -43,6 +45,7 @@ const TABS = [
   ["members", "Members"],
   ["audit", "Audit log"],
   ["report", "Draft report"],
+  ["export", "Export"],
 ] as const;
 
 export default async function CaseDetailPage({
@@ -129,7 +132,27 @@ export default async function CaseDetailPage({
       )}
       {tab === "audit" && <Audit caseId={c.id} />}
       {tab === "report" && <ReportTab caseId={c.id} />}
+      {tab === "export" && (
+        <ExportTab
+          caseId={c.id}
+          canGenerate={!!me?.capabilities.includes("generate_report")}
+        />
+      )}
     </div>
+  );
+}
+
+async function ExportTab({ caseId, canGenerate }: { caseId: string; canGenerate: boolean }) {
+  const pkgs = await getReportPackages();
+  if (!pkgs.ok) return <BackendNotice error={pkgs.error} status={pkgs.status} />;
+  const list = pkgs.data.filter((p) => p.case_id === caseId);
+  return (
+    <Card
+      title="Report packages"
+      subtitle="Immutable, partner-ready exports built from approved material only — proposed, rejected, and quarantined items are excluded, and raw evidence files are never bundled."
+    >
+      <ReportPackages packages={list} caseId={caseId} canGenerate={canGenerate} />
+    </Card>
   );
 }
 

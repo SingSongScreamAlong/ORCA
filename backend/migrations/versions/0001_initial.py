@@ -216,6 +216,23 @@ def upgrade() -> None:
     )
 
     op.create_table(
+        "report_packages",
+        sa.Column("id", _uuid(), primary_key=True),
+        sa.Column("case_id", _uuid(), sa.ForeignKey("cases.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("title", sa.String(512), nullable=False),
+        sa.Column("status", report_status, nullable=False, server_default="final"),
+        sa.Column("handling_level", sa.String(64), nullable=False),
+        sa.Column("generated_by", sa.String(255), nullable=False),
+        sa.Column("report_markdown", sa.Text(), nullable=False),
+        sa.Column("manifest", postgresql.JSONB(), nullable=False, server_default="{}"),
+        sa.Column("report_sha256", sa.String(64), nullable=False),
+        sa.Column("manifest_sha256", sa.String(64), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    )
+    op.create_index("ix_report_packages_case", "report_packages", ["case_id"])
+
+    op.create_table(
         "review_items",
         sa.Column("id", _uuid(), primary_key=True),
         sa.Column("item_type", review_item_type, nullable=False),
@@ -320,7 +337,7 @@ def downgrade() -> None:
         "case_clusters", "case_entities", "case_observations",
         "cluster_observations", "cluster_entities", "relationship_observations",
         "observation_entities", "case_members",
-        "audit_log", "review_items", "reports", "evidence_items",
+        "audit_log", "review_items", "report_packages", "reports", "evidence_items",
         "relationships", "observations", "clusters", "cases",
         "entities", "sources", "users",
     ):
