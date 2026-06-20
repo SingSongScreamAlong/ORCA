@@ -335,6 +335,15 @@ views of evidence, not the source of truth.
 4. No object reaches `approved` without an analyst action recorded in the audit log.
 5. Deleting a `Case` never deletes referenced observations, entities, or evidence.
 
+## Foundry ontology mapping (v0.9)
+
+This ontology is the source for the ORCA → Palantir Foundry mapping
+([`v0.9_palantir_foundry_mapping.md`](v0.9_palantir_foundry_mapping.md)): each object type
+above maps to a Foundry object type, and the relationships/support links map to Foundry
+link types, preserving the invariants below (approved-only relationships and reports,
+need-to-know access, append-only audit). The mapping is a specification + local export
+only — no live Foundry integration.
+
 ## Access-control metadata is not part of the evidence ontology
 
 `User` and `CaseMembership` are **access-control** records, deliberately kept separate

@@ -1,0 +1,1937 @@
+{
+  "actions": [
+    {
+      "affected_object": "OrcaCase",
+      "api_name": "createCase",
+      "description": "Creator is auto-enrolled as the case manager.",
+      "orca_endpoint": "POST /cases",
+      "parameters": [],
+      "preserves_invariant": "Case membership enforces need-to-know access",
+      "propose_only": false,
+      "required_capability": "create_case",
+      "required_case_role": "",
+      "title": "Create case",
+      "writes_audit": true
+    },
+    {
+      "affected_object": "OrcaCaseMembership",
+      "api_name": "assignCaseMember",
+      "description": "",
+      "orca_endpoint": "POST /cases/{id}/members",
+      "parameters": [],
+      "preserves_invariant": "Case membership enforces need-to-know access",
+      "propose_only": false,
+      "required_capability": "",
+      "required_case_role": "case_manager",
+      "title": "Assign case member",
+      "writes_audit": true
+    },
+    {
+      "affected_object": "OrcaCaseMembership",
+      "api_name": "revokeCaseMember",
+      "description": "",
+      "orca_endpoint": "DELETE /cases/{id}/members/{membershipId}",
+      "parameters": [],
+      "preserves_invariant": "Case membership enforces need-to-know access",
+      "propose_only": false,
+      "required_capability": "",
+      "required_case_role": "case_manager",
+      "title": "Revoke case member",
+      "writes_audit": true
+    },
+    {
+      "affected_object": "OrcaSource",
+      "api_name": "createSource",
+      "description": "Source provenance is captured at intake.",
+      "orca_endpoint": "POST /observations (inline) or /sources",
+      "parameters": [],
+      "preserves_invariant": "Evidence is case-scoped and hash-verifiable",
+      "propose_only": false,
+      "required_capability": "create_observation",
+      "required_case_role": "mutating",
+      "title": "Create source",
+      "writes_audit": false
+    },
+    {
+      "affected_object": "OrcaObservation",
+      "api_name": "createObservation",
+      "description": "Enters the review queue as proposed; never auto-approved.",
+      "orca_endpoint": "POST /observations",
+      "parameters": [],
+      "preserves_invariant": "AI proposes, analysts decide",
+      "propose_only": false,
+      "required_capability": "create_observation",
+      "required_case_role": "mutating",
+      "title": "Create observation",
+      "writes_audit": true
+    },
+    {
+      "affected_object": "OrcaEvidenceItem",
+      "api_name": "createEvidenceItem",
+      "description": "",
+      "orca_endpoint": "POST /evidence",
+      "parameters": [],
+      "preserves_invariant": "Evidence is case-scoped and hash-verifiable",
+      "propose_only": false,
+      "required_capability": "create_evidence",
+      "required_case_role": "mutating",
+      "title": "Create evidence item",
+      "writes_audit": true
+    },
+    {
+      "affected_object": "OrcaEvidenceItem",
+      "api_name": "uploadEvidenceFileMetadata",
+      "description": "Safe-by-default policy: reject executables, quarantine unknown types.",
+      "orca_endpoint": "POST /cases/{id}/evidence/upload",
+      "parameters": [],
+      "preserves_invariant": "Evidence is case-scoped and hash-verifiable",
+      "propose_only": false,
+      "required_capability": "create_evidence",
+      "required_case_role": "mutating",
+      "title": "Upload evidence file",
+      "writes_audit": true
+    },
+    {
+      "affected_object": "OrcaEvidenceItem",
+      "api_name": "verifyEvidenceHash",
+      "description": "",
+      "orca_endpoint": "POST /evidence/{id}/verify",
+      "parameters": [],
+      "preserves_invariant": "Evidence is case-scoped and hash-verifiable",
+      "propose_only": false,
+      "required_capability": "read_case_material",
+      "required_case_role": "member",
+      "title": "Verify evidence hash",
+      "writes_audit": true
+    },
+    {
+      "affected_object": "OrcaReviewDecision",
+      "api_name": "approveObservation",
+      "description": "No self-review without an audited admin override.",
+      "orca_endpoint": "POST /review/{id}/decision",
+      "parameters": [],
+      "preserves_invariant": "AI proposes, analysts decide",
+      "propose_only": false,
+      "required_capability": "review_decide",
+      "required_case_role": "reviewer",
+      "title": "Approve observation",
+      "writes_audit": true
+    },
+    {
+      "affected_object": "OrcaReviewDecision",
+      "api_name": "rejectObservation",
+      "description": "",
+      "orca_endpoint": "POST /review/{id}/decision",
+      "parameters": [],
+      "preserves_invariant": "AI proposes, analysts decide",
+      "propose_only": false,
+      "required_capability": "review_decide",
+      "required_case_role": "reviewer",
+      "title": "Reject observation",
+      "writes_audit": true
+    },
+    {
+      "affected_object": "OrcaReviewDecision",
+      "api_name": "markObservationNeedsMoreReview",
+      "description": "",
+      "orca_endpoint": "POST /review/{id}/decision",
+      "parameters": [],
+      "preserves_invariant": "AI proposes, analysts decide",
+      "propose_only": false,
+      "required_capability": "review_decide",
+      "required_case_role": "reviewer",
+      "title": "Mark observation needs more review",
+      "writes_audit": true
+    },
+    {
+      "affected_object": "OrcaEvidenceItem",
+      "api_name": "approveEvidence",
+      "description": "",
+      "orca_endpoint": "POST /evidence/{id}/decision",
+      "parameters": [],
+      "preserves_invariant": "AI proposes, analysts decide",
+      "propose_only": false,
+      "required_capability": "review_decide",
+      "required_case_role": "reviewer",
+      "title": "Approve evidence",
+      "writes_audit": true
+    },
+    {
+      "affected_object": "OrcaEvidenceItem",
+      "api_name": "rejectEvidence",
+      "description": "",
+      "orca_endpoint": "POST /evidence/{id}/decision",
+      "parameters": [],
+      "preserves_invariant": "AI proposes, analysts decide",
+      "propose_only": false,
+      "required_capability": "review_decide",
+      "required_case_role": "reviewer",
+      "title": "Reject evidence",
+      "writes_audit": true
+    },
+    {
+      "affected_object": "OrcaEvidenceItem",
+      "api_name": "quarantineEvidence",
+      "description": "Isolates material pending a handling decision; excluded from reports.",
+      "orca_endpoint": "POST /evidence/{id}/decision",
+      "parameters": [],
+      "preserves_invariant": "No CSAM storage or handling",
+      "propose_only": false,
+      "required_capability": "review_decide",
+      "required_case_role": "reviewer",
+      "title": "Quarantine evidence",
+      "writes_audit": true
+    },
+    {
+      "affected_object": "OrcaRelationship",
+      "api_name": "createRelationshipFromApprovedObservation",
+      "description": "",
+      "orca_endpoint": "POST /relationships",
+      "parameters": [],
+      "preserves_invariant": "Relationships require approved supporting observations",
+      "propose_only": false,
+      "required_capability": "create_relationship",
+      "required_case_role": "mutating",
+      "title": "Create relationship from approved observation",
+      "writes_audit": true
+    },
+    {
+      "affected_object": "OrcaReport",
+      "api_name": "generateReportDraft",
+      "description": "",
+      "orca_endpoint": "POST /cases/{id}/report",
+      "parameters": [],
+      "preserves_invariant": "Reports cite approved evidence only",
+      "propose_only": false,
+      "required_capability": "generate_report",
+      "required_case_role": "mutating",
+      "title": "Generate report draft",
+      "writes_audit": true
+    },
+    {
+      "affected_object": "OrcaReportPackage",
+      "api_name": "generateReportPackage",
+      "description": "Approved material only; raw evidence bytes are never bundled.",
+      "orca_endpoint": "POST /cases/{id}/report/package",
+      "parameters": [],
+      "preserves_invariant": "Partner export viewers receive approved report packages only",
+      "propose_only": false,
+      "required_capability": "generate_report",
+      "required_case_role": "mutating",
+      "title": "Generate report package",
+      "writes_audit": true
+    },
+    {
+      "affected_object": "OrcaReportPackage",
+      "api_name": "downloadReportPackage",
+      "description": "",
+      "orca_endpoint": "GET /report-packages/{id}/package",
+      "parameters": [],
+      "preserves_invariant": "Partner export viewers receive approved report packages only",
+      "propose_only": false,
+      "required_capability": "view_approved_reports",
+      "required_case_role": "member",
+      "title": "Download report package",
+      "writes_audit": true
+    },
+    {
+      "affected_object": "OrcaCase",
+      "api_name": "closeCase",
+      "description": "Planned ORCA endpoint; lifecycle status change.",
+      "orca_endpoint": "PATCH /cases/{id} (status=closed)",
+      "parameters": [],
+      "preserves_invariant": "Privileged actions are audited",
+      "propose_only": false,
+      "required_capability": "manage_case",
+      "required_case_role": "case_manager",
+      "title": "Close case",
+      "writes_audit": true
+    },
+    {
+      "affected_object": "OrcaCase",
+      "api_name": "archiveCase",
+      "description": "Planned ORCA endpoint; lifecycle status change.",
+      "orca_endpoint": "PATCH /cases/{id} (status=archived)",
+      "parameters": [],
+      "preserves_invariant": "Privileged actions are audited",
+      "propose_only": false,
+      "required_capability": "manage_case",
+      "required_case_role": "case_manager",
+      "title": "Archive case",
+      "writes_audit": true
+    }
+  ],
+  "forbidden_workflows": [
+    "scraping",
+    "dark_web_collection",
+    "autonomous_hunting",
+    "face_search",
+    "offender_targeting",
+    "victim_targeting",
+    "external_osint_integration",
+    "palantir_live_sync",
+    "palantir_production_write",
+    "aip_automation",
+    "bulk_social_monitoring",
+    "direct_contact"
+  ],
+  "invariants": [
+    "AI proposes, analysts decide",
+    "Relationships require approved supporting observations",
+    "Reports cite approved evidence only",
+    "Evidence is case-scoped and hash-verifiable",
+    "Graph traversal uses approved relationships only",
+    "Case membership enforces need-to-know access",
+    "Partner export viewers receive approved report packages only",
+    "Privileged actions are audited",
+    "No CSAM storage or handling"
+  ],
+  "links": [
+    {
+      "api_name": "caseContainsSource",
+      "cardinality": "ONE_TO_MANY",
+      "description": "",
+      "orca_basis": "Sources referenced by a case's observations/evidence.",
+      "source_object": "OrcaCase",
+      "target_object": "OrcaSource",
+      "title": "Case contains Source"
+    },
+    {
+      "api_name": "caseContainsObservation",
+      "cardinality": "ONE_TO_MANY",
+      "description": "",
+      "orca_basis": "Observation.case_id.",
+      "source_object": "OrcaCase",
+      "target_object": "OrcaObservation",
+      "title": "Case contains Observation"
+    },
+    {
+      "api_name": "caseContainsEvidenceItem",
+      "cardinality": "ONE_TO_MANY",
+      "description": "",
+      "orca_basis": "EvidenceItem.case_id.",
+      "source_object": "OrcaCase",
+      "target_object": "OrcaEvidenceItem",
+      "title": "Case contains Evidence Item"
+    },
+    {
+      "api_name": "caseContainsEntity",
+      "cardinality": "MANY_TO_MANY",
+      "description": "",
+      "orca_basis": "Entities referenced by a case's observations (entities persist across cases).",
+      "source_object": "OrcaCase",
+      "target_object": "OrcaEntity",
+      "title": "Case contains Entity"
+    },
+    {
+      "api_name": "caseContainsRelationship",
+      "cardinality": "ONE_TO_MANY",
+      "description": "",
+      "orca_basis": "Relationship.case_id.",
+      "source_object": "OrcaCase",
+      "target_object": "OrcaRelationship",
+      "title": "Case contains Relationship"
+    },
+    {
+      "api_name": "caseContainsReport",
+      "cardinality": "ONE_TO_MANY",
+      "description": "",
+      "orca_basis": "Report.case_id.",
+      "source_object": "OrcaCase",
+      "target_object": "OrcaReport",
+      "title": "Case contains Report"
+    },
+    {
+      "api_name": "caseContainsReportPackage",
+      "cardinality": "ONE_TO_MANY",
+      "description": "",
+      "orca_basis": "ReportPackage.case_id.",
+      "source_object": "OrcaCase",
+      "target_object": "OrcaReportPackage",
+      "title": "Case contains Report Package"
+    },
+    {
+      "api_name": "caseHasCaseMembership",
+      "cardinality": "ONE_TO_MANY",
+      "description": "",
+      "orca_basis": "CaseMembership.case_id \u2014 the need-to-know roster.",
+      "source_object": "OrcaCase",
+      "target_object": "OrcaCaseMembership",
+      "title": "Case has Case Membership"
+    },
+    {
+      "api_name": "sourceSupportsObservation",
+      "cardinality": "ONE_TO_MANY",
+      "description": "",
+      "orca_basis": "Observation.source_id.",
+      "source_object": "OrcaSource",
+      "target_object": "OrcaObservation",
+      "title": "Source supports Observation"
+    },
+    {
+      "api_name": "observationCitesEvidenceItem",
+      "cardinality": "ONE_TO_MANY",
+      "description": "",
+      "orca_basis": "EvidenceItem.observation_id.",
+      "source_object": "OrcaObservation",
+      "target_object": "OrcaEvidenceItem",
+      "title": "Observation cites Evidence Item"
+    },
+    {
+      "api_name": "observationSupportsRelationship",
+      "cardinality": "MANY_TO_MANY",
+      "description": "",
+      "orca_basis": "Relationship.observation_ids \u2014 supporting observations must be approved.",
+      "source_object": "OrcaObservation",
+      "target_object": "OrcaRelationship",
+      "title": "Observation supports Relationship"
+    },
+    {
+      "api_name": "entityParticipatesInRelationship",
+      "cardinality": "MANY_TO_MANY",
+      "description": "",
+      "orca_basis": "Relationship.source_entity_id / target_entity_id.",
+      "source_object": "OrcaEntity",
+      "target_object": "OrcaRelationship",
+      "title": "Entity participates in Relationship"
+    },
+    {
+      "api_name": "reportCitesObservation",
+      "cardinality": "MANY_TO_MANY",
+      "description": "",
+      "orca_basis": "Reports cite approved observations only.",
+      "source_object": "OrcaReport",
+      "target_object": "OrcaObservation",
+      "title": "Report cites Observation"
+    },
+    {
+      "api_name": "reportPackageIncludesReport",
+      "cardinality": "ONE_TO_ONE",
+      "description": "",
+      "orca_basis": "The package's rendered report (approved material only).",
+      "source_object": "OrcaReportPackage",
+      "target_object": "OrcaReport",
+      "title": "Report Package includes Report"
+    },
+    {
+      "api_name": "reportPackageIncludesEvidenceManifest",
+      "cardinality": "MANY_TO_MANY",
+      "description": "",
+      "orca_basis": "Manifest entries reference approved evidence by metadata + SHA-256 (no raw bytes).",
+      "source_object": "OrcaReportPackage",
+      "target_object": "OrcaEvidenceItem",
+      "title": "Report Package includes Evidence Manifest"
+    },
+    {
+      "api_name": "reviewDecisionAppliesToObservation",
+      "cardinality": "MANY_TO_ONE",
+      "description": "",
+      "orca_basis": "ReviewDecision over an observation.",
+      "source_object": "OrcaReviewDecision",
+      "target_object": "OrcaObservation",
+      "title": "Review Decision applies to Observation"
+    },
+    {
+      "api_name": "reviewDecisionAppliesToEvidenceItem",
+      "cardinality": "MANY_TO_ONE",
+      "description": "",
+      "orca_basis": "ReviewDecision over an evidence item.",
+      "source_object": "OrcaReviewDecision",
+      "target_object": "OrcaEvidenceItem",
+      "title": "Review Decision applies to Evidence Item"
+    },
+    {
+      "api_name": "reviewDecisionAppliesToRelationship",
+      "cardinality": "MANY_TO_ONE",
+      "description": "",
+      "orca_basis": "ReviewDecision over a relationship.",
+      "source_object": "OrcaReviewDecision",
+      "target_object": "OrcaRelationship",
+      "title": "Review Decision applies to Relationship"
+    },
+    {
+      "api_name": "auditEventRecordsActionOnObject",
+      "cardinality": "MANY_TO_ONE",
+      "description": "",
+      "orca_basis": "AuditEvent.target_type/target_id \u2014 append-only record of a consequential action.",
+      "source_object": "OrcaAuditEvent",
+      "target_object": "OrcaCase",
+      "title": "Audit Event records action on object"
+    }
+  ],
+  "objects": [
+    {
+      "api_name": "OrcaCase",
+      "description": "A curated view over evidence; the unit of need-to-know access control.",
+      "orca_model": "app.schemas.case.CaseRead",
+      "primary_key": "caseId",
+      "properties": [
+        {
+          "api_name": "caseId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "id",
+          "required": true,
+          "sensitive": false,
+          "title": "Case ID"
+        },
+        {
+          "api_name": "title",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "title",
+          "required": true,
+          "sensitive": false,
+          "title": "Title"
+        },
+        {
+          "api_name": "summary",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "summary",
+          "required": false,
+          "sensitive": false,
+          "title": "Summary"
+        },
+        {
+          "api_name": "status",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "status",
+          "required": true,
+          "sensitive": false,
+          "title": "Status"
+        },
+        {
+          "api_name": "priority",
+          "base_type": "string",
+          "description": "",
+          "mapping": "planned",
+          "orca_field": "",
+          "required": false,
+          "sensitive": false,
+          "title": "Priority"
+        },
+        {
+          "api_name": "createdAt",
+          "base_type": "timestamp",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "created_at",
+          "required": true,
+          "sensitive": false,
+          "title": "Created at"
+        },
+        {
+          "api_name": "createdBy",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "owner",
+          "required": false,
+          "sensitive": false,
+          "title": "Created by"
+        },
+        {
+          "api_name": "assignedTo",
+          "base_type": "string",
+          "description": "",
+          "mapping": "planned",
+          "orca_field": "",
+          "required": false,
+          "sensitive": false,
+          "title": "Assigned to"
+        },
+        {
+          "api_name": "partnerAgency",
+          "base_type": "string",
+          "description": "",
+          "mapping": "planned",
+          "orca_field": "",
+          "required": false,
+          "sensitive": false,
+          "title": "Partner agency"
+        },
+        {
+          "api_name": "handlingLevel",
+          "base_type": "string",
+          "description": "Derived from cited material (standard/sensitive).",
+          "mapping": "derived",
+          "orca_field": "",
+          "required": false,
+          "sensitive": false,
+          "title": "Handling level"
+        },
+        {
+          "api_name": "legalBasis",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "legal_notes",
+          "required": false,
+          "sensitive": false,
+          "title": "Legal basis"
+        },
+        {
+          "api_name": "lastActivityAt",
+          "base_type": "timestamp",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "updated_at",
+          "required": false,
+          "sensitive": false,
+          "title": "Last activity at"
+        }
+      ],
+      "status_property": "status",
+      "title": "ORCA Case"
+    },
+    {
+      "api_name": "OrcaUser",
+      "description": "An authenticated actor with a global role (RBAC).",
+      "orca_model": "app.schemas.user.UserRead",
+      "primary_key": "userId",
+      "properties": [
+        {
+          "api_name": "userId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "id",
+          "required": true,
+          "sensitive": false,
+          "title": "User ID"
+        },
+        {
+          "api_name": "username",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "username",
+          "required": true,
+          "sensitive": false,
+          "title": "Username"
+        },
+        {
+          "api_name": "displayName",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "display_name",
+          "required": false,
+          "sensitive": false,
+          "title": "Display name"
+        },
+        {
+          "api_name": "globalRole",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "role",
+          "required": true,
+          "sensitive": false,
+          "title": "Global role"
+        },
+        {
+          "api_name": "createdAt",
+          "base_type": "timestamp",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "created_at",
+          "required": false,
+          "sensitive": false,
+          "title": "Created at"
+        }
+      ],
+      "status_property": null,
+      "title": "ORCA User"
+    },
+    {
+      "api_name": "OrcaCaseMembership",
+      "description": "A user's active/inactive/revoked membership and case role in a case.",
+      "orca_model": "app.schemas.user.CaseMemberRead",
+      "primary_key": "membershipId",
+      "properties": [
+        {
+          "api_name": "membershipId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "id",
+          "required": true,
+          "sensitive": false,
+          "title": "Membership ID"
+        },
+        {
+          "api_name": "caseId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "case_id",
+          "required": true,
+          "sensitive": false,
+          "title": "Case ID"
+        },
+        {
+          "api_name": "userId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "user_id",
+          "required": true,
+          "sensitive": false,
+          "title": "User ID"
+        },
+        {
+          "api_name": "caseRole",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "case_role",
+          "required": true,
+          "sensitive": false,
+          "title": "Case role"
+        },
+        {
+          "api_name": "status",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "status",
+          "required": true,
+          "sensitive": false,
+          "title": "Status"
+        },
+        {
+          "api_name": "assignedBy",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "assigned_by",
+          "required": false,
+          "sensitive": false,
+          "title": "Assigned by"
+        },
+        {
+          "api_name": "assignedAt",
+          "base_type": "timestamp",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "assigned_at",
+          "required": false,
+          "sensitive": false,
+          "title": "Assigned at"
+        }
+      ],
+      "status_property": "status",
+      "title": "ORCA Case Membership"
+    },
+    {
+      "api_name": "OrcaSource",
+      "description": "The provenance of an observation or evidence item.",
+      "orca_model": "app.schemas.source.SourceRead",
+      "primary_key": "sourceId",
+      "properties": [
+        {
+          "api_name": "sourceId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "id",
+          "required": true,
+          "sensitive": false,
+          "title": "Source ID"
+        },
+        {
+          "api_name": "caseId",
+          "base_type": "string",
+          "description": "Sources are referenced by case-scoped objects in ORCA.",
+          "mapping": "planned",
+          "orca_field": "",
+          "required": false,
+          "sensitive": false,
+          "title": "Case ID"
+        },
+        {
+          "api_name": "sourceType",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "source_type",
+          "required": true,
+          "sensitive": false,
+          "title": "Source type"
+        },
+        {
+          "api_name": "sourceUri",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "identifier",
+          "required": false,
+          "sensitive": false,
+          "title": "Source URI"
+        },
+        {
+          "api_name": "sourceTitle",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "name",
+          "required": true,
+          "sensitive": false,
+          "title": "Source title"
+        },
+        {
+          "api_name": "captureTime",
+          "base_type": "timestamp",
+          "description": "",
+          "mapping": "planned",
+          "orca_field": "",
+          "required": false,
+          "sensitive": false,
+          "title": "Capture time"
+        },
+        {
+          "api_name": "capturedBy",
+          "base_type": "string",
+          "description": "",
+          "mapping": "planned",
+          "orca_field": "",
+          "required": false,
+          "sensitive": false,
+          "title": "Captured by"
+        },
+        {
+          "api_name": "archiveReference",
+          "base_type": "string",
+          "description": "",
+          "mapping": "planned",
+          "orca_field": "",
+          "required": false,
+          "sensitive": false,
+          "title": "Archive reference"
+        },
+        {
+          "api_name": "sourceHash",
+          "base_type": "string",
+          "description": "",
+          "mapping": "planned",
+          "orca_field": "",
+          "required": false,
+          "sensitive": false,
+          "title": "Source hash"
+        },
+        {
+          "api_name": "accessMethod",
+          "base_type": "string",
+          "description": "",
+          "mapping": "planned",
+          "orca_field": "",
+          "required": false,
+          "sensitive": false,
+          "title": "Access method"
+        },
+        {
+          "api_name": "handlingNotes",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "description",
+          "required": false,
+          "sensitive": true,
+          "title": "Handling notes"
+        },
+        {
+          "api_name": "legalFlags",
+          "base_type": "struct",
+          "description": "",
+          "mapping": "planned",
+          "orca_field": "",
+          "required": false,
+          "sensitive": false,
+          "title": "Legal flags"
+        },
+        {
+          "api_name": "reliabilityScore",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "reliability",
+          "required": false,
+          "sensitive": false,
+          "title": "Reliability"
+        }
+      ],
+      "status_property": null,
+      "title": "ORCA Source"
+    },
+    {
+      "api_name": "OrcaObservation",
+      "description": "A recorded fact awaiting or having human review. Atomic unit of truth.",
+      "orca_model": "app.schemas.observation.ObservationRead",
+      "primary_key": "observationId",
+      "properties": [
+        {
+          "api_name": "observationId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "id",
+          "required": true,
+          "sensitive": false,
+          "title": "Observation ID"
+        },
+        {
+          "api_name": "caseId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "case_id",
+          "required": false,
+          "sensitive": false,
+          "title": "Case ID"
+        },
+        {
+          "api_name": "sourceId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "source_id",
+          "required": true,
+          "sensitive": false,
+          "title": "Source ID"
+        },
+        {
+          "api_name": "text",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "notes",
+          "required": false,
+          "sensitive": true,
+          "title": "Text"
+        },
+        {
+          "api_name": "observationType",
+          "base_type": "string",
+          "description": "",
+          "mapping": "planned",
+          "orca_field": "",
+          "required": false,
+          "sensitive": false,
+          "title": "Observation type"
+        },
+        {
+          "api_name": "status",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "status",
+          "required": true,
+          "sensitive": false,
+          "title": "Status"
+        },
+        {
+          "api_name": "confidence",
+          "base_type": "double",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "confidence",
+          "required": false,
+          "sensitive": false,
+          "title": "Confidence"
+        },
+        {
+          "api_name": "origin",
+          "base_type": "string",
+          "description": "System-proposed vs analyst-created; proposals route to review.",
+          "mapping": "planned",
+          "orca_field": "",
+          "required": false,
+          "sensitive": false,
+          "title": "Origin"
+        },
+        {
+          "api_name": "createdAt",
+          "base_type": "timestamp",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "created_at",
+          "required": false,
+          "sensitive": false,
+          "title": "Created at"
+        },
+        {
+          "api_name": "createdBy",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "collector",
+          "required": false,
+          "sensitive": false,
+          "title": "Created by"
+        },
+        {
+          "api_name": "reviewedAt",
+          "base_type": "timestamp",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "decided_at",
+          "required": false,
+          "sensitive": false,
+          "title": "Reviewed at"
+        },
+        {
+          "api_name": "reviewedBy",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "decided_by",
+          "required": false,
+          "sensitive": false,
+          "title": "Reviewed by"
+        },
+        {
+          "api_name": "reviewNotes",
+          "base_type": "string",
+          "description": "",
+          "mapping": "planned",
+          "orca_field": "",
+          "required": false,
+          "sensitive": true,
+          "title": "Review notes"
+        }
+      ],
+      "status_property": "status",
+      "title": "ORCA Observation"
+    },
+    {
+      "api_name": "OrcaEvidenceItem",
+      "description": "Case-scoped, hash-verifiable evidence. Raw bytes are never exported.",
+      "orca_model": "app.schemas.evidence.EvidenceItemRead",
+      "primary_key": "evidenceId",
+      "properties": [
+        {
+          "api_name": "evidenceId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "id",
+          "required": true,
+          "sensitive": false,
+          "title": "Evidence ID"
+        },
+        {
+          "api_name": "caseId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "case_id",
+          "required": true,
+          "sensitive": false,
+          "title": "Case ID"
+        },
+        {
+          "api_name": "sourceId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "source_id",
+          "required": true,
+          "sensitive": false,
+          "title": "Source ID"
+        },
+        {
+          "api_name": "observationId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "observation_id",
+          "required": false,
+          "sensitive": false,
+          "title": "Observation ID"
+        },
+        {
+          "api_name": "title",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "title",
+          "required": true,
+          "sensitive": false,
+          "title": "Title"
+        },
+        {
+          "api_name": "description",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "description",
+          "required": false,
+          "sensitive": true,
+          "title": "Description"
+        },
+        {
+          "api_name": "evidenceType",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "evidence_type",
+          "required": true,
+          "sensitive": false,
+          "title": "Evidence type"
+        },
+        {
+          "api_name": "storageUri",
+          "base_type": "string",
+          "description": "Content-addressed pointer; bytes are never bundled into exports.",
+          "mapping": "direct",
+          "orca_field": "storage_uri",
+          "required": false,
+          "sensitive": true,
+          "title": "Storage URI"
+        },
+        {
+          "api_name": "originalFilename",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "original_filename",
+          "required": false,
+          "sensitive": false,
+          "title": "Original filename"
+        },
+        {
+          "api_name": "mimeType",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "mime_type",
+          "required": false,
+          "sensitive": false,
+          "title": "MIME type"
+        },
+        {
+          "api_name": "sizeBytes",
+          "base_type": "integer",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "size_bytes",
+          "required": false,
+          "sensitive": false,
+          "title": "Size (bytes)"
+        },
+        {
+          "api_name": "sha256",
+          "base_type": "string",
+          "description": "Integrity anchor.",
+          "mapping": "direct",
+          "orca_field": "sha256",
+          "required": false,
+          "sensitive": false,
+          "title": "SHA-256"
+        },
+        {
+          "api_name": "capturedAt",
+          "base_type": "timestamp",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "captured_at",
+          "required": false,
+          "sensitive": false,
+          "title": "Captured at"
+        },
+        {
+          "api_name": "capturedBy",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "captured_by",
+          "required": false,
+          "sensitive": false,
+          "title": "Captured by"
+        },
+        {
+          "api_name": "accessMethod",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "access_method",
+          "required": false,
+          "sensitive": false,
+          "title": "Access method"
+        },
+        {
+          "api_name": "legalFlags",
+          "base_type": "struct",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "legal_flags",
+          "required": false,
+          "sensitive": true,
+          "title": "Legal flags"
+        },
+        {
+          "api_name": "handlingNotes",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "handling_notes",
+          "required": false,
+          "sensitive": true,
+          "title": "Handling notes"
+        },
+        {
+          "api_name": "status",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "status",
+          "required": true,
+          "sensitive": false,
+          "title": "Status"
+        },
+        {
+          "api_name": "verificationStatus",
+          "base_type": "string",
+          "description": "Computed by re-hashing stored bytes (verified/mismatch/none).",
+          "mapping": "derived",
+          "orca_field": "",
+          "required": false,
+          "sensitive": false,
+          "title": "Verification status"
+        },
+        {
+          "api_name": "createdBy",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "created_by",
+          "required": false,
+          "sensitive": false,
+          "title": "Created by"
+        },
+        {
+          "api_name": "createdAt",
+          "base_type": "timestamp",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "created_at",
+          "required": false,
+          "sensitive": false,
+          "title": "Created at"
+        }
+      ],
+      "status_property": "status",
+      "title": "ORCA Evidence Item"
+    },
+    {
+      "api_name": "OrcaEntity",
+      "description": "A canonical, deduplicated entity that persists beyond any single case.",
+      "orca_model": "app.schemas.entity.EntityRead",
+      "primary_key": "entityId",
+      "properties": [
+        {
+          "api_name": "entityId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "id",
+          "required": true,
+          "sensitive": false,
+          "title": "Entity ID"
+        },
+        {
+          "api_name": "entityType",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "entity_type",
+          "required": true,
+          "sensitive": false,
+          "title": "Entity type"
+        },
+        {
+          "api_name": "value",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "value",
+          "required": true,
+          "sensitive": true,
+          "title": "Value"
+        },
+        {
+          "api_name": "confidence",
+          "base_type": "double",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "confidence",
+          "required": false,
+          "sensitive": false,
+          "title": "Confidence"
+        },
+        {
+          "api_name": "createdAt",
+          "base_type": "timestamp",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "created_at",
+          "required": false,
+          "sensitive": false,
+          "title": "Created at"
+        }
+      ],
+      "status_property": null,
+      "title": "ORCA Entity"
+    },
+    {
+      "api_name": "OrcaRelationship",
+      "description": "A link between two entities; only approved relationships are traversable.",
+      "orca_model": "app.schemas.relationship.RelationshipRead",
+      "primary_key": "relationshipId",
+      "properties": [
+        {
+          "api_name": "relationshipId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "id",
+          "required": true,
+          "sensitive": false,
+          "title": "Relationship ID"
+        },
+        {
+          "api_name": "caseId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "case_id",
+          "required": false,
+          "sensitive": false,
+          "title": "Case ID"
+        },
+        {
+          "api_name": "sourceEntityId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "source_entity_id",
+          "required": true,
+          "sensitive": false,
+          "title": "Source entity ID"
+        },
+        {
+          "api_name": "targetEntityId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "target_entity_id",
+          "required": true,
+          "sensitive": false,
+          "title": "Target entity ID"
+        },
+        {
+          "api_name": "relationshipType",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "relationship_type",
+          "required": true,
+          "sensitive": false,
+          "title": "Relationship type"
+        },
+        {
+          "api_name": "confidence",
+          "base_type": "double",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "confidence",
+          "required": false,
+          "sensitive": false,
+          "title": "Confidence"
+        },
+        {
+          "api_name": "origin",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "origin",
+          "required": false,
+          "sensitive": false,
+          "title": "Origin"
+        },
+        {
+          "api_name": "status",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "status",
+          "required": true,
+          "sensitive": false,
+          "title": "Status"
+        },
+        {
+          "api_name": "observationIds",
+          "base_type": "array<string>",
+          "description": "Must reference approved observations.",
+          "mapping": "direct",
+          "orca_field": "observation_ids",
+          "required": false,
+          "sensitive": false,
+          "title": "Supporting observation IDs"
+        },
+        {
+          "api_name": "createdAt",
+          "base_type": "timestamp",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "created_at",
+          "required": false,
+          "sensitive": false,
+          "title": "Created at"
+        }
+      ],
+      "status_property": "status",
+      "title": "ORCA Relationship"
+    },
+    {
+      "api_name": "OrcaReviewDecision",
+      "description": "The recorded human decision on a proposed observation/evidence/relationship.",
+      "orca_model": "app.schemas.review.ReviewItemRead (decided)",
+      "primary_key": "reviewItemId",
+      "properties": [
+        {
+          "api_name": "reviewItemId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "id",
+          "required": true,
+          "sensitive": false,
+          "title": "Review item ID"
+        },
+        {
+          "api_name": "caseId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "case_id",
+          "required": false,
+          "sensitive": false,
+          "title": "Case ID"
+        },
+        {
+          "api_name": "subjectType",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "subject_type",
+          "required": true,
+          "sensitive": false,
+          "title": "Subject type"
+        },
+        {
+          "api_name": "subjectId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "subject_id",
+          "required": true,
+          "sensitive": false,
+          "title": "Subject ID"
+        },
+        {
+          "api_name": "status",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "status",
+          "required": true,
+          "sensitive": false,
+          "title": "Decision status"
+        },
+        {
+          "api_name": "proposedBy",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "created_by",
+          "required": false,
+          "sensitive": false,
+          "title": "Proposed by"
+        },
+        {
+          "api_name": "decidedBy",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "decided_by",
+          "required": false,
+          "sensitive": false,
+          "title": "Decided by"
+        },
+        {
+          "api_name": "decidedAt",
+          "base_type": "timestamp",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "decided_at",
+          "required": false,
+          "sensitive": false,
+          "title": "Decided at"
+        },
+        {
+          "api_name": "rationale",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "rationale",
+          "required": false,
+          "sensitive": true,
+          "title": "Rationale"
+        }
+      ],
+      "status_property": "status",
+      "title": "ORCA Review Decision"
+    },
+    {
+      "api_name": "OrcaTask",
+      "description": "An open review-queue work item awaiting an analyst decision.",
+      "orca_model": "app.schemas.review.ReviewItemRead (open)",
+      "primary_key": "taskId",
+      "properties": [
+        {
+          "api_name": "taskId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "id",
+          "required": true,
+          "sensitive": false,
+          "title": "Task ID"
+        },
+        {
+          "api_name": "caseId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "case_id",
+          "required": false,
+          "sensitive": false,
+          "title": "Case ID"
+        },
+        {
+          "api_name": "itemType",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "item_type",
+          "required": true,
+          "sensitive": false,
+          "title": "Item type"
+        },
+        {
+          "api_name": "subjectType",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "subject_type",
+          "required": true,
+          "sensitive": false,
+          "title": "Subject type"
+        },
+        {
+          "api_name": "subjectId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "subject_id",
+          "required": true,
+          "sensitive": false,
+          "title": "Subject ID"
+        },
+        {
+          "api_name": "status",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "status",
+          "required": true,
+          "sensitive": false,
+          "title": "Status"
+        },
+        {
+          "api_name": "createdBy",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "created_by",
+          "required": false,
+          "sensitive": false,
+          "title": "Created by"
+        },
+        {
+          "api_name": "createdAt",
+          "base_type": "timestamp",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "created_at",
+          "required": false,
+          "sensitive": false,
+          "title": "Created at"
+        }
+      ],
+      "status_property": "status",
+      "title": "ORCA Task"
+    },
+    {
+      "api_name": "OrcaReport",
+      "description": "A draft/final report drawing only on approved evidence.",
+      "orca_model": "app.schemas.report.ReportRead",
+      "primary_key": "reportId",
+      "properties": [
+        {
+          "api_name": "reportId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "id",
+          "required": true,
+          "sensitive": false,
+          "title": "Report ID"
+        },
+        {
+          "api_name": "caseId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "case_id",
+          "required": true,
+          "sensitive": false,
+          "title": "Case ID"
+        },
+        {
+          "api_name": "title",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "title",
+          "required": true,
+          "sensitive": false,
+          "title": "Title"
+        },
+        {
+          "api_name": "author",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "author",
+          "required": false,
+          "sensitive": false,
+          "title": "Author"
+        },
+        {
+          "api_name": "status",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "status",
+          "required": true,
+          "sensitive": false,
+          "title": "Status"
+        },
+        {
+          "api_name": "body",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "body",
+          "required": false,
+          "sensitive": true,
+          "title": "Body"
+        },
+        {
+          "api_name": "createdAt",
+          "base_type": "timestamp",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "created_at",
+          "required": false,
+          "sensitive": false,
+          "title": "Created at"
+        }
+      ],
+      "status_property": "status",
+      "title": "ORCA Report"
+    },
+    {
+      "api_name": "OrcaReportPackage",
+      "description": "An immutable partner-ready export: report + evidence manifest (hashes only).",
+      "orca_model": "app.schemas.report_package.ReportPackageRead",
+      "primary_key": "packageId",
+      "properties": [
+        {
+          "api_name": "packageId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "id",
+          "required": true,
+          "sensitive": false,
+          "title": "Package ID"
+        },
+        {
+          "api_name": "caseId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "case_id",
+          "required": true,
+          "sensitive": false,
+          "title": "Case ID"
+        },
+        {
+          "api_name": "title",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "title",
+          "required": true,
+          "sensitive": false,
+          "title": "Title"
+        },
+        {
+          "api_name": "status",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "status",
+          "required": true,
+          "sensitive": false,
+          "title": "Status"
+        },
+        {
+          "api_name": "handlingLevel",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "handling_level",
+          "required": false,
+          "sensitive": false,
+          "title": "Handling level"
+        },
+        {
+          "api_name": "generatedBy",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "generated_by",
+          "required": false,
+          "sensitive": false,
+          "title": "Generated by"
+        },
+        {
+          "api_name": "reportSha256",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "report_sha256",
+          "required": false,
+          "sensitive": false,
+          "title": "Report SHA-256"
+        },
+        {
+          "api_name": "manifestSha256",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "manifest_sha256",
+          "required": false,
+          "sensitive": false,
+          "title": "Manifest SHA-256"
+        },
+        {
+          "api_name": "citedEvidenceCount",
+          "base_type": "integer",
+          "description": "",
+          "mapping": "derived",
+          "orca_field": "",
+          "required": false,
+          "sensitive": false,
+          "title": "Cited evidence count"
+        },
+        {
+          "api_name": "createdAt",
+          "base_type": "timestamp",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "created_at",
+          "required": false,
+          "sensitive": false,
+          "title": "Created at"
+        }
+      ],
+      "status_property": "status",
+      "title": "ORCA Report Package"
+    },
+    {
+      "api_name": "OrcaAuditEvent",
+      "description": "An append-only record of a consequential action. Never updated or deleted.",
+      "orca_model": "app.core.audit.AuditEntry",
+      "primary_key": "auditId",
+      "properties": [
+        {
+          "api_name": "auditId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "id",
+          "required": true,
+          "sensitive": false,
+          "title": "Audit ID"
+        },
+        {
+          "api_name": "actorId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "actor_id",
+          "required": true,
+          "sensitive": false,
+          "title": "Actor ID"
+        },
+        {
+          "api_name": "action",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "action",
+          "required": true,
+          "sensitive": false,
+          "title": "Action"
+        },
+        {
+          "api_name": "targetType",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "target_type",
+          "required": true,
+          "sensitive": false,
+          "title": "Target type"
+        },
+        {
+          "api_name": "targetId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "target_id",
+          "required": true,
+          "sensitive": false,
+          "title": "Target ID"
+        },
+        {
+          "api_name": "caseId",
+          "base_type": "string",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "case_id",
+          "required": false,
+          "sensitive": false,
+          "title": "Case ID"
+        },
+        {
+          "api_name": "context",
+          "base_type": "struct",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "context",
+          "required": false,
+          "sensitive": false,
+          "title": "Context"
+        },
+        {
+          "api_name": "createdAt",
+          "base_type": "timestamp",
+          "description": "",
+          "mapping": "direct",
+          "orca_field": "created_at",
+          "required": true,
+          "sensitive": false,
+          "title": "Created at"
+        }
+      ],
+      "status_property": null,
+      "title": "ORCA Audit Event"
+    }
+  ],
+  "permissions": [
+    {
+      "can_access_raw_evidence": true,
+      "can_export_package": true,
+      "can_manage_members": true,
+      "can_mutate": true,
+      "can_read_material": true,
+      "can_review": false,
+      "can_view_approved_reports": true,
+      "can_view_audit": true,
+      "case_role": "case_manager",
+      "notes": "Manages the case and its roster; full read/write on case material."
+    },
+    {
+      "can_access_raw_evidence": true,
+      "can_export_package": true,
+      "can_manage_members": false,
+      "can_mutate": true,
+      "can_read_material": true,
+      "can_review": false,
+      "can_view_approved_reports": true,
+      "can_view_audit": false,
+      "case_role": "analyst",
+      "notes": "Creates and curates case material; cannot decide reviews."
+    },
+    {
+      "can_access_raw_evidence": true,
+      "can_export_package": true,
+      "can_manage_members": false,
+      "can_mutate": true,
+      "can_read_material": true,
+      "can_review": true,
+      "can_view_approved_reports": true,
+      "can_view_audit": true,
+      "case_role": "reviewer",
+      "notes": "Decides review items; may also propose. No self-approval."
+    },
+    {
+      "can_access_raw_evidence": false,
+      "can_export_package": true,
+      "can_manage_members": false,
+      "can_mutate": false,
+      "can_read_material": true,
+      "can_review": false,
+      "can_view_approved_reports": true,
+      "can_view_audit": false,
+      "case_role": "viewer",
+      "notes": "Reads case material and approved reports; cannot mutate or read raw bytes."
+    },
+    {
+      "can_access_raw_evidence": false,
+      "can_export_package": true,
+      "can_manage_members": false,
+      "can_mutate": false,
+      "can_read_material": false,
+      "can_review": false,
+      "can_view_approved_reports": true,
+      "can_view_audit": false,
+      "case_role": "partner_export_viewer",
+      "notes": "Approved report packages only \u2014 never raw observations, evidence, graph, or audit."
+    }
+  ],
+  "version": "0.9.0"
+}

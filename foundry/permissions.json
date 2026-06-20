@@ -1,0 +1,64 @@
+{
+  "case_roles": [
+    {
+      "can_access_raw_evidence": true,
+      "can_export_package": true,
+      "can_manage_members": true,
+      "can_mutate": true,
+      "can_read_material": true,
+      "can_review": false,
+      "can_view_approved_reports": true,
+      "can_view_audit": true,
+      "case_role": "case_manager",
+      "notes": "Manages the case and its roster; full read/write on case material."
+    },
+    {
+      "can_access_raw_evidence": true,
+      "can_export_package": true,
+      "can_manage_members": false,
+      "can_mutate": true,
+      "can_read_material": true,
+      "can_review": false,
+      "can_view_approved_reports": true,
+      "can_view_audit": false,
+      "case_role": "analyst",
+      "notes": "Creates and curates case material; cannot decide reviews."
+    },
+    {
+      "can_access_raw_evidence": true,
+      "can_export_package": true,
+      "can_manage_members": false,
+      "can_mutate": true,
+      "can_read_material": true,
+      "can_review": true,
+      "can_view_approved_reports": true,
+      "can_view_audit": true,
+      "case_role": "reviewer",
+      "notes": "Decides review items; may also propose. No self-approval."
+    },
+    {
+      "can_access_raw_evidence": false,
+      "can_export_package": true,
+      "can_manage_members": false,
+      "can_mutate": false,
+      "can_read_material": true,
+      "can_review": false,
+      "can_view_approved_reports": true,
+      "can_view_audit": false,
+      "case_role": "viewer",
+      "notes": "Reads case material and approved reports; cannot mutate or read raw bytes."
+    },
+    {
+      "can_access_raw_evidence": false,
+      "can_export_package": true,
+      "can_manage_members": false,
+      "can_mutate": false,
+      "can_read_material": false,
+      "can_review": false,
+      "can_view_approved_reports": true,
+      "can_view_audit": false,
+      "case_role": "partner_export_viewer",
+      "notes": "Approved report packages only \u2014 never raw observations, evidence, graph, or audit."
+    }
+  ]
+}

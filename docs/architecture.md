@@ -230,5 +230,12 @@ graph LR
   [`v0.6_case_membership.md`](v0.6_case_membership.md) and `app/services/case_access.py`.
 - **Audit logging.** Every state transition that confirms, rejects, or deletes is
   recorded. The audit log is append-only.
+- **Foundry ontology mapping (v0.9).** `backend/app/foundry_mapping/` is a
+  specification + scaffolding layer that maps ORCA's models, relationships, workflows, and
+  permissions onto Palantir Foundry object/link/action/permission concepts and exports them
+  as JSON (`foundry/*.json` via `python -m app.foundry_mapping.export`). Permission rules
+  are derived from `app.core.rbac` so the spec cannot drift. It makes no live Palantir
+  calls and adds no capability — see
+  [`v0.9_palantir_foundry_mapping.md`](v0.9_palantir_foundry_mapping.md).
 - **Configuration.** Settings load from environment variables (`backend/app/core/config.py`).
   Templates are in `infrastructure/env` and each component's `.env.example`.
