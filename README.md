@@ -33,6 +33,31 @@ evidence. It never asserts a finding on its own.
 
 ---
 
+## Capabilities at v1.0
+
+- **Analyst loop** — case → observation intake → review queue (approve / reject /
+  needs-more-review) → relationship (citing approved observations) → timeline → draft report.
+- **Evidence locker** — case-scoped evidence with source attribution, **SHA-256 hashing +
+  on-read verification**, quarantine, and chain-of-custody audit.
+- **Manual file upload** — lawful files hashed and content-addressed, with a safe-by-default
+  policy (reject executables, quarantine unknown types, size cap) and role/case-scoped
+  raw-byte download.
+- **Auth / RBAC** — six roles with a capability matrix on every endpoint (403/401), and
+  **separation of duties** on approvals with an audited admin override.
+- **Case membership** — need-to-know: non-admins act only on assigned cases, scoped by a
+  per-case role; denials are generic 403s that never reveal a case's existence.
+- **Relationship graph** — neighbourhoods, case subgraphs, and shortest paths over
+  **approved** relationships only.
+- **Report package export** — partner-ready Markdown report + JSON evidence manifest (hashes
+  only), approved material only.
+- **Foundry mapping** — a Foundry-ready ontology spec exported to `foundry/*.json`
+  (mapping only; no live Palantir sync).
+- **Analyst Copilot** — local, propose-only AI assistance (summaries, candidate entities /
+  relationships, draft sections, citation checks) — every output requires human review.
+- **Append-only audit** — every privileged action is recorded and attributable.
+
+---
+
 ## Core principles
 
 1. Observation is the atomic unit of truth.
@@ -81,6 +106,11 @@ These principles are not decoration. They are encoded in the data model (see
 | [v0.8 Report Package Export](docs/v0.8_report_package_export.md)| Partner-ready report + evidence manifest, hashes, scoped export.|
 | [v0.9 Foundry Mapping](docs/v0.9_palantir_foundry_mapping.md)| ORCA → Palantir Foundry ontology mapping (spec + local scaffolding).|
 | [v1.0 Analyst Copilot](docs/v1.0_aip_assisted_analyst_copilot.md)| Local, propose-only AI assistance (AI proposes, analysts decide).|
+| [Demo walkthrough](docs/demo_walkthrough.md)         | End-to-end demo path across every v1.0 capability.     |
+| [Threat model](docs/threat_model.md)                 | Threats, mitigations, and non-goals.                   |
+| [Known limitations](docs/known_limitations.md)       | What v1.0 is deliberately not (yet).                   |
+| [Palantir pitch notes](docs/palantir_pitch_notes.md) | Foundry/AIP mapping and what a pilot would test.       |
+| [Release notes v1.0](docs/release_notes_v1.0.md)     | Summary of v0.1 → v1.0.                                |
 | [Roadmap](docs/roadmap.md)                            | Phased delivery, starting from this skeleton.          |
 
 ---
@@ -161,8 +191,68 @@ npm install
 npm run dev
 ```
 
-See [`backend/README.md`](backend/README.md) and
-[`frontend/README.md`](frontend/README.md) for details.
+The backend runs against an **in-memory store by default** (no database required) — set
+`ORCA_STORAGE_BACKEND=postgres` to use PostgreSQL. See [`backend/README.md`](backend/README.md)
+and [`frontend/README.md`](frontend/README.md) for details, and
+[`docs/demo_walkthrough.md`](docs/demo_walkthrough.md) for a full guided demo.
+
+## Authentication & demo users (dev)
+
+Auth is dev-only at v1.0: a request acts as the user named in the `X-ORCA-User` header
+(the frontend's user switcher sets it via a cookie); the default is `admin`. The in-memory
+backend seeds one user per role plus one deliberately unassigned user:
+
+| Username  | Global role             | Seeded case access (demo case) |
+| --------- | ----------------------- | ------------------------------ |
+| `admin`   | admin                   | all cases (superuser)          |
+| `casey`   | case_manager            | case manager                   |
+| `ana`     | analyst                 | analyst                        |
+| `rae`     | reviewer                | reviewer                       |
+| `vic`     | viewer                  | viewer                         |
+| `partner` | partner_export_viewer   | approved report packages only  |
+| `nomad`   | analyst                 | **unassigned** (gets 403s)     |
+
+```bash
+# Act as a given user with curl:
+curl -s http://localhost:8000/api/v1/cases -H "X-ORCA-User: ana"
+```
+
+For PostgreSQL, seed the users after `alembic upgrade head` with `python -m app.db.seed`.
+
+## Running the tests & checks
+
+```bash
+# Backend lint + tests (from backend/)
+cd backend
+ruff check .
+python -m pytest -q                       # in-memory; 126 passing + 1 skipped (PG)
+
+# PostgreSQL integration test (optional; needs a migrated DB)
+ORCA_RUN_PG_IT=1 ORCA_POSTGRES_DSN=postgresql+psycopg://orca:orca@localhost:5432/orca \
+  python -m pytest tests/backend/test_postgres_integration.py -q
+
+# Export the Foundry ontology mapping to foundry/*.json
+python -m app.foundry_mapping.export
+
+# Frontend typecheck + build (from frontend/)
+cd ../frontend
+npm run typecheck
+npm run build
+```
+
+## Releases
+
+Each milestone is merged to `main` and tagged. (Annotated tags are created at the merge
+commit; create the GitHub release from the tag.)
+
+| Tag                                     | Milestone                              |
+| --------------------------------------- | -------------------------------------- |
+| `v0.5.0-foundation`                     | v0.1–v0.5 foundation                   |
+| `v0.6.0-case-membership`                | Case membership & authorization scoping|
+| `v0.7.0-evidence-upload`                | Evidence file upload + storage hardening|
+| `v0.8.0-report-package-export`          | Report package export                  |
+| `v0.9.0-palantir-foundry-mapping`       | Palantir Foundry ontology mapping      |
+| `v1.0.0-aip-assisted-analyst-copilot`   | AIP-assisted Analyst Copilot (propose-only)|
 
 ## License
 

@@ -31,6 +31,13 @@ REQUIRED_DOCS = [
     "docs/security.md",
     "docs/analyst_workflow.md",
     "docs/ontology_v0.1.md",
+    "docs/safety_and_handling.md",
+    # v1.0 release-hardening / demo-audit deliverables.
+    "docs/demo_walkthrough.md",
+    "docs/threat_model.md",
+    "docs/known_limitations.md",
+    "docs/palantir_pitch_notes.md",
+    "docs/release_notes_v1.0.md",
 ]
 
 
