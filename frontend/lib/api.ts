@@ -218,6 +218,12 @@ export const closeHuntingEscalation = (id: string, reason: string) =>
 export const dismissHuntingEscalation = (id: string, reason: string) =>
   apiSend<HuntingEscalation>(`/hunting/escalations/${id}/dismiss`, "POST", { reason });
 
+export const getSystemAudit = (actionPrefix?: string, limit = 200) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (actionPrefix) params.set("action_prefix", actionPrefix);
+  return apiGet<AuditEntry[]>(`/audit?${params.toString()}`);
+};
+
 export const getMe = () => apiGet<CurrentUser>("/me");
 export const getUsers = () => apiGet<User[]>("/users");
 export const getPublishedReports = () => apiGet<Report[]>("/reports/published");
