@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/Card";
-import { Table, Td, Th, Tr } from "@/components/ui/Table";
-import { humanize } from "@/lib/format";
+import { CrossVenueLinks } from "@/components/hunting/CrossVenueLinks";
+import { ProposeLinksButton } from "@/components/hunting/ProposeLinksButton";
 import type { HuntingIntelPicture } from "@/lib/types";
 
 /**
@@ -28,39 +28,13 @@ export function IntelPicture({ intel }: { intel: HuntingIntelPicture }) {
           collection runs, recurring phones/wallets/handles will surface here.
         </p>
       ) : (
-        <Table
-          head={
-            <>
-              <Th>Identifier</Th>
-              <Th>Type</Th>
-              <Th>Venues</Th>
-              <Th>Leads</Th>
-              <Th>Seen across</Th>
-            </>
-          }
-        >
-          {intel.cross_venue.map((i, idx) => (
-            <Tr key={idx}>
-              <Td>
-                <span className="mono text-xs text-ink">{i.value}</span>
-              </Td>
-              <Td>
-                <span className="text-xs text-ink-muted">{humanize(i.entity_type)}</span>
-              </Td>
-              <Td>
-                <span className="inline-flex items-center rounded bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">
-                  {i.source_count} venues
-                </span>
-              </Td>
-              <Td>
-                <span className="tabular-nums text-xs text-ink-muted">{i.lead_count}</span>
-              </Td>
-              <Td>
-                <span className="text-xs text-ink-faint">{i.sources.join(" · ")}</span>
-              </Td>
-            </Tr>
-          ))}
-        </Table>
+        <div className="space-y-3">
+          <ProposeLinksButton />
+          <p className="text-xs text-ink-faint">
+            Select an identifier to pivot — locate every venue, AOR, and lead it appears in.
+          </p>
+          <CrossVenueLinks identifiers={intel.cross_venue} />
+        </div>
       )}
     </Card>
   );

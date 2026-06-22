@@ -264,6 +264,16 @@ CREATE TABLE hunting_escalations (
 CREATE INDEX ix_hunting_escalations_status ON hunting_escalations (status);
 CREATE INDEX ix_hunting_escalations_aor ON hunting_escalations (aor);
 
+-- Operator-managed AOR watchlist (the autonomous cadence's sweep targets).
+CREATE TABLE hunting_watchlist (
+    id         UUID PRIMARY KEY,
+    aor_key    VARCHAR(255) NOT NULL UNIQUE,   -- lower-cased AOR for dedup
+    aor        VARCHAR(255) NOT NULL,
+    added_by   VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- --- Association tables (many-to-many) --------------------------------------
 
 CREATE TABLE observation_entities (

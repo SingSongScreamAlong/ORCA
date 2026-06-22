@@ -25,6 +25,7 @@ from app.models import (
     EvidenceItem,
     HuntingEscalationRow,
     HuntingSourceRow,
+    HuntingWatchlistRow,
     Observation,
     Relationship,
     Report,
@@ -39,7 +40,7 @@ from app.schemas.cluster import ClusterRead
 from app.schemas.entity import EntityRead
 from app.schemas.evidence import EvidenceItemRead, LegalFlags
 from app.schemas.handling import Handling
-from app.schemas.hunting import HuntingSourceRead
+from app.schemas.hunting import HuntingSourceRead, HuntingWatchlistEntry
 from app.schemas.hunting_escalation import HuntingEscalationRead
 from app.schemas.observation import ObservationRead
 from app.schemas.relationship import RelationshipRead
@@ -705,6 +706,40 @@ class SqlHuntingEscalationRepository(_Repo):
         return escalation
 
 
+class SqlHuntingWatchlistRepository(_Repo):
+    def list(self) -> list[HuntingWatchlistEntry]:
+        rows = self.s.scalars(select(HuntingWatchlistRow).order_by(HuntingWatchlistRow.aor_key)).all()
+        return [
+            HuntingWatchlistEntry(aor=o.aor, added_by=o.added_by, added_at=o.created_at) for o in rows
+        ]
+
+    def add(self, entry: HuntingWatchlistEntry) -> HuntingWatchlistEntry:
+        key = entry.aor.lower()
+        existing = self.s.scalars(
+            select(HuntingWatchlistRow).where(HuntingWatchlistRow.aor_key == key)
+        ).first()
+        if existing is not None:
+            # Dedup is idempotent: return the canonical persisted entry (its original
+            # added_by/added_at), not the caller's. The unique constraint backstops the rare
+            # concurrent duplicate at this single-writer recon scale.
+            return HuntingWatchlistEntry(
+                aor=existing.aor, added_by=existing.added_by, added_at=existing.created_at
+            )
+        self.s.add(HuntingWatchlistRow(aor_key=key, aor=entry.aor, added_by=entry.added_by))
+        self.s.flush()
+        return entry
+
+    def remove(self, aor: str) -> bool:
+        row = self.s.scalars(
+            select(HuntingWatchlistRow).where(HuntingWatchlistRow.aor_key == aor.lower())
+        ).first()
+        if row is None:
+            return False
+        self.s.delete(row)
+        self.s.flush()
+        return True
+
+
 class SqlAuditRepository(_Repo):
     def record(self, entry: AuditEntry) -> AuditEntry:
         o = AuditLogEntry(
@@ -747,6 +782,7 @@ class SqlUnitOfWork:
         self.audit = SqlAuditRepository(session)
         self.hunting_sources = SqlHuntingSourceRepository(session)
         self.hunting_escalations = SqlHuntingEscalationRepository(session)
+        self.hunting_watchlist = SqlHuntingWatchlistRepository(session)
         self.graph = self._build_graph()
         from app.core.content_store import build_content_store
 

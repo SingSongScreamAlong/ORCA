@@ -30,6 +30,7 @@ class UnitOfWork(Protocol):
     audit: object
     hunting_sources: object  # Hunting Grounds source/NAI registry
     hunting_escalations: object  # CSAM hard-stop channel (report-only)
+    hunting_watchlist: object  # operator-managed AOR watchlist
     graph: object
     content: object  # evidence content store (SHA-256 integrity layer)
 
@@ -55,6 +56,7 @@ class InMemoryUnitOfWork:
             MemoryEvidenceRepository,
             MemoryHuntingEscalationRepository,
             MemoryHuntingSourceRepository,
+            MemoryHuntingWatchlistRepository,
             MemoryMembershipRepository,
             MemoryObservationRepository,
             MemoryRelationshipRepository,
@@ -81,6 +83,7 @@ class InMemoryUnitOfWork:
         self.audit = MemoryAuditRepository(store)
         self.hunting_sources = MemoryHuntingSourceRepository(store)
         self.hunting_escalations = MemoryHuntingEscalationRepository(store)
+        self.hunting_watchlist = MemoryHuntingWatchlistRepository(store)
         self.graph = InMemoryGraphRepository()
         from app.core.content_store import build_content_store
 

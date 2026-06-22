@@ -128,6 +128,22 @@ class IntelIdentifier(ORCAModel):
     sources: list[str]  # source names it appears in (for display)
 
 
+class ProposedLink(ORCAModel):
+    """A cross-venue relationship proposed into the review queue (analyst confirms)."""
+
+    relationship_id: UUID
+    source_value: str
+    target_value: str
+    relationship_type: str
+    venue_count: int
+
+
+class HuntingLinkResult(ORCAModel):
+    aor: str | None
+    proposed: int
+    links: list[ProposedLink]
+
+
 class HuntingIntelPicture(ORCAModel):
     """The AOR common operating picture: where the same actors/identifiers recur across venues.
 
@@ -143,6 +159,68 @@ class HuntingIntelPicture(ORCAModel):
     cross_venue_count: int
     cross_venue: list[IntelIdentifier]  # identifiers in >=2 venues (sorted, strongest first)
     top_identifiers: list[IntelIdentifier]  # most-referenced overall
+
+
+class IdentifierAppearance(ORCAModel):
+    """One located sighting of an identifier — which monitored venue, where, and the text lead."""
+
+    source_id: UUID
+    source_name: str
+    source_url: str
+    aor: str
+    observation_id: UUID
+    summary: str
+    observed_at: datetime
+    status: str
+
+
+class CoOccurringIdentifier(ORCAModel):
+    """An identifier located alongside the subject in the same lead(s) — a link candidate."""
+
+    entity_type: EntityType
+    value: str
+    shared_leads: int  # how many of the subject's leads this identifier also appears in
+
+
+class IdentifierDossier(ORCAModel):
+    """Everywhere one located identifier appears across monitored venues — the pivot answering
+    'where is this phone/wallet/handle/.onion?' for an LE referral. Pointers/metadata only; no
+    media. ``canonical`` notes the resolved type/value (the lookup is case/format-tolerant)."""
+
+    entity_type: EntityType
+    value: str
+    venue_count: int  # distinct monitored venues it was located from
+    lead_count: int  # total leads referencing it
+    aors: list[str]  # distinct AORs it appears in
+    appearances: list[IdentifierAppearance]
+    co_occurring: list[CoOccurringIdentifier]  # identifiers sharing its leads (link candidates)
+
+
+class IdentifierReferralPackage(ORCAModel):
+    """A law-enforcement referral dossier centered on one located identifier.
+
+    Where ``HuntingReferralPackage`` is per-venue, this is per-identifier: it aggregates every
+    monitored venue a single phone/wallet/handle/.onion was located from (each with its lawful
+    basis), the text leads citing it, the identifiers it co-occurs with, and the relationship map
+    — the cross-venue case file for one actor/operation. No media, by construction.
+    """
+
+    entity_type: EntityType
+    value: str
+    generated_at: datetime
+    generated_by: str
+    venue_count: int
+    lead_count: int
+    aors: list[str]
+    sources: list[ReferralSource]  # the venues it was located from, with lawful basis
+    appearances: list[IdentifierAppearance]
+    co_occurring: list[CoOccurringIdentifier]
+    relationships: list[ReferralRelationship]
+    summary_markdown: str
+    notice: str = (
+        "Lawful OSINT referral. Contains pointers and metadata only — no media, no CSAM. "
+        "Identifiers are leads for lawful follow-up; de-anonymization requires legal process."
+    )
 
 
 class ReferralObservation(ORCAModel):
@@ -197,6 +275,22 @@ class HuntingReferralPackage(ORCAModel):
     notice: str = (
         "Lawful OSINT referral. Contains pointers and metadata only — no media, no CSAM. "
         "Identifiers are leads for lawful follow-up; de-anonymization requires legal process."
+    )
+
+
+class HuntingWatchlistEntry(ORCAModel):
+    """One operator-managed area of responsibility the autonomous cadence sweeps for new venues."""
+
+    aor: str
+    added_by: str
+    added_at: datetime
+
+
+class HuntingWatchlistAdd(ORCAModel):
+    aor: str = Field(
+        min_length=1,
+        max_length=255,  # matches the hunting_watchlist.aor / aor_key column
+        description="Area of responsibility to add, e.g. 'Rhode Island'.",
     )
 
 
@@ -311,6 +405,9 @@ class HuntingDiscoveryScheduleStatus(ORCAModel):
     last_total_proposed: int | None = None
     last_total_skipped: int | None = None
     last_aors: list[str] = Field(default_factory=list)
+    # The targets the next sweep would cover — the live operator-managed watchlist (else the env
+    # fallback), so the panel can preview the cadence's next run as the watchlist is edited.
+    next_targets: list[str] = Field(default_factory=list)
     # Collection runs on the same cadence (each tick: discovery sweep, then collection sweep).
     collection_runs: int = 0
     last_collection_proposed: int | None = None

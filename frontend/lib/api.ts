@@ -33,11 +33,15 @@ import type {
   HuntingEscalation,
   HuntingEscalationStatus,
   HuntingIntelPicture,
+  HuntingLinkResult,
   HuntingReferralPackage,
   HuntingSource,
   HuntingSourceCategory,
   HuntingSourceStatus,
   HuntingSummary,
+  HuntingWatchlistEntry,
+  IdentifierDossier,
+  IdentifierReferralPackage,
   MembershipStatus,
   Observation,
   Relationship,
@@ -118,7 +122,9 @@ async function apiSend<T>(
       }
       return { ok: false, status: res.status, error: detail };
     }
-    return { ok: true, data: (await res.json()) as T };
+    if (res.status === 204) return { ok: true, data: null as T };
+    const text = await res.text();
+    return { ok: true, data: (text ? JSON.parse(text) : null) as T };
   } catch {
     return { ok: false, error: `Could not reach the ORCA backend at ${API_BASE}.` };
   }
@@ -176,6 +182,23 @@ export const getHuntingSummary = () => apiGet<HuntingSummary>("/hunting/summary"
 export const getHuntingIntel = (aor?: string) =>
   apiGet<HuntingIntelPicture>(`/hunting/intel${aor ? `?aor=${encodeURIComponent(aor)}` : ""}`);
 
+export const getHuntingIdentifierDossier = (entityType: string, value: string) =>
+  apiGet<IdentifierDossier>(
+    `/hunting/intel/identifier?type=${encodeURIComponent(entityType)}&value=${encodeURIComponent(value)}`,
+  );
+
+export const getHuntingIdentifierReferral = (entityType: string, value: string) =>
+  apiGet<IdentifierReferralPackage>(
+    `/hunting/intel/identifier/referral?type=${encodeURIComponent(entityType)}&value=${encodeURIComponent(value)}`,
+  );
+
+export const proposeHuntingLinks = (aor?: string) =>
+  apiSend<HuntingLinkResult>(
+    `/hunting/links/propose${aor ? `?aor=${encodeURIComponent(aor)}` : ""}`,
+    "POST",
+    {},
+  );
+
 export const proposeHuntingSource = (body: {
   name: string;
   url: string;
@@ -212,6 +235,16 @@ export const runHuntingDiscovery = (body: {
 // Autonomous discovery — seek new venues via the configured lawful source (proposes only).
 export const getHuntingDiscoveryStatus = () =>
   apiGet<HuntingDiscoveryStatus>("/hunting/discovery/status");
+
+// Operator-managed AOR watchlist (the autonomous cadence's targets).
+export const getHuntingWatchlist = () =>
+  apiGet<HuntingWatchlistEntry[]>("/hunting/watchlist");
+
+export const addHuntingWatchlist = (aor: string) =>
+  apiSend<HuntingWatchlistEntry>("/hunting/watchlist", "POST", { aor });
+
+export const removeHuntingWatchlist = (aor: string) =>
+  apiSend<null>(`/hunting/watchlist/${encodeURIComponent(aor)}`, "DELETE", undefined);
 
 export const runAutoDiscovery = (aor: string, limit = 10) =>
   apiSend<HuntingDiscoveryResult>(

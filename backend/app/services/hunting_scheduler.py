@@ -226,6 +226,18 @@ class DiscoveryScheduler:
 
     # --- status ------------------------------------------------------------------
 
+    def _next_targets(self) -> list[str]:
+        """Preview the AORs the next sweep would cover — the live operator-managed watchlist
+        (else the env fallback). Resolved through a short-lived unit of work and guarded so a
+        status read never fails on a watchlist lookup (it is only a preview)."""
+        uow = build_unit_of_work()
+        try:
+            return HuntingDiscoveryService(uow).watchlist()
+        except Exception:  # noqa: BLE001 — the preview must never break a status read
+            return []
+        finally:
+            uow.close()
+
     def status(self) -> HuntingDiscoveryScheduleStatus:
         cfg = self.config()
         summary = self.last_summary or {}
@@ -242,6 +254,7 @@ class DiscoveryScheduler:
             last_total_proposed=summary.get("total_proposed"),
             last_total_skipped=summary.get("total_skipped"),
             last_aors=list(summary.get("aors", [])),
+            next_targets=self._next_targets(),
             collection_runs=self.collection_runs,
             last_collection_proposed=collection.get("total_proposed"),
             last_collection_sources=collection.get("sources_collected"),

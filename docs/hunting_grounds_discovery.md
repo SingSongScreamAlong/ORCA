@@ -49,7 +49,7 @@ Selected with `ORCA_HUNTING_DISCOVERY_PROVIDER`:
 | `ORCA_HUNTING_DISCOVERY_NAME_FIELD`   | —                  | Per-item field for the venue name. Default `name`.                 |
 | `ORCA_HUNTING_DISCOVERY_URL_FIELD`    | —                  | Per-item field for the venue URL. Default `url`.                   |
 | `ORCA_HUNTING_DISCOVERY_CATEGORY`     | —                  | Default category for candidates. Default `escort_listing`.         |
-| `ORCA_HUNTING_DISCOVERY_AORS`         | —                  | Comma-separated AOR **watchlist** a sweep covers by default.        |
+| `ORCA_HUNTING_DISCOVERY_AORS`         | —                  | Comma-separated AOR watchlist **fallback** (the operator-managed watchlist takes precedence). |
 | `ORCA_HUNTING_DISCOVERY_SCHEDULE_ENABLED` | —              | Start the continuous cadence. Default `false`.                     |
 | `ORCA_HUNTING_DISCOVERY_SCHEDULE_INTERVAL_MINUTES` | —     | Sweep interval (≥1; a 60s floor applies). Default `60`.            |
 | `ORCA_HUNTING_DISCOVERY_SCHEDULE_LIMIT` | —                | Candidates per AOR each automatic sweep. Default `10`.             |
@@ -60,10 +60,24 @@ The configuration is read into a frozen `HuntingDiscoveryConfig`. Secrets are re
 ## Seeking across many areas — the sweep
 
 `auto_discover` seeks one AOR; a **sweep** seeks across a list of AORs in one pass, so the
-operator can cover the whole region at once. The list comes from an explicit call/query, or
-falls back to the standing watchlist (`ORCA_HUNTING_DISCOVERY_AORS`). The provider is built
-once and reused; because the registry store updates synchronously, a venue found for an earlier
-AOR is skipped as a duplicate if it recurs later **in the same sweep**.
+operator can cover the whole region at once. Target selection is layered: an explicit call/query
+wins; otherwise the **operator-managed watchlist** (persisted) is used; otherwise the env
+fallback (`ORCA_HUNTING_DISCOVERY_AORS`). The provider is built once and reused; because the
+registry store updates synchronously, a venue found for an earlier AOR is skipped as a duplicate
+if it recurs later **in the same sweep**.
+
+### The operator-managed watchlist
+
+Operators curate the AORs the cadence sweeps from the UI — no redeploy — under
+`/api/v1/hunting/watchlist`:
+
+- `GET /watchlist` — the current watchlist (`READ_CASE_MATERIAL`).
+- `POST /watchlist` `{aor}` — add an AOR (admin-only, `201`; case-insensitive dedup).
+- `DELETE /watchlist/{aor}` — remove one (admin-only, `204`).
+
+Adds/removes are audited (`hunting.watchlist.added` / `hunting.watchlist.removed`). When the
+persisted watchlist is empty, the `ORCA_HUNTING_DISCOVERY_AORS` env list still applies, so an
+operator can ship a standing watchlist and refine it live.
 
 ## Seeking on its own — the continuous cadence
 

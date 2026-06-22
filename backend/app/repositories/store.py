@@ -35,7 +35,7 @@ from app.schemas.cluster import ClusterRead
 from app.schemas.entity import EntityRead
 from app.schemas.evidence import EvidenceItemRead, LegalFlags
 from app.schemas.handling import Handling
-from app.schemas.hunting import HuntingSourceRead
+from app.schemas.hunting import HuntingSourceRead, HuntingWatchlistEntry
 from app.schemas.hunting_escalation import HuntingEscalationRead
 from app.schemas.observation import ObservationRead
 from app.schemas.relationship import RelationshipRead
@@ -65,6 +65,7 @@ class InMemoryStore:
         self.audit: list = []  # AuditEntry objects, append-only
         self.hunting_sources: dict[UUID, HuntingSourceRead] = {}  # Hunting Grounds registry
         self.hunting_escalations: dict[UUID, HuntingEscalationRead] = {}  # CSAM hard-stop channel
+        self.hunting_watchlist: dict[str, HuntingWatchlistEntry] = {}  # operator-managed AOR watchlist
         self._seed()
 
     def _seed(self) -> None:
@@ -234,5 +235,6 @@ def reset_store() -> None:
     store.audit.clear()
     store.hunting_sources.clear()
     store.hunting_escalations.clear()
+    store.hunting_watchlist.clear()
     memory_content_store.clear()
     store._seed()

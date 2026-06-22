@@ -407,6 +407,14 @@ export interface DashboardSummary {
   recent_observations: Observation[];
   recent_relationships: Relationship[];
   review_queue: ReviewItem[];
+  hunting: {
+    monitored_sources: number;
+    total_sources: number;
+    aors: number;
+    leads: number;
+    cross_venue_links: number;
+    top_cross_venue: IntelIdentifier[];
+  };
   system_health: {
     status: string;
     storage_backend: string;
@@ -541,6 +549,12 @@ export interface HuntingDiscoveryStatus {
   darkweb_acknowledged: boolean;
 }
 
+export interface HuntingWatchlistEntry {
+  aor: string;
+  added_by: string;
+  added_at: string;
+}
+
 export interface HuntingDiscoveryScheduleStatus {
   enabled: boolean;
   interval_minutes: number;
@@ -553,6 +567,7 @@ export interface HuntingDiscoveryScheduleStatus {
   last_total_proposed: number | null;
   last_total_skipped: number | null;
   last_aors: string[];
+  next_targets: string[];
   collection_runs: number;
   last_collection_proposed: number | null;
   last_collection_sources: number | null;
@@ -597,6 +612,20 @@ export interface IntelIdentifier {
   sources: string[];
 }
 
+export interface ProposedLink {
+  relationship_id: string;
+  source_value: string;
+  target_value: string;
+  relationship_type: string;
+  venue_count: number;
+}
+
+export interface HuntingLinkResult {
+  aor: string | null;
+  proposed: number;
+  links: ProposedLink[];
+}
+
 export interface HuntingIntelPicture {
   aor: string | null;
   monitored_sources: number;
@@ -605,6 +634,33 @@ export interface HuntingIntelPicture {
   cross_venue_count: number;
   cross_venue: IntelIdentifier[];
   top_identifiers: IntelIdentifier[];
+}
+
+export interface IdentifierAppearance {
+  source_id: string;
+  source_name: string;
+  source_url: string;
+  aor: string;
+  observation_id: string;
+  summary: string;
+  observed_at: string;
+  status: string;
+}
+
+export interface CoOccurringIdentifier {
+  entity_type: EntityType;
+  value: string;
+  shared_leads: number;
+}
+
+export interface IdentifierDossier {
+  entity_type: EntityType;
+  value: string;
+  venue_count: number;
+  lead_count: number;
+  aors: string[];
+  appearances: IdentifierAppearance[];
+  co_occurring: CoOccurringIdentifier[];
 }
 
 export interface ReferralObservation {
@@ -643,6 +699,36 @@ export interface HuntingReferralPackage {
   identifier_count: number;
   located_identifiers: ReferralEntity[];
   observations: ReferralObservation[];
+  relationships: ReferralRelationship[];
+  summary_markdown: string;
+  notice: string;
+}
+
+export interface ReferralSource {
+  id: string;
+  name: string;
+  url: string;
+  category: HuntingSourceCategory;
+  aor: string;
+  status: HuntingSourceStatus;
+  lawful_basis: string | null;
+  access_method: string | null;
+  jurisdiction: string | null;
+  proposed_by: string;
+  authorized_by: string | null;
+}
+
+export interface IdentifierReferralPackage {
+  entity_type: EntityType;
+  value: string;
+  generated_at: string;
+  generated_by: string;
+  venue_count: number;
+  lead_count: number;
+  aors: string[];
+  sources: ReferralSource[];
+  appearances: IdentifierAppearance[];
+  co_occurring: CoOccurringIdentifier[];
   relationships: ReferralRelationship[];
   summary_markdown: string;
   notice: string;

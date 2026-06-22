@@ -18,7 +18,7 @@ from app.schemas.case import CaseRead
 from app.schemas.cluster import ClusterRead
 from app.schemas.entity import EntityRead
 from app.schemas.evidence import EvidenceItemRead
-from app.schemas.hunting import HuntingSourceRead
+from app.schemas.hunting import HuntingSourceRead, HuntingWatchlistEntry
 from app.schemas.hunting_escalation import HuntingEscalationRead
 from app.schemas.observation import ObservationRead
 from app.schemas.relationship import RelationshipRead
@@ -343,6 +343,20 @@ class MemoryHuntingEscalationRepository(_Base):
     def replace(self, escalation: HuntingEscalationRead) -> HuntingEscalationRead:
         self._store.hunting_escalations[escalation.id] = escalation
         return escalation
+
+
+class MemoryHuntingWatchlistRepository(_Base):
+    """Operator-managed AOR watchlist (keyed by case-insensitive AOR for dedup)."""
+
+    def list(self) -> list[HuntingWatchlistEntry]:
+        return sorted(self._store.hunting_watchlist.values(), key=lambda e: e.aor.lower())
+
+    def add(self, entry: HuntingWatchlistEntry) -> HuntingWatchlistEntry:
+        # Dedup like the SQL repo: a duplicate AOR is a no-op, keeping the first added_by/added_at.
+        return self._store.hunting_watchlist.setdefault(entry.aor.lower(), entry)
+
+    def remove(self, aor: str) -> bool:
+        return self._store.hunting_watchlist.pop(aor.lower(), None) is not None
 
 
 class MemoryAuditRepository(_Base):

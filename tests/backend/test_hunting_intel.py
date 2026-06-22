@@ -106,3 +106,50 @@ def test_referral_marks_cross_venue_identifiers(client):
     assert by_value["+14015550142"]["venue_count"] == 2
     assert by_value["a@host.invalid"]["venue_count"] == 1
     assert "cross-venue: 2 venues" in pkg["summary_markdown"]
+
+
+# --- identifier pivot / dossier -------------------------------------------------
+
+DOSSIER = f"{INTEL}/identifier"
+
+
+def test_identifier_dossier_pivots_across_venues_and_aors(client):
+    a = _monitored(client, "RI A", "https://ri-a.invalid", aor="Rhode Island")
+    b = _monitored(client, "CT B", "https://ct-b.invalid", aor="Connecticut")
+    _lead(client, a, "Ad: call +1 401 555 0142, ask for @sky")
+    _lead(client, b, "Repost: 401-555-0142 available, bitcoin only")
+
+    res = client.get(DOSSIER, params={"type": "phone_number", "value": "+14015550142"}, headers=ANA)
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["venue_count"] == 2
+    assert body["lead_count"] == 2
+    assert sorted(body["aors"]) == ["Connecticut", "Rhode Island"]
+    # Every sighting points back to its venue and AOR (pointer/metadata only — no media field).
+    venues = {(ap["source_name"], ap["aor"]) for ap in body["appearances"]}
+    assert venues == {("RI A", "Rhode Island"), ("CT B", "Connecticut")}
+    assert all("observation_id" in ap and "media" not in ap for ap in body["appearances"])
+    # The handle co-occurs with the phone in venue A's lead — a link candidate.
+    co = {(c["entity_type"], c["value"]): c["shared_leads"] for c in body["co_occurring"]}
+    assert co[("username", "sky")] == 1
+
+
+def test_identifier_dossier_404_for_unlocated_identifier(client):
+    _monitored(client, "Solo", "https://solo.invalid")
+    res = client.get(DOSSIER, params={"type": "phone_number", "value": "+19998887777"}, headers=ANA)
+    assert res.status_code == 404
+
+
+def test_identifier_dossier_scoped_to_monitored_leads(client):
+    # An identifier located only from a single venue still pivots — venue_count 1, that one AOR,
+    # no co-occurring identifiers when it's alone in the lead.
+    a = _monitored(client, "Solo", "https://solo.invalid", aor="Rhode Island")
+    _lead(client, a, "lone wallet 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa")
+    res = client.get(
+        DOSSIER,
+        params={"type": "crypto_address", "value": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"},
+        headers=ANA,
+    ).json()
+    assert res["venue_count"] == 1
+    assert res["aors"] == ["Rhode Island"]
+    assert res["co_occurring"] == []

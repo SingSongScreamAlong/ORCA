@@ -56,6 +56,16 @@ def test_schedule_status_default(client):
     assert body["running"] is False
     assert body["runs"] == 0
     assert body["last_run_at"] is None
+    assert body["next_targets"] == []
+
+
+def test_schedule_status_previews_live_watchlist(client, monkeypatch):
+    # The cadence's "next sweep" preview reflects the operator-managed watchlist live — no run
+    # needed, and an edit shows up immediately (persisted watchlist wins over the env fallback).
+    monkeypatch.setenv("ORCA_HUNTING_DISCOVERY_AORS", "Maine")  # env fallback
+    assert client.get(SCHED, headers=ANA).json()["next_targets"] == ["Maine"]
+    client.post(f"{PREFIX}/hunting/watchlist", json={"aor": "Rhode Island"}, headers=ADMIN)
+    assert client.get(SCHED, headers=ANA).json()["next_targets"] == ["Rhode Island"]
 
 
 # --- kill-switch (pause / resume), admin-only -----------------------------------

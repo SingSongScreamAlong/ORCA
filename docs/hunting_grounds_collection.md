@@ -112,6 +112,27 @@ returns pointers/metadata only. The LE referral dossier is enriched with the sam
 located identifier carries a `venue_count`, and cross-venue ones (`≥2`) are flagged in the markdown
 and the UI. `READ_CASE_MATERIAL`.
 
+### Identifier pivot — "where is this one?"
+
+`GET /api/v1/hunting/intel/identifier?type=…&value=…` is the per-identifier axis of the picture:
+given one located identifier, it returns **every** monitored venue it appears in (with the source,
+AOR, text lead, and observation status), the distinct AORs, and the identifiers it **co-occurs**
+with (link candidates, ranked by shared leads). This answers the operator's core question — *where
+are this phone/wallet/handle/`.onion`'s listings and posts?* — so an analyst can assemble an LE
+referral. `404` if the identifier was never located. Read-only; pointers/metadata only.
+`READ_CASE_MATERIAL`. In the UI, selecting any cross-venue identifier expands its dossier in place.
+
+## Cross-venue link proposal (intelligence → review queue)
+
+`POST /api/v1/hunting/links/propose?aor=…` turns the cross-venue intelligence into reviewable case
+links. For each identifier pair that co-occurs in **approved** leads across **two or more**
+monitored venues, ORCA proposes an `appears_with` relationship (`system_proposed` / `proposed`) into
+the review queue for an analyst to confirm. This preserves the lawful two-stage loop end to end: *AI
+proposes the lead → an analyst approves the observation → the system proposes the cross-venue link →
+an analyst approves the link.* Only **approved** observations are cited (an ontology invariant of the
+relationship layer); nothing is auto-confirmed and existing links are never re-proposed.
+`CREATE_OBSERVATION`. The "Suggest cross-venue links" action on the AOR intelligence card triggers it.
+
 ## Referral to law enforcement (locate → case)
 
 `GET /api/v1/hunting/sources/{id}/referral` builds a **referral dossier** for a source: the
@@ -121,6 +142,17 @@ a ready-to-hand `summary_markdown`. **No media** — pointers and metadata only.
 anyone: identifiers are leads for lawful follow-up, and de-anonymization (handle → person) is law
 enforcement's job with legal process. Requires `READ_CASE_MATERIAL`; generating one is audited as
 `hunting.referral.generated`. This is the seam where ORCA's recon becomes a Project 1591 referral.
+
+### Per-identifier referral — the cross-venue case file
+
+`GET /api/v1/hunting/intel/identifier/referral?type=…&value=…` is the per-**identifier** counterpart:
+where the source referral is one venue, this assembles the case file for a single located identifier
+across the **whole** hunting ground — every monitored venue it appears in (each with its lawful
+basis), the text leads citing it, the identifiers it co-occurs with, and the relationships among
+them, with a ready-to-hand `summary_markdown`. It is the natural follow-on to the identifier pivot:
+locate an identifier everywhere, then hand LE the dossier. **No media** — pointers and metadata only.
+`READ_CASE_MATERIAL`; `404` if the identifier was never located; audited as
+`hunting.referral.identifier_generated`. In the UI it's a one-click action inside the pivot panel.
 
 ## On the cadence
 

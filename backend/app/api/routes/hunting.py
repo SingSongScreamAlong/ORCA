@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.api.deps import current_principal, get_uow, require
 from app.core.rbac import Capability, Role
 from app.core.security import Principal
-from app.models.enums import HuntingEscalationStatus, HuntingSourceStatus
+from app.models.enums import EntityType, HuntingEscalationStatus, HuntingSourceStatus
 from app.repositories.uow import UnitOfWork
 from app.schemas.hunting import (
     HuntingAuthorize,
@@ -30,10 +30,15 @@ from app.schemas.hunting import (
     HuntingDiscoverySweepResult,
     HuntingIntelPicture,
     HuntingLeadCreate,
+    HuntingLinkResult,
     HuntingReferralPackage,
     HuntingSourcePropose,
     HuntingSourceRead,
     HuntingSummary,
+    HuntingWatchlistAdd,
+    HuntingWatchlistEntry,
+    IdentifierDossier,
+    IdentifierReferralPackage,
 )
 from app.schemas.hunting_escalation import (
     HuntingEscalationDecision,
@@ -58,9 +63,11 @@ from app.services.hunting_discovery import (
 from app.services.hunting_escalation_service import HuntingEscalationService
 from app.services.hunting_intel_service import HuntingIntelService
 from app.services.hunting_lead_service import HuntingLeadService
+from app.services.hunting_link_service import HuntingLinkService
 from app.services.hunting_referral_service import HuntingReferralService
 from app.services.hunting_registry_service import HuntingRegistryService
 from app.services.hunting_scheduler import scheduler
+from app.services.hunting_watchlist_service import HuntingWatchlistService
 
 router = APIRouter(prefix="/hunting", tags=["hunting-grounds"])
 
@@ -94,6 +101,106 @@ def hunting_intel(
     return HuntingIntelService(uow).picture(aor)
 
 
+@router.get(
+    "/intel/identifier",
+    response_model=IdentifierDossier,
+    summary="Pivot: everywhere one located identifier appears across monitored venues",
+)
+def identifier_dossier(
+    type: EntityType = Query(..., description="Identifier type (e.g. phone, username, crypto_address)."),
+    value: str = Query(..., min_length=1, description="The identifier value to pivot on."),
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> IdentifierDossier:
+    """Where does this one phone/wallet/handle/.onion appear? Returns every monitored venue it was
+    located from, the text leads, the AORs, and the identifiers it co-occurs with — the per-identifier
+    pivot that assembles an LE referral. Read-only; `404` if the identifier was never located."""
+    dossier = HuntingIntelService(uow).identifier_dossier(type, value)
+    if dossier is None:
+        raise HTTPException(status_code=404, detail="No such located identifier.")
+    return dossier
+
+
+@router.get(
+    "/intel/identifier/referral",
+    response_model=IdentifierReferralPackage,
+    summary="Generate an LE referral dossier for one located identifier (cross-venue; no media)",
+)
+def identifier_referral(
+    type: EntityType = Query(..., description="Identifier type (e.g. phone, username, crypto_address)."),
+    value: str = Query(..., min_length=1, description="The identifier value to refer."),
+    principal: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> IdentifierReferralPackage:
+    """The per-identifier referral: assemble every monitored venue this one identifier was located
+    from (with lawful basis), the text leads, co-occurring identifiers, and relationships into a
+    dossier for LE. Pointers/metadata only — no media. `404` if never located. Audited."""
+    pkg = HuntingReferralService(uow).build_for_identifier(type, value, principal)
+    if pkg is None:
+        raise HTTPException(status_code=404, detail="No such located identifier.")
+    return pkg
+
+
+@router.post(
+    "/links/propose",
+    response_model=HuntingLinkResult,
+    summary="Propose cross-venue links from approved leads into the review queue (analysts decide)",
+)
+def propose_links(
+    aor: str | None = Query(None, description="Scope to one AOR; omit for all monitored venues."),
+    principal: Principal = Depends(require(Capability.CREATE_OBSERVATION)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> HuntingLinkResult:
+    """For identifier pairs that co-occur in approved leads across two or more monitored venues,
+    propose an `appears_with` relationship into the review queue. Only approved observations are
+    cited; nothing is auto-confirmed; existing links are not re-proposed."""
+    return HuntingLinkService(uow).propose_links(principal, aor=aor)
+
+
+# --- operator-managed AOR watchlist (the autonomous cadence's targets) -----------
+
+
+@router.get(
+    "/watchlist",
+    response_model=list[HuntingWatchlistEntry],
+    summary="The operator-managed AOR watchlist the cadence sweeps",
+)
+def list_watchlist(
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> list[HuntingWatchlistEntry]:
+    return HuntingWatchlistService(uow).list()
+
+
+@router.post(
+    "/watchlist",
+    response_model=HuntingWatchlistEntry,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add an AOR to the watchlist (admin-only)",
+)
+def add_watchlist(
+    payload: HuntingWatchlistAdd,
+    principal: Principal = Depends(current_principal),
+    uow: UnitOfWork = Depends(get_uow),
+) -> HuntingWatchlistEntry:
+    _require_admin(principal)
+    return HuntingWatchlistService(uow).add(payload.aor, principal)
+
+
+@router.delete(
+    "/watchlist/{aor}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove an AOR from the watchlist (admin-only)",
+)
+def remove_watchlist(
+    aor: str,
+    principal: Principal = Depends(current_principal),
+    uow: UnitOfWork = Depends(get_uow),
+) -> None:
+    _require_admin(principal)
+    HuntingWatchlistService(uow).remove(aor, principal)
+
+
 @router.post(
     "/discovery/run",
     response_model=HuntingDiscoveryResult,
@@ -114,8 +221,9 @@ def run_discovery(
 )
 def discovery_status(
     _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> HuntingDiscoveryStatus:
-    return HuntingDiscoveryService().status()
+    return HuntingDiscoveryService(uow).status()
 
 
 @router.post(
