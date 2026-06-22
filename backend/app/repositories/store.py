@@ -35,6 +35,7 @@ from app.schemas.cluster import ClusterRead
 from app.schemas.entity import EntityRead
 from app.schemas.evidence import EvidenceItemRead, LegalFlags
 from app.schemas.handling import Handling
+from app.schemas.hunting import HuntingSourceRead
 from app.schemas.observation import ObservationRead
 from app.schemas.relationship import RelationshipRead
 from app.schemas.report import ReportRead
@@ -61,6 +62,7 @@ class InMemoryStore:
         self.users: dict[UUID, UserRead] = {}
         self.memberships: dict[UUID, CaseMemberRead] = {}
         self.audit: list = []  # AuditEntry objects, append-only
+        self.hunting_sources: dict[UUID, HuntingSourceRead] = {}  # Hunting Grounds registry
         self._seed()
 
     def _seed(self) -> None:
@@ -228,5 +230,6 @@ def reset_store() -> None:
     store.users.clear()
     store.memberships.clear()
     store.audit.clear()
+    store.hunting_sources.clear()
     memory_content_store.clear()
     store._seed()

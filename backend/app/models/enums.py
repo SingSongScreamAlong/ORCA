@@ -143,3 +143,33 @@ class ReviewItemType(str, Enum):
     PROPOSED_RELATIONSHIP = "proposed_relationship"
     PROPOSED_CLUSTER = "proposed_cluster"
     FLAGGED_OBSERVATION = "flagged_observation"
+
+
+class HuntingSourceStatus(str, Enum):
+    """Lifecycle of a Hunting Grounds source — see docs/hunting_grounds_charter.md.
+
+    Authorization-first: a source can only be monitored after a human authorizes it, and
+    can only be authorized with a recorded lawful basis. Auto-discovery yields PROPOSED only.
+    """
+
+    PROPOSED = "proposed"  # discovered/suggested; NOT monitored
+    AUTHORIZED = "authorized"  # human + legal review recorded; eligible to monitor
+    MONITORED = "monitored"  # actively watched
+    SUSPENDED = "suspended"  # paused (reversible)
+    RETIRED = "retired"  # permanently stopped
+    REJECTED = "rejected"  # reviewed and declined; never monitored
+
+
+class HuntingSourceCategory(str, Enum):
+    ESCORT_LISTING = "escort_listing"
+    CLASSIFIED = "classified"
+    FORUM = "forum"
+    SOCIAL = "social"
+    AGGREGATOR = "aggregator"
+    OTHER = "other"
+
+
+class HuntingDiscoveryMethod(str, Enum):
+    OPERATOR_SEED = "operator_seed"  # an operator added it by hand
+    DISCOVERY_JOB = "discovery_job"  # found by an authorized discovery run
+    REFERRAL = "referral"  # supplied by a partner / tip
