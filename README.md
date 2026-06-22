@@ -108,6 +108,7 @@ These principles are not decoration. They are encoded in the data model (see
 | [v1.0 Analyst Copilot](docs/v1.0_aip_assisted_analyst_copilot.md)| Local, propose-only AI assistance (AI proposes, analysts decide).|
 | [v1.1 Foundry Connection Spike](docs/v1.1_foundry_connection_spike.md)| Read-only Foundry connection scaffolding (mock by default).|
 | [v1.2 Foundry REST Connector](docs/v1.2_foundry_rest_connector.md)| Real read-only httpx REST connector to Foundry's v2 API.|
+| [v1.3 Foundry Read Endpoints](docs/v1.3_foundry_read_endpoints.md)| Admin-only, read-only Foundry data endpoints in the ORCA API.|
 | [Foundry connection setup](docs/foundry_connection_setup.md)| Manual procedure to test against a real Foundry tenant.|
 | [Demo walkthrough](docs/demo_walkthrough.md)         | End-to-end demo path across every v1.0 capability.     |
 | [Threat model](docs/threat_model.md)                 | Threats, mitigations, and non-goals.                   |
@@ -175,14 +176,22 @@ These principles are not decoration. They are encoded in the data model (see
   and `python -m app.foundry.health`). Disabled by default; **no credentials needed** for
   dev/CI; **no secrets committed**; not full sync and not live AIP. See
   [`docs/v1.1_foundry_connection_spike.md`](docs/v1.1_foundry_connection_spike.md).
-- **v1.2 — Foundry REST Connector (current).** A real, **read-only** connector
+- **v1.2 — Foundry REST Connector.** A real, **read-only** connector
   (`RestFoundryClient`, httpx) behind the v1.1 abstraction: OAuth2 client-credentials **or**
   pre-issued bearer-token auth, calling Foundry's documented **v2 ontology/object endpoints**
   (`GET /api/v2/ontologies` for the health check; object-type/object reads on demand).
   Default client when Foundry is enabled (`ORCA_FOUNDRY_CLIENT=rest`); still disabled by
-  default, still read-only, still secret-free in logs/errors, and still tested with **no live
-  tenant** (an injected mock transport). The first live call is a deliberate operator-run
-  manual test. See [`docs/v1.2_foundry_rest_connector.md`](docs/v1.2_foundry_rest_connector.md).
+  default, still read-only, still secret-free in logs/errors. **Verified read-only against the
+  live ORCA tenant** (auth + ontology + object-type + object reads via a user token); tests use
+  an injected mock transport (no live tenant).
+  See [`docs/v1.2_foundry_rest_connector.md`](docs/v1.2_foundry_rest_connector.md).
+- **v1.3 — Foundry Read Endpoints (current).** Admin-only, **read-only**
+  endpoints that surface the connector's reads inside the ORCA API
+  (`/integrations/foundry/discover`, `/object-types/{t}`, `/objects/{t}`, `/objects/{t}/{id}`)
+  — the foundation for an admin preview UI and, later, a guarded import. Every response carries
+  a `mode` (`mock`/`real`); the deterministic mock answers when Foundry is disabled (so dev/CI
+  need no tenant); non-admins get generic 403s; connector errors map to secret-free 400/502.
+  See [`docs/v1.3_foundry_read_endpoints.md`](docs/v1.3_foundry_read_endpoints.md).
 
 Collection ("Hunting Grounds") remains an interface only — no collection logic, no
 scraping, no autonomous hunting. ORCA stays evidence-first, lawful, and analyst-controlled
@@ -243,7 +252,7 @@ For PostgreSQL, seed the users after `alembic upgrade head` with `python -m app.
 # Backend lint + tests (from backend/)
 cd backend
 ruff check .
-python -m pytest -q                       # in-memory; 151 passing + 1 skipped (PG)
+python -m pytest -q                       # in-memory; 180 passing + 1 skipped (PG)
 
 # PostgreSQL integration test (optional; needs a migrated DB)
 ORCA_RUN_PG_IT=1 ORCA_POSTGRES_DSN=postgresql+psycopg://orca:orca@localhost:5432/orca \
