@@ -143,6 +143,17 @@ anyone: identifiers are leads for lawful follow-up, and de-anonymization (handle
 enforcement's job with legal process. Requires `READ_CASE_MATERIAL`; generating one is audited as
 `hunting.referral.generated`. This is the seam where ORCA's recon becomes a Project 1591 referral.
 
+### Per-identifier referral — the cross-venue case file
+
+`GET /api/v1/hunting/intel/identifier/referral?type=…&value=…` is the per-**identifier** counterpart:
+where the source referral is one venue, this assembles the case file for a single located identifier
+across the **whole** hunting ground — every monitored venue it appears in (each with its lawful
+basis), the text leads citing it, the identifiers it co-occurs with, and the relationships among
+them, with a ready-to-hand `summary_markdown`. It is the natural follow-on to the identifier pivot:
+locate an identifier everywhere, then hand LE the dossier. **No media** — pointers and metadata only.
+`READ_CASE_MATERIAL`; `404` if the identifier was never located; audited as
+`hunting.referral.identifier_generated`. In the UI it's a one-click action inside the pivot panel.
+
 ## On the cadence
 
 When the [continuous cadence](hunting_grounds_discovery.md#seeking-on-its-own--the-continuous-cadence)

@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import { IdentifierReferralButton } from "@/components/hunting/IdentifierReferralButton";
 import { Table, Td, Th, Tr } from "@/components/ui/Table";
 import { getHuntingIdentifierDossier } from "@/lib/api";
 import { humanize } from "@/lib/format";
@@ -158,6 +159,14 @@ function DossierDetail({ dossier }: { dossier: IdentifierDossier }) {
           </ul>
         </div>
       )}
+
+      <div className="border-t border-surface-border pt-3">
+        <div className="mb-1 text-xs font-medium text-ink-muted">
+          Hand to law enforcement{" "}
+          <span className="text-ink-faint">(this identifier&apos;s cross-venue case file)</span>
+        </div>
+        <IdentifierReferralButton entityType={dossier.entity_type} value={dossier.value} />
+      </div>
     </div>
   );
 }

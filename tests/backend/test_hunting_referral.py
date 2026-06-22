@@ -129,3 +129,77 @@ def test_referral_requires_read_capability(client):
     # Partners/viewers without READ_CASE_MATERIAL can't pull a referral... but viewers CAN read.
     # 'partner' (partner_export_viewer) lacks READ_CASE_MATERIAL → 403.
     assert client.get(f"{SRC}/{sid}/referral", headers={"X-ORCA-User": "partner"}).status_code == 403
+
+
+# --- per-identifier referral (the cross-venue case file for one identifier) ------
+
+IDREF = f"{PREFIX}/hunting/intel/identifier/referral"
+
+
+def _monitored_in(client, name, url, aor):
+    sid = client.post(
+        SRC,
+        json={"name": name, "url": url, "category": "escort_listing", "aor": aor},
+        headers=ANA,
+    ).json()["id"]
+    client.post(f"{SRC}/{sid}/authorize", json=AUTH, headers=ADMIN)
+    client.post(f"{SRC}/{sid}/monitor", headers=ADMIN)
+    return sid
+
+
+def test_identifier_referral_assembles_cross_venue_case_file(client):
+    a = _monitored_in(client, "RI listings", "https://ri.invalid/x", "Rhode Island")
+    b = _monitored_in(client, "CT listings", "https://ct.invalid/y", "Connecticut")
+    client.post(
+        f"{SRC}/{a}/leads",
+        json={"summary": "ad: call 401-555-0142, ask for @sky", "confidence": 0.5},
+        headers=ANA,
+    )
+    client.post(
+        f"{SRC}/{b}/leads",
+        json={"summary": "repost 401.555.0142, bitcoin only", "confidence": 0.4},
+        headers=ANA,
+    )
+
+    res = client.get(IDREF, params={"type": "phone_number", "value": "+14015550142"}, headers=ANA)
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["venue_count"] == 2
+    assert body["lead_count"] == 2
+    assert sorted(body["aors"]) == ["Connecticut", "Rhode Island"]
+    # Every venue's provenance + lawful basis travels with the dossier.
+    assert {s["name"] for s in body["sources"]} == {"RI listings", "CT listings"}
+    assert all(s["lawful_basis"] == AUTH["lawful_basis"] for s in body["sources"])
+    # The co-occurring handle is surfaced as a link candidate.
+    assert ("username", "sky") in {(c["entity_type"], c["value"]) for c in body["co_occurring"]}
+    # Renderable, no-media dossier (the package carries no media field, by construction).
+    assert body["summary_markdown"].startswith("# Referral dossier — identifier +14015550142")
+    assert "no media" in body["notice"].lower()
+    assert "media" not in body
+
+
+def test_identifier_referral_404_for_unlocated(client):
+    _monitored_in(client, "Solo", "https://solo.invalid", "Rhode Island")
+    res = client.get(IDREF, params={"type": "phone_number", "value": "+19998887777"}, headers=ANA)
+    assert res.status_code == 404
+
+
+def test_identifier_referral_is_audited(client):
+    a = _monitored_in(client, "RI", "https://ri.invalid/z", "Rhode Island")
+    client.post(f"{SRC}/{a}/leads", json={"summary": "call 401-555-0142", "confidence": 0.5}, headers=ANA)
+    client.get(IDREF, params={"type": "phone_number", "value": "+14015550142"}, headers=ANA)
+    entries = client.get(
+        f"{PREFIX}/audit?action_prefix=hunting.referral.identifier", headers=ADMIN
+    ).json()
+    assert any(e["action"] == "hunting.referral.identifier_generated" for e in entries)
+
+
+def test_identifier_referral_requires_read_capability(client):
+    a = _monitored_in(client, "RI", "https://ri.invalid/w", "Rhode Island")
+    client.post(f"{SRC}/{a}/leads", json={"summary": "call 401-555-0142", "confidence": 0.5}, headers=ANA)
+    res = client.get(
+        IDREF,
+        params={"type": "phone_number", "value": "+14015550142"},
+        headers={"X-ORCA-User": "partner"},
+    )
+    assert res.status_code == 403

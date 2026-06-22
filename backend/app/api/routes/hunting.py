@@ -38,6 +38,7 @@ from app.schemas.hunting import (
     HuntingWatchlistAdd,
     HuntingWatchlistEntry,
     IdentifierDossier,
+    IdentifierReferralPackage,
 )
 from app.schemas.hunting_escalation import (
     HuntingEscalationDecision,
@@ -118,6 +119,26 @@ def identifier_dossier(
     if dossier is None:
         raise HTTPException(status_code=404, detail="No such located identifier.")
     return dossier
+
+
+@router.get(
+    "/intel/identifier/referral",
+    response_model=IdentifierReferralPackage,
+    summary="Generate an LE referral dossier for one located identifier (cross-venue; no media)",
+)
+def identifier_referral(
+    type: EntityType = Query(..., description="Identifier type (e.g. phone, username, crypto_address)."),
+    value: str = Query(..., min_length=1, description="The identifier value to refer."),
+    principal: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> IdentifierReferralPackage:
+    """The per-identifier referral: assemble every monitored venue this one identifier was located
+    from (with lawful basis), the text leads, co-occurring identifiers, and relationships into a
+    dossier for LE. Pointers/metadata only — no media. `404` if never located. Audited."""
+    pkg = HuntingReferralService(uow).build_for_identifier(type, value, principal)
+    if pkg is None:
+        raise HTTPException(status_code=404, detail="No such located identifier.")
+    return pkg
 
 
 @router.post(

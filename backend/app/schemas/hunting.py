@@ -196,6 +196,33 @@ class IdentifierDossier(ORCAModel):
     co_occurring: list[CoOccurringIdentifier]  # identifiers sharing its leads (link candidates)
 
 
+class IdentifierReferralPackage(ORCAModel):
+    """A law-enforcement referral dossier centered on one located identifier.
+
+    Where ``HuntingReferralPackage`` is per-venue, this is per-identifier: it aggregates every
+    monitored venue a single phone/wallet/handle/.onion was located from (each with its lawful
+    basis), the text leads citing it, the identifiers it co-occurs with, and the relationship map
+    — the cross-venue case file for one actor/operation. No media, by construction.
+    """
+
+    entity_type: EntityType
+    value: str
+    generated_at: datetime
+    generated_by: str
+    venue_count: int
+    lead_count: int
+    aors: list[str]
+    sources: list[ReferralSource]  # the venues it was located from, with lawful basis
+    appearances: list[IdentifierAppearance]
+    co_occurring: list[CoOccurringIdentifier]
+    relationships: list[ReferralRelationship]
+    summary_markdown: str
+    notice: str = (
+        "Lawful OSINT referral. Contains pointers and metadata only — no media, no CSAM. "
+        "Identifiers are leads for lawful follow-up; de-anonymization requires legal process."
+    )
+
+
 class ReferralObservation(ORCAModel):
     id: UUID
     summary: str  # the text lead (observation notes)

@@ -704,6 +704,36 @@ export interface HuntingReferralPackage {
   notice: string;
 }
 
+export interface ReferralSource {
+  id: string;
+  name: string;
+  url: string;
+  category: HuntingSourceCategory;
+  aor: string;
+  status: HuntingSourceStatus;
+  lawful_basis: string | null;
+  access_method: string | null;
+  jurisdiction: string | null;
+  proposed_by: string;
+  authorized_by: string | null;
+}
+
+export interface IdentifierReferralPackage {
+  entity_type: EntityType;
+  value: string;
+  generated_at: string;
+  generated_by: string;
+  venue_count: number;
+  lead_count: number;
+  aors: string[];
+  sources: ReferralSource[];
+  appearances: IdentifierAppearance[];
+  co_occurring: CoOccurringIdentifier[];
+  relationships: ReferralRelationship[];
+  summary_markdown: string;
+  notice: string;
+}
+
 export type HuntingEscalationStatus = "open" | "reported" | "closed" | "dismissed";
 
 export interface HuntingEscalationTransition {

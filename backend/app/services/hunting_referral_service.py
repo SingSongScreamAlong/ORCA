@@ -18,9 +18,11 @@ from uuid import UUID
 
 from app.core.audit import new_audit_entry
 from app.core.security import Principal
+from app.models.enums import EntityType
 from app.repositories.uow import UnitOfWork
 from app.schemas.hunting import (
     HuntingReferralPackage,
+    IdentifierReferralPackage,
     ReferralEntity,
     ReferralObservation,
     ReferralRelationship,
@@ -96,12 +98,7 @@ class HuntingReferralService:
             )
             for o in observations
         ]
-        ref_source = ReferralSource(
-            id=source.id, name=source.name, url=source.url, category=source.category,
-            aor=source.aor, status=source.status, lawful_basis=source.lawful_basis,
-            access_method=source.access_method, jurisdiction=source.jurisdiction,
-            proposed_by=source.proposed_by, authorized_by=source.authorized_by,
-        )
+        ref_source = _to_referral_source(source)
         now = datetime.now(UTC)
         package = HuntingReferralPackage(
             source=ref_source,
@@ -116,6 +113,88 @@ class HuntingReferralService:
         )
         self._audit(principal, source.id, package)
         return package
+
+    def build_for_identifier(
+        self, entity_type: EntityType, value: str, principal: Principal
+    ) -> IdentifierReferralPackage | None:
+        """The per-identifier referral: assemble the cross-venue case file for one located
+        identifier — every monitored venue it appears in (with lawful basis), the text leads, the
+        identifiers it co-occurs with, and the relationships among them. ``None`` if never located.
+
+        Complements :meth:`build` (per-venue): this is the dossier for one phone/wallet/handle/
+        ``.onion`` across the whole hunting ground. Pointers and metadata only — no media. Audited.
+        """
+        intel = HuntingIntelService(self.uow)
+        dossier = intel.identifier_dossier(entity_type, value)
+        if dossier is None:
+            return None
+        subject = self.uow.entities.find_by_value(entity_type, value)  # resolved (dossier non-None)
+
+        # The distinct venues it was located from (in first-seen order), each with its lawful basis.
+        source_by_id = {s.id: s for s in intel.monitored_sources()}
+        seen_ids: list[UUID] = []
+        for a in dossier.appearances:
+            if a.source_id not in seen_ids:
+                seen_ids.append(a.source_id)
+        sources = [_to_referral_source(source_by_id[sid]) for sid in seen_ids if sid in source_by_id]
+
+        # Relationships among the identifier and the identifiers it co-occurs with.
+        cited = {subject.id}
+        for c in dossier.co_occurring:
+            entity = self.uow.entities.find_by_value(c.entity_type, c.value)
+            if entity is not None:
+                cited.add(entity.id)
+        relationships = []
+        for rel in self.uow.relationships.list(limit=_MAX):
+            if rel.source_entity_id in cited or rel.target_entity_id in cited:
+                s = self.uow.entities.get(rel.source_entity_id)
+                t = self.uow.entities.get(rel.target_entity_id)
+                if s is None or t is None:
+                    continue
+                relationships.append(
+                    ReferralRelationship(
+                        relationship_type=rel.relationship_type.value,
+                        source_value=s.value,
+                        target_value=t.value,
+                        confidence=rel.confidence,
+                        status=rel.status.value,
+                    )
+                )
+
+        now = datetime.now(UTC)
+        package = IdentifierReferralPackage(
+            entity_type=dossier.entity_type,
+            value=dossier.value,
+            generated_at=now,
+            generated_by=principal.username,
+            venue_count=dossier.venue_count,
+            lead_count=dossier.lead_count,
+            aors=dossier.aors,
+            sources=sources,
+            appearances=dossier.appearances,
+            co_occurring=dossier.co_occurring,
+            relationships=relationships,
+            summary_markdown=_render_identifier_markdown(dossier, sources, relationships, now),
+        )
+        self._audit_identifier(principal, package)
+        return package
+
+    def _audit_identifier(self, principal: Principal, package: IdentifierReferralPackage) -> None:
+        self.uow.audit.record(
+            new_audit_entry(
+                actor_id=principal.id,
+                action="hunting.referral.identifier_generated",
+                target_type="hunting_identifier",
+                target_id=f"{package.entity_type.value}:{package.value}",
+                case_id=None,
+                context={
+                    "identifier": package.value,
+                    "type": package.entity_type.value,
+                    "venues": package.venue_count,
+                    "leads": package.lead_count,
+                },
+            )
+        )
 
     def _audit(self, principal: Principal, source_id: UUID, package: HuntingReferralPackage) -> None:
         self.uow.audit.record(
@@ -132,6 +211,70 @@ class HuntingReferralService:
                 },
             )
         )
+
+
+def _to_referral_source(source) -> ReferralSource:
+    return ReferralSource(
+        id=source.id, name=source.name, url=source.url, category=source.category,
+        aor=source.aor, status=source.status, lawful_basis=source.lawful_basis,
+        access_method=source.access_method, jurisdiction=source.jurisdiction,
+        proposed_by=source.proposed_by, authorized_by=source.authorized_by,
+    )
+
+
+def _render_identifier_markdown(dossier, sources, relationships, now) -> str:
+    lines = [
+        f"# Referral dossier — identifier {dossier.value}",
+        "",
+        "_Lawful OSINT referral. Pointers and metadata only — no media. Identifiers are leads for "
+        "lawful follow-up; de-anonymization requires legal process._",
+        "",
+        "## Subject identifier",
+        f"- **Type:** `{dossier.entity_type.value}` · **Value:** {dossier.value}",
+        f"- **Located in:** {dossier.venue_count} venue(s) across {len(dossier.aors)} AOR(s)"
+        f" ({', '.join(dossier.aors) or '—'})",
+        f"- **Text leads citing it:** {dossier.lead_count}",
+        f"- **Generated:** {now.isoformat()}",
+        "",
+        f"## Venues / provenance ({len(sources)})",
+    ]
+    if sources:
+        for s in sources:
+            lines.append(
+                f"- **{s.name}** (`{s.url}`) — AOR {s.aor} · {s.category.value}"
+                f" · status {s.status.value}"
+            )
+            lines.append(
+                f"  - Lawful basis: {s.lawful_basis or '—'} · Access: {s.access_method or '—'}"
+                f" · Jurisdiction: {s.jurisdiction or '—'}"
+            )
+    else:
+        lines.append("- (none)")
+    lines += ["", f"## Text leads ({len(dossier.appearances)})"]
+    if dossier.appearances:
+        lines += [
+            f"- {a.observed_at.date()} — [{a.source_name}] {a.summary}" for a in dossier.appearances
+        ]
+    else:
+        lines.append("- (none)")
+    lines += ["", f"## Co-occurring identifiers ({len(dossier.co_occurring)})"]
+    if dossier.co_occurring:
+        lines += [
+            f"- `{c.entity_type.value}` — {c.value}  (shares {c.shared_leads} lead(s))"
+            for c in dossier.co_occurring
+        ]
+    else:
+        lines.append("- (none)")
+    lines += ["", f"## Relationships ({len(relationships)})"]
+    if relationships:
+        lines += [
+            f"- {r.source_value} —[{r.relationship_type}]→ {r.target_value} "
+            f"(confidence {r.confidence:.2f}, {r.status})"
+            for r in relationships
+        ]
+    else:
+        lines.append("- (none)")
+    return "\n".join(lines)
 
 
 def _render_markdown(source, identifiers, observations, relationships, now) -> str:
