@@ -61,8 +61,14 @@ what it is *not* yet, so technical, security, and partner reviewers can calibrat
 
 ## Functional scope
 
-- Collection ("Hunting Grounds") is an **interface only** — no scraping, dark-web
-  collection, or autonomous hunting, by design.
+- **Hunting Grounds** is now a **governed reconnaissance framework**, not an empty interface:
+  an authorization-first source registry, AOR picture, propose-only lead→review seam, and a
+  report-only CSAM hard-stop (see [`hunting_grounds_charter.md`](hunting_grounds_charter.md)).
+  But there is **no live external collector** — no scraping, dark-web collection, or autonomous
+  hunting against outside sources. Pointing it at a real source is **gated** on a named lawful
+  source + legal sign-off + a CSAM-safe fetch design, by design. The registry/escalations are
+  in-memory only (not yet persisted to PostgreSQL), and the NCMEC CyberTipline filing is a
+  tracked **manual** step (ORCA does not integrate the NCMEC API).
 - `closeCase` / `archiveCase` exist in the Foundry action mapping but the corresponding
   case-lifecycle endpoint is a planned ORCA addition.
 - File upload stores bytes locally (in-memory dev store, or filesystem content store for

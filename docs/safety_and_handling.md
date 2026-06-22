@@ -113,9 +113,12 @@ Consistent with the milestone scope, ORCA v0.2 does **not** implement:
 - autonomous "hunting",
 - or any external integrations.
 
-Collection ("Hunting Grounds") remains interface-only (see
-[`architecture.md`](architecture.md) and `backend/app/collection`). When collection is
-built, collectors will be ordinary, audited producers of observations and evidence —
+Collection ("Hunting Grounds") is now a **governed reconnaissance framework** — an
+authorization-first source registry, a propose-only lead→review seam, and a report-only CSAM
+hard-stop (see [`hunting_grounds_charter.md`](hunting_grounds_charter.md)). It still performs
+**no live external collection**: no scraping, dark-web, or autonomous hunting against outside
+sources, until a named lawful source + legal sign-off + a CSAM-safe fetch design are in place.
+When a collector is built it will be an ordinary, audited producer of *proposed* observations —
 bound by every boundary on this page.
 
 ## Access is enforced by the system (v0.4)
