@@ -10,6 +10,9 @@ Run locally with:
 
 from __future__ import annotations
 
+import contextlib
+from collections.abc import AsyncIterator
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -19,6 +22,22 @@ from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.security import AuthenticationError
 from app.services.errors import NotFoundError, PermissionDenied, ValidationError
+
+
+@contextlib.asynccontextmanager
+async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """Start the continuous discovery cadence on startup, stop it on shutdown.
+
+    The scheduler is disabled by default and ``start()`` is a no-op unless
+    ``ORCA_HUNTING_DISCOVERY_SCHEDULE_ENABLED`` is set, so this is inert in dev/CI.
+    """
+    from app.services.hunting_scheduler import scheduler
+
+    scheduler.start()
+    try:
+        yield
+    finally:
+        await scheduler.stop()
 
 
 def create_app() -> FastAPI:
@@ -33,6 +52,7 @@ def create_app() -> FastAPI:
         ),
         docs_url="/docs",
         openapi_url="/openapi.json",
+        lifespan=_lifespan,
     )
 
     app.add_middleware(

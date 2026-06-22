@@ -22,6 +22,7 @@ from app.schemas.hunting import (
     HuntingDecision,
     HuntingDiscoveryResult,
     HuntingDiscoveryRun,
+    HuntingDiscoveryScheduleStatus,
     HuntingDiscoveryStatus,
     HuntingDiscoverySweepResult,
     HuntingLeadCreate,
@@ -46,6 +47,7 @@ from app.services.hunting_discovery import (
 from app.services.hunting_escalation_service import HuntingEscalationService
 from app.services.hunting_lead_service import HuntingLeadService
 from app.services.hunting_registry_service import HuntingRegistryService
+from app.services.hunting_scheduler import scheduler
 
 router = APIRouter(prefix="/hunting", tags=["hunting-grounds"])
 
@@ -138,6 +140,74 @@ def auto_discovery_sweep(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except DiscoveryError as exc:  # network/HTTP/parse — message is written to be secret-free
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+# --- continuous (scheduled) discovery — the autonomous cadence -------------------
+
+
+@router.get(
+    "/discovery/schedule",
+    response_model=HuntingDiscoveryScheduleStatus,
+    summary="Continuous discovery posture (enabled/paused/running, interval, last run)",
+)
+def discovery_schedule_status(
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+) -> HuntingDiscoveryScheduleStatus:
+    return scheduler.status()
+
+
+@router.post(
+    "/discovery/schedule/pause",
+    response_model=HuntingDiscoveryScheduleStatus,
+    summary="Kill-switch: pause the continuous discovery cadence (admin-only)",
+)
+def pause_discovery_schedule(
+    principal: Principal = Depends(current_principal),
+) -> HuntingDiscoveryScheduleStatus:
+    _require_admin(principal)
+    scheduler.paused = True
+    return scheduler.status()
+
+
+@router.post(
+    "/discovery/schedule/resume",
+    response_model=HuntingDiscoveryScheduleStatus,
+    summary="Resume the continuous discovery cadence (admin-only)",
+)
+def resume_discovery_schedule(
+    principal: Principal = Depends(current_principal),
+) -> HuntingDiscoveryScheduleStatus:
+    _require_admin(principal)
+    scheduler.paused = False
+    return scheduler.status()
+
+
+@router.post(
+    "/discovery/schedule/run-now",
+    response_model=HuntingDiscoverySweepResult,
+    summary="Trigger one discovery sweep immediately and record it (admin-only)",
+)
+def run_discovery_schedule_now(
+    principal: Principal = Depends(current_principal),
+    uow: UnitOfWork = Depends(get_uow),
+) -> HuntingDiscoverySweepResult:
+    """Run the cadence's sweep once, right now, attributed to the triggering administrator.
+
+    Honours the same config as the loop (watchlist + per-AOR limit) and updates the schedule's
+    last-run record. Returns `400` when disabled/misconfigured, `502` on an upstream failure.
+    """
+    _require_admin(principal)
+    config = scheduler.config()
+    try:
+        sweep = HuntingDiscoveryService(uow).sweep(principal, limit_per_aor=config.limit_per_aor)
+    except (DiscoveryNotEnabled, DiscoveryConfigError) as exc:
+        scheduler.record_error(str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except DiscoveryError as exc:
+        scheduler.record_error(str(exc))
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    scheduler.record_run(sweep)
+    return sweep
 
 
 @router.get("/sources", response_model=list[HuntingSourceRead], summary="List Hunting Grounds sources")

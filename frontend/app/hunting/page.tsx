@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/Card";
 import { BackendNotice, EmptyState } from "@/components/ui/States";
 import { PageIntro } from "@/components/ui/PageIntro";
 import { AutoDiscoveryPanel } from "@/components/hunting/AutoDiscoveryPanel";
+import { DiscoverySchedulePanel } from "@/components/hunting/DiscoverySchedulePanel";
 import { EscalationsPanel } from "@/components/hunting/EscalationsPanel";
 import { FlagConcernForm } from "@/components/hunting/FlagConcernForm";
 import { LogLeadForm } from "@/components/hunting/LogLeadForm";
@@ -10,6 +11,7 @@ import { RunDiscoveryForm } from "@/components/hunting/RunDiscoveryForm";
 import { SourceControls } from "@/components/hunting/SourceControls";
 import { Table, Td, Th, Tr } from "@/components/ui/Table";
 import {
+  getHuntingDiscoverySchedule,
   getHuntingDiscoveryStatus,
   getHuntingEscalations,
   getHuntingSources,
@@ -32,11 +34,12 @@ const STATUS_STYLE: Record<HuntingSourceStatus, string> = {
 };
 
 export default async function HuntingPage() {
-  const [sources, summary, escalations, discoveryStatus] = await Promise.all([
+  const [sources, summary, escalations, discoveryStatus, scheduleStatus] = await Promise.all([
     getHuntingSources(),
     getHuntingSummary(),
     getHuntingEscalations(),
     getHuntingDiscoveryStatus(),
+    getHuntingDiscoverySchedule(),
   ]);
 
   if (!sources.ok) {
@@ -78,6 +81,13 @@ export default async function HuntingPage() {
           defaultAor={DEFAULT_AOR}
           status={discoveryStatus.ok ? discoveryStatus.data : null}
         />
+      </Card>
+
+      <Card
+        title="Continuous discovery"
+        subtitle="The autonomous cadence — ORCA sweeps the watchlist on an interval, on its own. Still proposes only; administrators hold a runtime kill-switch. Disabled by default."
+      >
+        <DiscoverySchedulePanel status={scheduleStatus.ok ? scheduleStatus.data : null} />
       </Card>
 
       <Card

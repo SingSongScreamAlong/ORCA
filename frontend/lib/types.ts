@@ -535,6 +535,20 @@ export interface HuntingDiscoveryStatus {
   aors: string[]; // standing AOR watchlist a sweep covers by default
 }
 
+export interface HuntingDiscoveryScheduleStatus {
+  enabled: boolean;
+  interval_minutes: number;
+  limit_per_aor: number;
+  paused: boolean;
+  running: boolean;
+  runs: number;
+  last_run_at: string | null;
+  last_error: string | null;
+  last_total_proposed: number | null;
+  last_total_skipped: number | null;
+  last_aors: string[];
+}
+
 export type HuntingEscalationStatus = "open" | "reported" | "closed" | "dismissed";
 
 export interface HuntingEscalationTransition {

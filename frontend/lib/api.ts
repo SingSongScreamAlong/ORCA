@@ -24,6 +24,7 @@ import type {
   FoundryObjectsResult,
   GraphView,
   HuntingDiscoveryResult,
+  HuntingDiscoveryScheduleStatus,
   HuntingDiscoveryStatus,
   HuntingDiscoverySweepResult,
   HuntingEscalation,
@@ -219,6 +220,19 @@ export const runAutoDiscoverySweep = (aors?: string[], limit = 10) => {
     {},
   );
 };
+
+// Continuous (scheduled) discovery — the autonomous cadence + kill-switch.
+export const getHuntingDiscoverySchedule = () =>
+  apiGet<HuntingDiscoveryScheduleStatus>("/hunting/discovery/schedule");
+
+export const pauseHuntingSchedule = () =>
+  apiSend<HuntingDiscoveryScheduleStatus>("/hunting/discovery/schedule/pause", "POST", {});
+
+export const resumeHuntingSchedule = () =>
+  apiSend<HuntingDiscoveryScheduleStatus>("/hunting/discovery/schedule/resume", "POST", {});
+
+export const runHuntingScheduleNow = () =>
+  apiSend<HuntingDiscoverySweepResult>("/hunting/discovery/schedule/run-now", "POST", {});
 
 // Suspected-minor / CSAM escalation — report-only, never-store.
 export const getHuntingEscalations = (status?: HuntingEscalationStatus) =>

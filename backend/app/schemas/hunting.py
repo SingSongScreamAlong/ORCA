@@ -158,3 +158,24 @@ class HuntingDiscoveryStatus(ORCAModel):
     aors: list[str] = Field(
         default_factory=list, description="Standing AOR watchlist a sweep covers by default."
     )
+
+
+class HuntingDiscoveryScheduleStatus(ORCAModel):
+    """Posture of the continuous (scheduled) discovery loop — the autonomous cadence.
+
+    ``enabled`` reflects ``ORCA_HUNTING_DISCOVERY_SCHEDULE_ENABLED`` (config gate); ``paused`` is
+    the runtime kill-switch an administrator can toggle; ``running`` is whether the loop task is
+    live in this process. The ``last_*`` fields summarize the most recent automatic/triggered run.
+    """
+
+    enabled: bool
+    interval_minutes: int
+    limit_per_aor: int
+    paused: bool
+    running: bool
+    runs: int
+    last_run_at: datetime | None = None
+    last_error: str | None = None
+    last_total_proposed: int | None = None
+    last_total_skipped: int | None = None
+    last_aors: list[str] = Field(default_factory=list)

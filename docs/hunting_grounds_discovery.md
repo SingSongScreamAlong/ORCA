@@ -50,6 +50,9 @@ Selected with `ORCA_HUNTING_DISCOVERY_PROVIDER`:
 | `ORCA_HUNTING_DISCOVERY_URL_FIELD`    | —                  | Per-item field for the venue URL. Default `url`.                   |
 | `ORCA_HUNTING_DISCOVERY_CATEGORY`     | —                  | Default category for candidates. Default `escort_listing`.         |
 | `ORCA_HUNTING_DISCOVERY_AORS`         | —                  | Comma-separated AOR **watchlist** a sweep covers by default.        |
+| `ORCA_HUNTING_DISCOVERY_SCHEDULE_ENABLED` | —              | Start the continuous cadence. Default `false`.                     |
+| `ORCA_HUNTING_DISCOVERY_SCHEDULE_INTERVAL_MINUTES` | —     | Sweep interval (≥1; a 60s floor applies). Default `60`.            |
+| `ORCA_HUNTING_DISCOVERY_SCHEDULE_LIMIT` | —                | Candidates per AOR each automatic sweep. Default `10`.             |
 
 The configuration is read into a frozen `HuntingDiscoveryConfig`. Secrets are redacted in
 `repr`/`safe_dict`; the API key never appears in logs or error messages.
@@ -61,6 +64,29 @@ operator can cover the whole region at once. The list comes from an explicit cal
 falls back to the standing watchlist (`ORCA_HUNTING_DISCOVERY_AORS`). The provider is built
 once and reused; because the registry store updates synchronously, a venue found for an earlier
 AOR is skipped as a duplicate if it recurs later **in the same sweep**.
+
+## Seeking on its own — the continuous cadence
+
+The strongest expression of "let the machine do the trawling": when
+`ORCA_HUNTING_DISCOVERY_SCHEDULE_ENABLED=true`, ORCA runs a sweep across the watchlist on a fixed
+interval, unattended. It inherits every guardrail — it **only proposes**, reaches out only
+through the **configured lawful source**, and is **CSAM-safe**. Two gates keep it controllable:
+
+- **Config gate.** The loop does not start unless the schedule is enabled; it is off in dev/CI.
+- **Runtime kill-switch.** An administrator can `pause` (and `resume`) the cadence at any time
+  without a redeploy. A paused loop skips its ticks but stays resident.
+
+Each automatic run is attributed to a clear `system` actor and recorded via the sweep audit, so an
+unattended cadence is still fully accountable. The loop is thin — it sleeps the interval and calls
+the same run path as the admin **run now** trigger, so manual and automatic runs behave identically.
+
+Schedule API (all under `/api/v1/hunting/discovery/schedule`):
+
+- `GET /schedule` — posture (enabled, paused, running, interval, run count, last run). Readable
+  with `READ_CASE_MATERIAL`.
+- `POST /schedule/pause` · `POST /schedule/resume` — the kill-switch (admin-only).
+- `POST /schedule/run-now` — run one sweep immediately, attributed to the triggering admin
+  (admin-only); `400`/`502` mirror the sweep endpoint.
 
 ## Idempotent re-runs — URL normalization
 
