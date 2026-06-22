@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.api.deps import current_principal, get_uow, require
 from app.core.rbac import Capability, Role
 from app.core.security import Principal
-from app.models.enums import HuntingEscalationStatus, HuntingSourceStatus
+from app.models.enums import EntityType, HuntingEscalationStatus, HuntingSourceStatus
 from app.repositories.uow import UnitOfWork
 from app.schemas.hunting import (
     HuntingAuthorize,
@@ -37,6 +37,7 @@ from app.schemas.hunting import (
     HuntingSummary,
     HuntingWatchlistAdd,
     HuntingWatchlistEntry,
+    IdentifierDossier,
 )
 from app.schemas.hunting_escalation import (
     HuntingEscalationDecision,
@@ -97,6 +98,26 @@ def hunting_intel(
     """The common operating picture: which located identifiers recur across two or more monitored
     venues (the strongest case-building leads). Read-only — proposes nothing."""
     return HuntingIntelService(uow).picture(aor)
+
+
+@router.get(
+    "/intel/identifier",
+    response_model=IdentifierDossier,
+    summary="Pivot: everywhere one located identifier appears across monitored venues",
+)
+def identifier_dossier(
+    type: EntityType = Query(..., description="Identifier type (e.g. phone, username, crypto_address)."),
+    value: str = Query(..., min_length=1, description="The identifier value to pivot on."),
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> IdentifierDossier:
+    """Where does this one phone/wallet/handle/.onion appear? Returns every monitored venue it was
+    located from, the text leads, the AORs, and the identifiers it co-occurs with — the per-identifier
+    pivot that assembles an LE referral. Read-only; `404` if the identifier was never located."""
+    dossier = HuntingIntelService(uow).identifier_dossier(type, value)
+    if dossier is None:
+        raise HTTPException(status_code=404, detail="No such located identifier.")
+    return dossier
 
 
 @router.post(

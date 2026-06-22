@@ -40,6 +40,7 @@ import type {
   HuntingSourceStatus,
   HuntingSummary,
   HuntingWatchlistEntry,
+  IdentifierDossier,
   MembershipStatus,
   Observation,
   Relationship,
@@ -179,6 +180,11 @@ export const getHuntingSummary = () => apiGet<HuntingSummary>("/hunting/summary"
 
 export const getHuntingIntel = (aor?: string) =>
   apiGet<HuntingIntelPicture>(`/hunting/intel${aor ? `?aor=${encodeURIComponent(aor)}` : ""}`);
+
+export const getHuntingIdentifierDossier = (entityType: string, value: string) =>
+  apiGet<IdentifierDossier>(
+    `/hunting/intel/identifier?type=${encodeURIComponent(entityType)}&value=${encodeURIComponent(value)}`,
+  );
 
 export const proposeHuntingLinks = (aor?: string) =>
   apiSend<HuntingLinkResult>(

@@ -636,6 +636,33 @@ export interface HuntingIntelPicture {
   top_identifiers: IntelIdentifier[];
 }
 
+export interface IdentifierAppearance {
+  source_id: string;
+  source_name: string;
+  source_url: string;
+  aor: string;
+  observation_id: string;
+  summary: string;
+  observed_at: string;
+  status: string;
+}
+
+export interface CoOccurringIdentifier {
+  entity_type: EntityType;
+  value: string;
+  shared_leads: number;
+}
+
+export interface IdentifierDossier {
+  entity_type: EntityType;
+  value: string;
+  venue_count: number;
+  lead_count: number;
+  aors: string[];
+  appearances: IdentifierAppearance[];
+  co_occurring: CoOccurringIdentifier[];
+}
+
 export interface ReferralObservation {
   id: string;
   summary: string;

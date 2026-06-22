@@ -15,9 +15,16 @@ from __future__ import annotations
 from collections import defaultdict
 from uuid import UUID
 
-from app.models.enums import HuntingSourceStatus
+from app.models.enums import EntityType, HuntingSourceStatus
 from app.repositories.uow import UnitOfWork
-from app.schemas.hunting import HuntingIntelPicture, HuntingSourceRead, IntelIdentifier
+from app.schemas.hunting import (
+    CoOccurringIdentifier,
+    HuntingIntelPicture,
+    HuntingSourceRead,
+    IdentifierAppearance,
+    IdentifierDossier,
+    IntelIdentifier,
+)
 from app.services.hunting_lead_service import hunting_collector_marker
 
 _MAX = 5000  # recon scale
@@ -95,4 +102,64 @@ class HuntingIntelService:
             cross_venue_count=len(cross),
             cross_venue=cross[:25],
             top_identifiers=top[:10],
+        )
+
+    def identifier_dossier(
+        self, entity_type: EntityType, value: str
+    ) -> IdentifierDossier | None:
+        """Pivot on one located identifier: every monitored venue it appears in, the text leads,
+        the AORs, and the identifiers it co-occurs with. ``None`` if no such identifier was located.
+
+        This is the per-identifier axis that complements the AOR picture (what recurs) and the
+        per-source referral (one venue) — the answer to "where is this one phone/handle/wallet?"
+        for an analyst assembling an LE referral. Read-only; pointers and metadata only.
+        """
+        entity = self.uow.entities.find_by_value(entity_type, value)
+        if entity is None:
+            return None
+
+        appearances: list[IdentifierAppearance] = []
+        aors: set[str] = set()
+        co_counts: dict[UUID, int] = defaultdict(int)  # co-occurring entity id -> shared leads
+        for source in self.monitored_sources():
+            marker = hunting_collector_marker(source.id)
+            for obs in self.uow.observations.list(collector=marker, limit=_MAX):
+                if entity.id not in obs.entity_ids:
+                    continue
+                appearances.append(
+                    IdentifierAppearance(
+                        source_id=source.id,
+                        source_name=source.name,
+                        source_url=source.url,
+                        aor=source.aor,
+                        observation_id=obs.id,
+                        summary=obs.notes or "",
+                        observed_at=obs.timestamp,
+                        status=obs.status.value,
+                    )
+                )
+                aors.add(source.aor)
+                for other in obs.entity_ids:
+                    if other != entity.id:
+                        co_counts[other] += 1
+
+        appearances.sort(key=lambda a: a.observed_at)
+        co_occurring: list[CoOccurringIdentifier] = []
+        for oid, shared in sorted(co_counts.items(), key=lambda kv: kv[1], reverse=True):
+            other = self.uow.entities.get(oid)
+            if other is not None:
+                co_occurring.append(
+                    CoOccurringIdentifier(
+                        entity_type=other.entity_type, value=other.value, shared_leads=shared
+                    )
+                )
+
+        return IdentifierDossier(
+            entity_type=entity.entity_type,
+            value=entity.value,
+            venue_count=len({a.source_id for a in appearances}),
+            lead_count=len(appearances),
+            aors=sorted(aors),
+            appearances=appearances,
+            co_occurring=co_occurring[:25],
         )

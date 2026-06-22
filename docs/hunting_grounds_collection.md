@@ -112,6 +112,16 @@ returns pointers/metadata only. The LE referral dossier is enriched with the sam
 located identifier carries a `venue_count`, and cross-venue ones (`≥2`) are flagged in the markdown
 and the UI. `READ_CASE_MATERIAL`.
 
+### Identifier pivot — "where is this one?"
+
+`GET /api/v1/hunting/intel/identifier?type=…&value=…` is the per-identifier axis of the picture:
+given one located identifier, it returns **every** monitored venue it appears in (with the source,
+AOR, text lead, and observation status), the distinct AORs, and the identifiers it **co-occurs**
+with (link candidates, ranked by shared leads). This answers the operator's core question — *where
+are this phone/wallet/handle/`.onion`'s listings and posts?* — so an analyst can assemble an LE
+referral. `404` if the identifier was never located. Read-only; pointers/metadata only.
+`READ_CASE_MATERIAL`. In the UI, selecting any cross-venue identifier expands its dossier in place.
+
 ## Cross-venue link proposal (intelligence → review queue)
 
 `POST /api/v1/hunting/links/propose?aor=…` turns the cross-venue intelligence into reviewable case

@@ -161,6 +161,41 @@ class HuntingIntelPicture(ORCAModel):
     top_identifiers: list[IntelIdentifier]  # most-referenced overall
 
 
+class IdentifierAppearance(ORCAModel):
+    """One located sighting of an identifier — which monitored venue, where, and the text lead."""
+
+    source_id: UUID
+    source_name: str
+    source_url: str
+    aor: str
+    observation_id: UUID
+    summary: str
+    observed_at: datetime
+    status: str
+
+
+class CoOccurringIdentifier(ORCAModel):
+    """An identifier located alongside the subject in the same lead(s) — a link candidate."""
+
+    entity_type: EntityType
+    value: str
+    shared_leads: int  # how many of the subject's leads this identifier also appears in
+
+
+class IdentifierDossier(ORCAModel):
+    """Everywhere one located identifier appears across monitored venues — the pivot answering
+    'where is this phone/wallet/handle/.onion?' for an LE referral. Pointers/metadata only; no
+    media. ``canonical`` notes the resolved type/value (the lookup is case/format-tolerant)."""
+
+    entity_type: EntityType
+    value: str
+    venue_count: int  # distinct monitored venues it was located from
+    lead_count: int  # total leads referencing it
+    aors: list[str]  # distinct AORs it appears in
+    appearances: list[IdentifierAppearance]
+    co_occurring: list[CoOccurringIdentifier]  # identifiers sharing its leads (link candidates)
+
+
 class ReferralObservation(ORCAModel):
     id: UUID
     summary: str  # the text lead (observation notes)
