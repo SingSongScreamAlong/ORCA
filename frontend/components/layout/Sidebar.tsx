@@ -80,6 +80,17 @@ export function Sidebar() {
           Foundry <span className="text-[0.65rem] text-ink-faint">(admin)</span>
         </Link>
         <Link
+          href="/audit"
+          className={[
+            "block rounded-md px-3 py-2 text-sm transition-colors",
+            pathname.startsWith("/audit")
+              ? "bg-accent-soft font-medium text-accent"
+              : "text-ink-muted hover:bg-surface-sunken hover:text-ink",
+          ].join(" ")}
+        >
+          System Audit <span className="text-[0.65rem] text-ink-faint">(admin)</span>
+        </Link>
+        <Link
           href="/safety"
           className={[
             "block rounded-md px-3 py-2 text-sm transition-colors",
