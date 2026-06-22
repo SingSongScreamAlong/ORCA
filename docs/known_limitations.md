@@ -18,16 +18,17 @@ what it is *not* yet, so technical, security, and partner reviewers can calibrat
 - **Read-only connection verified; no sync.** v0.9 is a local ontology **specification and
   export** (`foundry/*.json`). v1.1 added read-only connection **scaffolding**; v1.2 adds a
   real, **read-only** httpx **REST connector** (`RestFoundryClient`) over Foundry's v2 API.
-  This has been **verified against the live ORCA tenant** (`orca.usw-23.palantirfoundry.com`):
-  with a Foundry user token it authenticated and listed ontology metadata (`ok: true`,
-  2 ontologies incl. the ORCA Ontology). Caveats that remain: it is **disabled by default and
-  read-only**; the **client-credentials grant is not available on the tenant's current
-  enrollment plan**, so the verified path uses a **user token** (`ORCA_FOUNDRY_TOKEN`) — the
-  connector supports client-credentials and will use it once the plan allows, no code change;
-  reading individual **object records** depends on object types being published into the
-  ontology and is unit-tested but not yet confirmed against live objects. There is **no
-  production write path, no full sync, and no data movement**. An OSDK-based path remains a
-  selectable placeholder (`ORCA_FOUNDRY_CLIENT=sdk`).
+  This has been **verified end to end against the live ORCA tenant**
+  (`orca.usw-23.palantirfoundry.com`): with a Foundry user token it authenticated, listed
+  ontologies (2, incl. the ORCA Ontology), read object-type metadata, and read object records.
+  Caveats that remain: it is **disabled by default and read-only**; the **client-credentials
+  grant is not available on the tenant's current enrollment plan**, so the verified path uses a
+  **user token** (`ORCA_FOUNDRY_TOKEN`) — the connector supports client-credentials and will
+  use it once the plan allows, no code change; and the live ORCA Ontology currently holds only
+  **Palantir's stock example objects** — ORCA's own object types are **not yet published into
+  Foundry**, so the verified object reads were against example data, not ORCA domain objects.
+  There is **no production write path, no full sync, and no data movement**. An OSDK-based path
+  remains a selectable placeholder (`ORCA_FOUNDRY_CLIENT=sdk`).
 - **No live AIP integration.** v1.0's Copilot runs on a local, deterministic **mock
   provider**; AIP is a future provider behind the `AiProvider` seam.
 
