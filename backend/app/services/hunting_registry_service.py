@@ -60,7 +60,9 @@ def normalize_url(url: str) -> str:
         return raw.rstrip("/").lower()
     if host.startswith("www."):
         host = host[4:]
-    port = f":{parsed.port}" if parsed.port and parsed.port not in (80, 443) else ""
+    # Drop only the *scheme's own* default port (so http://h:443 stays distinct from http://h).
+    default_port = {"http": 80, "https": 443}.get(parsed.scheme)
+    port = f":{parsed.port}" if parsed.port and parsed.port != default_port else ""
     path = parsed.path.rstrip("/")
     query = f"?{parsed.query}" if parsed.query else ""
     return f"{parsed.scheme}://{host}{port}{path}{query}"

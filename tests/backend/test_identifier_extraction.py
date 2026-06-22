@@ -51,7 +51,8 @@ def test_extracts_email_crypto_onion_url_handle():
     assert (EntityType.EMAIL, "jane.doe@proton.me") in got
     assert (EntityType.USERNAME, "vendor_99") in got
     assert (EntityType.CRYPTO_ADDRESS, "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq") in got
-    assert (EntityType.CRYPTO_ADDRESS, "0xAbC0000000000000000000000000000000000000") in got
+    # ETH addresses are lower-cased so checksummed/mixed-case variants dedup together.
+    assert (EntityType.CRYPTO_ADDRESS, "0xabc0000000000000000000000000000000000000") in got
     assert (EntityType.ONION_SERVICE, "abcdefghij234567.onion") in got
     assert any(t == EntityType.URL and "example.invalid/ad" in v for t, v in got)
 

@@ -277,10 +277,11 @@ class HttpDiscoveryProvider:
         self._http = http_client  # injectable httpx.Client for tests
 
     def _client(self):
+        # Returns (client, should_close): an injected client is owned by the caller and left
+        # open; an internally-built one is closed after the request to avoid socket/fd leaks.
         if self._http is not None:
-            return self._http
-        self._http = _build_http_client(self.config.tor_proxy, DiscoveryConnectionError)
-        return self._http
+            return self._http, False
+        return _build_http_client(self.config.tor_proxy, DiscoveryConnectionError), True
 
     def discover(self, aor: str, *, limit: int = _DEFAULT_LIMIT) -> list[HuntingDiscoveryCandidate]:
         n = max(1, min(limit, _MAX_LIMIT))
@@ -288,13 +289,17 @@ class HttpDiscoveryProvider:
         if self.config.api_key:
             headers["Authorization"] = f"Bearer {self.config.api_key}"
         params = {"aor": aor, "limit": str(n)}
+        client, should_close = self._client()
         try:
-            resp = self._client().get(self.config.url, headers=headers, params=params)
+            resp = client.get(self.config.url, headers=headers, params=params)
         except Exception as exc:  # noqa: BLE001 — surfaced as a safe connection error
             host = self.config.base_host() or "the discovery source"
             raise DiscoveryConnectionError(
                 f"Discovery request to {host} failed (network error)."
             ) from exc
+        finally:
+            if should_close:
+                client.close()
         if resp.status_code >= 400:
             # Never echo the request (it carries the API key) — only a safe summary.
             raise DiscoveryConnectionError(

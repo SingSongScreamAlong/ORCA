@@ -44,8 +44,14 @@ export function CollectionPanel({ status }: { status: HuntingCollectionStatus | 
       <ProviderState status={status} />
       <div className="flex flex-wrap items-end gap-2">
         <div>
-          <label className="mb-1 block text-xs font-medium text-ink-muted">Max leads / source</label>
+          <label
+            htmlFor="collection-max-leads"
+            className="mb-1 block text-xs font-medium text-ink-muted"
+          >
+            Max leads / source
+          </label>
           <input
+            id="collection-max-leads"
             type="number"
             min={1}
             max={50}

@@ -31,9 +31,10 @@ from app.services.hunting_registry_service import HuntingRegistryService
 _MAX = 1000  # recon scale; a source's lead volume is small relative to the case store
 
 
-def _marker(source_name: str) -> str:
-    # The lead service stamps observations from a hunting source with this collector.
-    return f"hunting-grounds:{source_name}"
+def _marker(source_id: UUID) -> str:
+    # The lead service stamps observations from a hunting source with this collector (by the
+    # source's immutable id, so a rename/collision never splits or merges a source's leads).
+    return f"hunting-grounds:{source_id}"
 
 
 class HuntingReferralService:
@@ -43,11 +44,10 @@ class HuntingReferralService:
     def build(self, source_id: UUID, principal: Principal) -> HuntingReferralPackage:
         source = HuntingRegistryService(self.uow).get(source_id)  # 404 if missing
 
-        # The text leads located from this source (proposed/approved observations alike).
-        marker = _marker(source.name)
-        observations = [
-            o for o in self.uow.observations.list(limit=_MAX) if o.collector == marker
-        ]
+        # The text leads located from this source (proposed/approved observations alike). Filter
+        # by collector at the repository so the cap applies to *this source's* leads, not globally.
+        marker = _marker(source.id)
+        observations = self.uow.observations.list(collector=marker, limit=_MAX)
         observations.sort(key=lambda o: o.timestamp)
 
         # The located identifiers across those leads (deduped), and the lookup for relationships.

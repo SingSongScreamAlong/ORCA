@@ -247,6 +247,7 @@ def test_http_provider_parses_text_leads_and_sends_bearer():
                 "results": [
                     {
                         "summary": "Ad reuses phone +15550100000",
+                        "observed_at": "2026-05-01T10:30:00Z",
                         "entities": [{"entity_type": "phone_number", "value": "+15550100000"}],
                     },
                     {"summary": "Second ad, no entities"},
@@ -258,6 +259,10 @@ def test_http_provider_parses_text_leads_and_sends_bearer():
     leads = _http_provider(handler).collect(_source(), limit=5)
     assert [lead.summary for lead in leads] == ["Ad reuses phone +15550100000", "Second ad, no entities"]
     assert leads[0].entities[0].value == "+15550100000"
+    # The provider preserves the source timestamp (not dropped to "now").
+    assert leads[0].observed_at is not None
+    assert leads[0].observed_at.year == 2026 and leads[0].observed_at.month == 5
+    assert leads[1].observed_at is None  # absent → None (ingestion stamps it)
     assert seen["auth"] == f"Bearer {API_KEY}"
     assert seen["params"]["source"] == "https://m.invalid/listing"
 

@@ -56,7 +56,8 @@ def extract_identifiers(text: str | None) -> list[HuntingEntityHint]:
     for m in _BTC.finditer(text):
         found.append((EntityType.CRYPTO_ADDRESS, m.group(0)))
     for m in _ETH.finditer(text):
-        found.append((EntityType.CRYPTO_ADDRESS, m.group(0)))
+        # Lower-case so mixed-case (EIP-55 checksummed) variants of one address dedup together.
+        found.append((EntityType.CRYPTO_ADDRESS, m.group(0).lower()))
     for m in _PHONE.finditer(text):
         found.append((EntityType.PHONE_NUMBER, _norm_phone(m)))
     for m in _HANDLE.finditer(text):

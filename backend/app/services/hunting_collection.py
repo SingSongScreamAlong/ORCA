@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Protocol
 from urllib.parse import urlparse
 
@@ -90,6 +91,18 @@ def _as_float(value: str | None, default: float) -> float:
         return float(str(value).strip())
     except (TypeError, ValueError):
         return default
+
+
+def _parse_observed_at(value: Any) -> datetime | None:
+    """Parse an ISO-8601 timestamp from a lead row, leniently. Preserves source provenance —
+    a missing/unparseable value falls back to None (ingestion stamps the observation time)."""
+    text = _clean(value)
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
 
 @dataclass(frozen=True)
@@ -242,10 +255,11 @@ class HttpCollectionProvider:
         self._http = http_client
 
     def _client(self):
+        # Returns (client, should_close): injected clients are caller-owned and left open; an
+        # internally-built one is closed after the request to avoid socket/fd leaks.
         if self._http is not None:
-            return self._http
-        self._http = _build_http_client(self.config.tor_proxy, CollectionConnectionError)
-        return self._http
+            return self._http, False
+        return _build_http_client(self.config.tor_proxy, CollectionConnectionError), True
 
     def collect(self, source: HuntingSourceRead, *, limit: int = _DEFAULT_LIMIT) -> list[HuntingLeadCreate]:
         n = max(1, min(limit, _MAX_LIMIT))
@@ -253,13 +267,17 @@ class HttpCollectionProvider:
         if self.config.api_key:
             headers["Authorization"] = f"Bearer {self.config.api_key}"
         params = {"source": source.url, "aor": source.aor, "limit": str(n)}
+        client, should_close = self._client()
         try:
-            resp = self._client().get(self.config.url, headers=headers, params=params)
+            resp = client.get(self.config.url, headers=headers, params=params)
         except Exception as exc:  # noqa: BLE001 — surfaced as a safe connection error
             host = self.config.base_host() or "the collection source"
             raise CollectionConnectionError(
                 f"Collection request to {host} failed (network error)."
             ) from exc
+        finally:
+            if should_close:
+                client.close()
         if resp.status_code >= 400:
             raise CollectionConnectionError(
                 f"Collection source rejected the request (HTTP {resp.status_code})."
@@ -284,7 +302,7 @@ class HttpCollectionProvider:
             out.append(
                 HuntingLeadCreate(
                     summary=summary,
-                    observed_at=None,  # parsed leniently below if present
+                    observed_at=_parse_observed_at(row.get(self.config.observed_at_field)),
                     confidence=self.config.default_confidence,
                     entities=self._entities(row.get(self.config.entities_field)),
                 )

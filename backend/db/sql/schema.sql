@@ -262,6 +262,7 @@ CREATE TABLE hunting_escalations (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX ix_hunting_escalations_status ON hunting_escalations (status);
+CREATE INDEX ix_hunting_escalations_aor ON hunting_escalations (aor);
 
 -- --- Association tables (many-to-many) --------------------------------------
 

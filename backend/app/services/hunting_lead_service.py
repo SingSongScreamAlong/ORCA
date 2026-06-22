@@ -72,7 +72,9 @@ class HuntingLeadService:
                 reliability=SourceReliability.MEDIUM,
                 description=f"Hunting Grounds monitored source — {source.aor}.",
             ),
-            collector=f"hunting-grounds:{source.name}",
+            # Correlate by the source's immutable id (the readable name lives on the linked
+            # source); a rename or name collision must not split/merge a source's leads.
+            collector=f"hunting-grounds:{source.id}",
             notes=payload.summary,
             confidence=payload.confidence,
             entity_ids=entity_ids,

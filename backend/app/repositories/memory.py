@@ -99,12 +99,15 @@ class MemoryObservationRepository(_Base):
         offset: int = 0,
         case_id: UUID | None = None,
         status: ReviewStatus | None = None,
+        collector: str | None = None,
     ) -> list[ObservationRead]:
         values = self._store.observations.values()
         if case_id is not None:
             values = [o for o in values if o.case_id == case_id]
         if status is not None:
             values = [o for o in values if o.status == status]
+        if collector is not None:
+            values = [o for o in values if o.collector == collector]
         return paginate(newest_first(values), limit=limit, offset=offset)
 
     def for_case(self, case_id: UUID) -> list[ObservationRead]:

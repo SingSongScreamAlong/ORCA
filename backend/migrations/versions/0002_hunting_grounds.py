@@ -48,6 +48,7 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
     )
     op.create_index("ix_hunting_escalations_status", "hunting_escalations", ["status"])
+    op.create_index("ix_hunting_escalations_aor", "hunting_escalations", ["aor"])
 
 
 def downgrade() -> None:

@@ -72,16 +72,25 @@ export function AutoDiscoveryPanel({
 
       <div className="flex flex-wrap items-end gap-2">
         <div>
-          <label className="mb-1 block text-xs font-medium text-ink-muted">AOR</label>
+          <label htmlFor="auto-discovery-aor" className="mb-1 block text-xs font-medium text-ink-muted">
+            AOR
+          </label>
           <input
+            id="auto-discovery-aor"
             value={aor}
             onChange={(e) => setAor(e.target.value)}
             className="w-44 rounded-md border border-surface-border bg-surface px-2 py-1.5 text-sm"
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-ink-muted">Max candidates</label>
+          <label
+            htmlFor="auto-discovery-max"
+            className="mb-1 block text-xs font-medium text-ink-muted"
+          >
+            Max candidates
+          </label>
           <input
+            id="auto-discovery-max"
             type="number"
             min={1}
             max={50}

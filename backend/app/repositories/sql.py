@@ -319,12 +319,14 @@ class SqlObservationRepository(_Repo):
         o = self.s.get(Observation, observation_id)
         return _observation(o) if o else None
 
-    def list(self, *, limit=50, offset=0, case_id=None, status=None) -> list[ObservationRead]:
+    def list(self, *, limit=50, offset=0, case_id=None, status=None, collector=None) -> list[ObservationRead]:
         stmt = select(Observation)
         if case_id is not None:
             stmt = stmt.where(Observation.case_id == case_id)
         if status is not None:
             stmt = stmt.where(Observation.status == status)
+        if collector is not None:
+            stmt = stmt.where(Observation.collector == collector)
         stmt = stmt.order_by(Observation.created_at.desc()).limit(limit).offset(offset)
         return [_observation(o) for o in self.s.scalars(stmt).all()]
 

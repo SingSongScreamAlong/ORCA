@@ -83,6 +83,9 @@ export default async function HuntingPage() {
         title="Autonomous discovery"
         subtitle="Let ORCA seek new venues through the configured lawful source — one AOR, or sweep the whole watchlist in a pass. It only ever proposes; an administrator still authorizes each before monitoring. Disabled until a licensed source is configured."
       >
+        {!discoveryStatus.ok && (
+          <BackendNotice error={discoveryStatus.error} status={discoveryStatus.status} />
+        )}
         <AutoDiscoveryPanel
           defaultAor={DEFAULT_AOR}
           status={discoveryStatus.ok ? discoveryStatus.data : null}
@@ -93,6 +96,9 @@ export default async function HuntingPage() {
         title="Automated collection"
         subtitle="Pull text-only candidate leads from monitored sources into the review queue — first-pass triage, automated. CSAM-safe (no media); analysts decide. Disabled until a licensed source is configured."
       >
+        {!collectionStatus.ok && (
+          <BackendNotice error={collectionStatus.error} status={collectionStatus.status} />
+        )}
         <CollectionPanel status={collectionStatus.ok ? collectionStatus.data : null} />
       </Card>
 
@@ -100,6 +106,9 @@ export default async function HuntingPage() {
         title="Continuous cadence"
         subtitle="The autonomous loop — on an interval ORCA sweeps the watchlist for new venues, then collects leads from monitored ones. Still proposes only; administrators hold a runtime kill-switch. Disabled by default."
       >
+        {!scheduleStatus.ok && (
+          <BackendNotice error={scheduleStatus.error} status={scheduleStatus.status} />
+        )}
         <DiscoverySchedulePanel status={scheduleStatus.ok ? scheduleStatus.data : null} />
       </Card>
 
