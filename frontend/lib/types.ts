@@ -408,3 +408,32 @@ export interface DashboardSummary {
     storage_backend: string;
   };
 }
+
+// --- Foundry integration (admin-only, read-only previews) ----------------------
+
+export interface FoundryOntology {
+  apiName: string;
+  displayName?: string;
+  description?: string;
+  rid?: string;
+}
+
+export interface FoundryObjectType {
+  apiName: string;
+  displayName?: string;
+  description?: string;
+  primaryKey?: string;
+}
+
+export interface FoundryDiscover {
+  mode: "mock" | "real";
+  ontologies: FoundryOntology[];
+  object_types?: FoundryObjectType[];
+}
+
+export interface FoundryObjectsResult {
+  mode: "mock" | "real";
+  object_type: string;
+  count: number;
+  objects: Record<string, unknown>[];
+}
