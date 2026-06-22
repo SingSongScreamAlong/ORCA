@@ -407,6 +407,14 @@ export interface DashboardSummary {
   recent_observations: Observation[];
   recent_relationships: Relationship[];
   review_queue: ReviewItem[];
+  hunting: {
+    monitored_sources: number;
+    total_sources: number;
+    aors: number;
+    leads: number;
+    cross_venue_links: number;
+    top_cross_venue: IntelIdentifier[];
+  };
   system_health: {
     status: string;
     storage_backend: string;

@@ -25,7 +25,7 @@ export default async function DashboardPage() {
     );
   }
 
-  const { counts, recent_observations, recent_relationships, review_queue, system_health } =
+  const { counts, recent_observations, recent_relationships, review_queue, hunting, system_health } =
     result.data;
 
   return (
@@ -117,6 +117,38 @@ export default async function DashboardPage() {
                   <p className="mt-1.5 max-w-2xl text-ink-muted">{item.rationale}</p>
                 </div>
                 <ConfidenceBadge value={item.confidence} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <Card
+        title="Hunting Grounds"
+        subtitle="Reconnaissance posture — venues watched, leads located, and the cross-venue links that build cases"
+        actions={
+          <Link href="/hunting" className="text-sm font-medium">
+            Open Hunting Grounds →
+          </Link>
+        }
+      >
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <StatCard label="Monitored venues" value={hunting.monitored_sources} hint={`of ${hunting.total_sources} in registry`} />
+          <StatCard label="Leads located" value={hunting.leads} hint="text/metadata only" />
+          <StatCard label="Cross-venue links" value={hunting.cross_venue_links} hint="recurring identifiers" emphasis />
+          <StatCard label="AORs" value={hunting.aors} hint="areas with venues" />
+        </div>
+        {hunting.top_cross_venue.length > 0 && (
+          <ul className="mt-4 space-y-1.5 text-sm">
+            {hunting.top_cross_venue.map((i, idx) => (
+              <li key={idx} className="table-row flex items-center justify-between gap-4 py-1.5">
+                <div className="min-w-0">
+                  <span className="text-xs text-ink-faint">{humanize(i.entity_type)}:</span>{" "}
+                  <span className="mono text-ink">{i.value}</span>
+                </div>
+                <span className="inline-flex items-center rounded bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">
+                  {i.source_count} venues
+                </span>
               </li>
             ))}
           </ul>
