@@ -23,6 +23,9 @@ import type {
   FoundryImportResult,
   FoundryObjectsResult,
   GraphView,
+  HuntingSource,
+  HuntingSourceCategory,
+  HuntingSourceStatus,
   MembershipStatus,
   Observation,
   Relationship,
@@ -150,6 +153,34 @@ export const foundryImport = (body: {
   value_property: string;
   limit?: number;
 }) => apiSend<FoundryImportResult>("/integrations/foundry/import", "POST", body);
+
+// --- Hunting Grounds source/NAI registry ---------------------------------------
+
+export const getHuntingSources = (status?: HuntingSourceStatus) =>
+  apiGet<HuntingSource[]>(`/hunting/sources${status ? `?status=${status}` : ""}`);
+
+export const proposeHuntingSource = (body: {
+  name: string;
+  url: string;
+  category: HuntingSourceCategory;
+  aor: string;
+  discovery_notes?: string;
+}) => apiSend<HuntingSource>("/hunting/sources", "POST", body);
+
+export const authorizeHuntingSource = (
+  id: string,
+  body: { lawful_basis: string; access_method: string; jurisdiction: string; legal_review_note?: string },
+) => apiSend<HuntingSource>(`/hunting/sources/${id}/authorize`, "POST", body);
+
+export const monitorHuntingSource = (id: string) =>
+  apiSend<HuntingSource>(`/hunting/sources/${id}/monitor`, "POST", {});
+
+const huntingDecision = (id: string, action: "reject" | "suspend" | "retire", reason: string) =>
+  apiSend<HuntingSource>(`/hunting/sources/${id}/${action}`, "POST", { reason });
+
+export const rejectHuntingSource = (id: string, reason: string) => huntingDecision(id, "reject", reason);
+export const suspendHuntingSource = (id: string, reason: string) => huntingDecision(id, "suspend", reason);
+export const retireHuntingSource = (id: string, reason: string) => huntingDecision(id, "retire", reason);
 
 export const getMe = () => apiGet<CurrentUser>("/me");
 export const getUsers = () => apiGet<User[]>("/users");

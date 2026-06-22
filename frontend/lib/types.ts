@@ -449,3 +449,51 @@ export interface FoundryImportResult {
   skipped: number;
   entities: Entity[];
 }
+
+// --- Hunting Grounds source/NAI registry ---------------------------------------
+
+export type HuntingSourceStatus =
+  | "proposed"
+  | "authorized"
+  | "monitored"
+  | "suspended"
+  | "retired"
+  | "rejected";
+
+export type HuntingSourceCategory =
+  | "escort_listing"
+  | "classified"
+  | "forum"
+  | "social"
+  | "aggregator"
+  | "other";
+
+export interface HuntingTransition {
+  from_status: HuntingSourceStatus | null;
+  to_status: HuntingSourceStatus;
+  by: string;
+  at: string;
+  note: string | null;
+}
+
+export interface HuntingSource {
+  id: string;
+  name: string;
+  url: string;
+  category: HuntingSourceCategory;
+  aor: string;
+  status: HuntingSourceStatus;
+  discovery_method: string;
+  discovery_notes: string | null;
+  proposed_by: string;
+  proposed_at: string;
+  lawful_basis: string | null;
+  access_method: string | null;
+  jurisdiction: string | null;
+  legal_review_note: string | null;
+  authorized_by: string | null;
+  authorized_at: string | null;
+  last_decision_reason: string | null;
+  updated_at: string;
+  history: HuntingTransition[];
+}
