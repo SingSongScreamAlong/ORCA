@@ -24,11 +24,13 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from app.core.security import Principal
-from app.models.enums import HuntingSourceStatus
+from app.models.enums import HuntingDiscoveryMethod, HuntingSourceStatus
 from app.repositories.store import store
 from app.schemas.hunting import (
     HuntingAorSummary,
     HuntingAuthorize,
+    HuntingDiscoveryResult,
+    HuntingDiscoveryRun,
     HuntingSourcePropose,
     HuntingSourceRead,
     HuntingSummary,
@@ -64,6 +66,36 @@ class HuntingRegistryService:
         if source is None:
             raise NotFoundError(f"Hunting source {source_id} not found")
         return source
+
+    def run_discovery(self, run: HuntingDiscoveryRun, principal: Principal) -> HuntingDiscoveryResult:
+        """Propose discovered candidate venues into the registry as ``proposed`` (deduped by URL).
+
+        This is the seam a future collector plugs into — "the hunt" surfaces *new* sites so the
+        operator need not trawl. It can **only propose**; an administrator still authorizes each
+        before anything is monitored. Re-running is idempotent (existing URLs are skipped).
+        """
+        existing = {s.url for s in store.hunting_sources.values()}
+        proposed = []
+        skipped = 0
+        for candidate in run.candidates:
+            if candidate.url in existing:
+                skipped += 1
+                continue
+            existing.add(candidate.url)
+            proposed.append(
+                self.propose(
+                    HuntingSourcePropose(
+                        name=candidate.name,
+                        url=candidate.url,
+                        category=candidate.category,
+                        aor=run.aor,
+                        discovery_method=HuntingDiscoveryMethod.DISCOVERY_JOB,
+                        discovery_notes=candidate.notes,
+                    ),
+                    principal,
+                )
+            )
+        return HuntingDiscoveryResult(aor=run.aor, proposed=proposed, skipped_existing=skipped)
 
     def summary(self) -> HuntingSummary:
         """An AOR rollup of the registry — the regional posture at a glance (read-only)."""
