@@ -16,8 +16,10 @@ what it is *not* yet, so technical, security, and partner reviewers can calibrat
 ## Palantir / Foundry
 
 - **No real Palantir sync.** v0.9 is a local ontology **specification and export**
-  (`foundry/*.json`) — there are no live Palantir API calls, no production Foundry writes,
-  and no data leaves the local environment.
+  (`foundry/*.json`). v1.1 adds read-only connection **scaffolding** (config, client
+  abstraction, mock client, health check), but **no SDK is wired in** and there are no live
+  Palantir API calls, no production Foundry writes, and no data movement. The real client is
+  an honest placeholder that fails gracefully until an official OSDK is integrated.
 - **No live AIP integration.** v1.0's Copilot runs on a local, deterministic **mock
   provider**; AIP is a future provider behind the `AiProvider` seam.
 
