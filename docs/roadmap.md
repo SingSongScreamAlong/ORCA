@@ -174,18 +174,29 @@ a report whose every claim cites its support.
 **Exit criterion:** the system surfaces non-obvious candidate patterns, each with an
 explanation, and none of them bypasses review.
 
-## Phase 5 — Hunting Grounds (collection)
+## Phase 5 — Hunting Grounds (governed reconnaissance)
 
-**Goal:** implement collection behind the interfaces defined in Phase 0.
+**Goal:** a lawful OSINT recon/monitoring layer for anti-trafficking work that reduces the
+operator's manual exposure — built **governance-first**, behind the interfaces from Phase 0.
 
-- Monitoring and archiving of sources.
-- Entity extraction from collected material.
-- Evidence preservation at capture.
-- Collectors act as ordinary producers of observations and evidence — no privileged
-  path that bypasses review or audit.
+**Built (governance + framework):**
+- A written [charter](hunting_grounds_charter.md): ISR-not-strike, OSINT-not-SIGINT, no
+  surveillance of identified individuals, and a CSAM hard-stop.
+- An **authorization-first source registry** — a site can't be monitored until an administrator
+  authorizes it with a recorded lawful basis; discovery can only *propose*.
+- An **AOR picture** (regional posture), a **propose-only lead→review** seam (leads from a
+  monitored source become proposed observations — analysts decide), a **discovery** framework
+  (proposes new candidate venues, deduped), and a **CSAM hard-stop** (report-only, never-store;
+  routes to a manual NCMEC CyberTipline filing).
+- Collectors act as ordinary producers of *proposed* observations — no privileged path that
+  bypasses review or audit.
 
-**Exit criterion:** a collector can preserve evidence and propose observations through
-the same audited, reviewed path an analyst uses.
+**Gated (not built):** the **live external collector** itself — pointing discovery/monitoring at
+a real source requires a named lawful source + legal sign-off + a CSAM-safe fetch design, by
+design. Persistence of the registry/escalations to PostgreSQL is also pending.
+
+**Exit criterion:** a collector, once authorized through the registry, can propose observations
+through the same audited, reviewed path an analyst uses — never bypassing it.
 
 ## Phase 6 — Hardening and operations
 

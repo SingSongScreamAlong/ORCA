@@ -111,6 +111,9 @@ These principles are not decoration. They are encoded in the data model (see
 | [v1.3 Foundry Read Endpoints](docs/v1.3_foundry_read_endpoints.md)| Admin-only, read-only Foundry data endpoints in the ORCA API.|
 | [v1.4 Foundry Import](docs/v1.4_foundry_import.md)| Admin import of Foundry objects into ORCA as entities (read-only against Foundry).|
 | [Foundry connection setup](docs/foundry_connection_setup.md)| Manual procedure to test against a real Foundry tenant.|
+| [Hunting Grounds charter](docs/hunting_grounds_charter.md)| The governed recon envelope: hard limits, CSAM hard-stop, authorization-first lifecycle.|
+| [Hunting Grounds registry](docs/hunting_grounds_registry.md)| The source/NAI registry — authorization-first gate, in code.|
+| [Hunting Grounds CSAM hard-stop](docs/hunting_grounds_csam_hardstop.md)| Report-only, never-store suspected-minor escalation (NCMEC).|
 | [Demo walkthrough](docs/demo_walkthrough.md)         | End-to-end demo path across every v1.0 capability.     |
 | [Threat model](docs/threat_model.md)                 | Threats, mitigations, and non-goals.                   |
 | [Known limitations](docs/known_limitations.md)       | What v1.0 is deliberately not (yet).                   |
@@ -193,16 +196,33 @@ These principles are not decoration. They are encoded in the data model (see
   the deterministic mock answers when Foundry is disabled (so dev/CI need no tenant); non-admins
   get generic 403s; connector errors map to secret-free 400/502.
   See [`docs/v1.3_foundry_read_endpoints.md`](docs/v1.3_foundry_read_endpoints.md).
-- **v1.4 — Foundry Import (current).** An admin can **import Foundry objects
+- **v1.4 — Foundry Import.** An admin can **import Foundry objects
   into ORCA as entities** (`POST /integrations/foundry/import`, and an import form on the
   `/foundry` page). **Read-only against Foundry** — the only write is to ORCA's deduplicated
   entity store, so re-importing is idempotent. Admin-only; `limit`-bounded; `entity_type`
   validated; imported entities are unverified reference data (assertions that use them still go
   through review). See [`docs/v1.4_foundry_import.md`](docs/v1.4_foundry_import.md).
+- **Hunting Grounds — governed reconnaissance framework (current).** A lawful
+  OSINT recon/monitoring layer for anti-trafficking work, built **governance-first**: a written
+  [charter](docs/hunting_grounds_charter.md) (ISR-not-strike, OSINT-not-SIGINT, no surveillance
+  of individuals); an **authorization-first source registry** (a site can't be monitored until
+  an admin authorizes it with a recorded lawful basis; discovery can only *propose*); an **AOR
+  picture**; a **propose-only lead→review** seam (leads from a monitored source become proposed
+  observations — analysts decide); and a **CSAM hard-stop** (report-only, never-store; routes to
+  a manual NCMEC CyberTipline filing). The **live external collector is deliberately not built**
+  — it is gated on a named lawful source + legal sign-off + a CSAM-safe fetch design. See
+  [`docs/hunting_grounds_charter.md`](docs/hunting_grounds_charter.md),
+  [`docs/hunting_grounds_registry.md`](docs/hunting_grounds_registry.md), and
+  [`docs/hunting_grounds_csam_hardstop.md`](docs/hunting_grounds_csam_hardstop.md).
 
-Collection ("Hunting Grounds") remains an interface only — no collection logic, no
-scraping, no autonomous hunting. ORCA stays evidence-first, lawful, and analyst-controlled
-(see [`docs/safety_and_handling.md`](docs/safety_and_handling.md)).
+Collection ("Hunting Grounds") is now a **governed reconnaissance framework**, not an empty
+interface: discovery proposes candidate venues, administrators authorize sources with a recorded
+lawful basis, and leads flow **propose-only** into the analyst review queue. But there is still
+**no live external collector** — no scraping, no autonomous hunting against outside sources —
+until a named lawful source, legal sign-off, and a CSAM-safe fetch design are in place. ORCA
+stays evidence-first, lawful, and analyst-controlled (see
+[`docs/safety_and_handling.md`](docs/safety_and_handling.md) and
+[`docs/hunting_grounds_charter.md`](docs/hunting_grounds_charter.md)).
 
 ## Getting started
 
@@ -259,7 +279,7 @@ For PostgreSQL, seed the users after `alembic upgrade head` with `python -m app.
 # Backend lint + tests (from backend/)
 cd backend
 ruff check .
-python -m pytest -q                       # in-memory; 191 passing + 1 skipped (PG)
+python -m pytest -q                       # in-memory; 212 passing + 1 skipped (PG)
 
 # PostgreSQL integration test (optional; needs a migrated DB)
 ORCA_RUN_PG_IT=1 ORCA_POSTGRES_DSN=postgresql+psycopg://orca:orca@localhost:5432/orca \
