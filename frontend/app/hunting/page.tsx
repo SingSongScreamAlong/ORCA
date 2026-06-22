@@ -1,11 +1,13 @@
 import { Card } from "@/components/ui/Card";
 import { BackendNotice, EmptyState } from "@/components/ui/States";
 import { PageIntro } from "@/components/ui/PageIntro";
+import { LogLeadForm } from "@/components/hunting/LogLeadForm";
 import { ProposeSourceForm } from "@/components/hunting/ProposeSourceForm";
 import { SourceControls } from "@/components/hunting/SourceControls";
-import { getHuntingSources } from "@/lib/api";
+import { Table, Td, Th, Tr } from "@/components/ui/Table";
+import { getHuntingSources, getHuntingSummary } from "@/lib/api";
 import { humanize } from "@/lib/format";
-import type { HuntingSource, HuntingSourceStatus } from "@/lib/types";
+import type { HuntingSource, HuntingSourceStatus, HuntingSummary } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +23,7 @@ const STATUS_STYLE: Record<HuntingSourceStatus, string> = {
 };
 
 export default async function HuntingPage() {
-  const sources = await getHuntingSources();
+  const [sources, summary] = await Promise.all([getHuntingSources(), getHuntingSummary()]);
 
   if (!sources.ok) {
     return (
@@ -36,6 +38,8 @@ export default async function HuntingPage() {
     <div className="space-y-6">
       <Intro />
       <GovernanceNote />
+
+      {summary.ok && summary.data.totals.total > 0 && <AorPicture summary={summary.data} />}
 
       <Card
         title="Propose a source"
@@ -54,6 +58,54 @@ export default async function HuntingPage() {
         </div>
       )}
     </div>
+  );
+}
+
+const PICTURE_COLS: HuntingSourceStatus[] = [
+  "proposed",
+  "authorized",
+  "monitored",
+  "suspended",
+  "retired",
+  "rejected",
+];
+
+function AorPicture({ summary }: { summary: HuntingSummary }) {
+  return (
+    <Card
+      title="AOR picture"
+      subtitle="The regional posture at a glance — source counts by status, per area of responsibility."
+    >
+      <Table
+        head={
+          <>
+            <Th>AOR</Th>
+            {PICTURE_COLS.map((c) => (
+              <Th key={c}>{humanize(c)}</Th>
+            ))}
+            <Th>Total</Th>
+          </>
+        }
+      >
+        {summary.aors.map((row) => (
+          <Tr key={row.aor}>
+            <Td>
+              <span className="font-medium text-ink">{row.aor}</span>
+            </Td>
+            {PICTURE_COLS.map((c) => (
+              <Td key={c}>
+                <span className={row.by_status[c] ? "tabular-nums text-ink" : "tabular-nums text-ink-faint"}>
+                  {row.by_status[c] ?? 0}
+                </span>
+              </Td>
+            ))}
+            <Td>
+              <span className="tabular-nums font-medium text-ink">{row.total}</span>
+            </Td>
+          </Tr>
+        ))}
+      </Table>
+    </Card>
   );
 }
 
@@ -93,6 +145,8 @@ function SourceCard({ source }: { source: HuntingSource }) {
           )}
         </div>
       )}
+
+      {source.status === "monitored" && <LogLeadForm sourceId={source.id} />}
 
       <details className="text-xs">
         <summary className="cursor-pointer text-ink-faint hover:text-ink">

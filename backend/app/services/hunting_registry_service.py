@@ -27,14 +27,25 @@ from app.core.security import Principal
 from app.models.enums import HuntingSourceStatus
 from app.repositories.store import store
 from app.schemas.hunting import (
+    HuntingAorSummary,
     HuntingAuthorize,
     HuntingSourcePropose,
     HuntingSourceRead,
+    HuntingSummary,
     HuntingTransition,
 )
 from app.services.errors import NotFoundError, ValidationError
 
 _S = HuntingSourceStatus
+
+
+def _rollup(aor: str, group: list[HuntingSourceRead]) -> HuntingAorSummary:
+    counts = {s.value: 0 for s in HuntingSourceStatus}
+    for src in group:
+        counts[src.status.value] += 1
+    return HuntingAorSummary(
+        aor=aor, total=len(group), monitored=counts[_S.MONITORED.value], by_status=counts
+    )
 
 
 class HuntingRegistryService:
@@ -53,6 +64,15 @@ class HuntingRegistryService:
         if source is None:
             raise NotFoundError(f"Hunting source {source_id} not found")
         return source
+
+    def summary(self) -> HuntingSummary:
+        """An AOR rollup of the registry — the regional posture at a glance (read-only)."""
+        items = list(store.hunting_sources.values())
+        by_aor: dict[str, list[HuntingSourceRead]] = {}
+        for src in items:
+            by_aor.setdefault(src.aor, []).append(src)
+        aors = [_rollup(aor, group) for aor, group in sorted(by_aor.items())]
+        return HuntingSummary(aors=aors, totals=_rollup("All AORs", items))
 
     def propose(self, payload: HuntingSourcePropose, principal: Principal) -> HuntingSourceRead:
         now = datetime.now(UTC)

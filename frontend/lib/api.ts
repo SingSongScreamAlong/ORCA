@@ -26,6 +26,7 @@ import type {
   HuntingSource,
   HuntingSourceCategory,
   HuntingSourceStatus,
+  HuntingSummary,
   MembershipStatus,
   Observation,
   Relationship,
@@ -159,6 +160,8 @@ export const foundryImport = (body: {
 export const getHuntingSources = (status?: HuntingSourceStatus) =>
   apiGet<HuntingSource[]>(`/hunting/sources${status ? `?status=${status}` : ""}`);
 
+export const getHuntingSummary = () => apiGet<HuntingSummary>("/hunting/summary");
+
 export const proposeHuntingSource = (body: {
   name: string;
   url: string;
@@ -181,6 +184,11 @@ const huntingDecision = (id: string, action: "reject" | "suspend" | "retire", re
 export const rejectHuntingSource = (id: string, reason: string) => huntingDecision(id, "reject", reason);
 export const suspendHuntingSource = (id: string, reason: string) => huntingDecision(id, "suspend", reason);
 export const retireHuntingSource = (id: string, reason: string) => huntingDecision(id, "retire", reason);
+
+export const ingestHuntingLead = (
+  sourceId: string,
+  body: { summary: string; confidence?: number; entities?: { entity_type: string; value: string }[] },
+) => apiSend<Observation>(`/hunting/sources/${sourceId}/leads`, "POST", body);
 
 export const getMe = () => apiGet<CurrentUser>("/me");
 export const getUsers = () => apiGet<User[]>("/users");

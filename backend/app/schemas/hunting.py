@@ -14,11 +14,28 @@ from uuid import UUID
 from pydantic import Field
 
 from app.models.enums import (
+    EntityType,
     HuntingDiscoveryMethod,
     HuntingSourceCategory,
     HuntingSourceStatus,
 )
-from app.schemas.common import ORCAModel
+from app.schemas.common import ConfidenceScore, ORCAModel
+
+
+class HuntingEntityHint(ORCAModel):
+    entity_type: EntityType
+    value: str = Field(min_length=1)
+
+
+class HuntingLeadCreate(ORCAModel):
+    """A text-only lead from a monitored source. **No media fields** — leads carry text and
+    entity hints only, so the pipeline cannot ingest imagery (CSAM-safe by construction)."""
+
+    summary: str = Field(min_length=1, description="Text summary of the lead (no media).")
+    observed_at: datetime | None = None
+    confidence: ConfidenceScore = 0.4
+    entities: list[HuntingEntityHint] = Field(default_factory=list)
+    case_id: UUID | None = Field(default=None, description="Optional target case for the lead.")
 
 
 class HuntingTransition(ORCAModel):
@@ -76,3 +93,17 @@ class HuntingSourceRead(ORCAModel):
     last_decision_reason: str | None
     updated_at: datetime
     history: list[HuntingTransition]
+
+
+class HuntingAorSummary(ORCAModel):
+    """Rollup of the registry for one area of responsibility (or all)."""
+
+    aor: str
+    total: int
+    monitored: int
+    by_status: dict[str, int]  # status value -> count
+
+
+class HuntingSummary(ORCAModel):
+    aors: list[HuntingAorSummary]
+    totals: HuntingAorSummary
