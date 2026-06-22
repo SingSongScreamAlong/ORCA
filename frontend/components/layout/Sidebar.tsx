@@ -56,7 +56,18 @@ export function Sidebar() {
         })}
       </ul>
 
-      <div className="mt-6 border-t border-surface-border pt-3">
+      <div className="mt-6 space-y-1 border-t border-surface-border pt-3">
+        <Link
+          href="/foundry"
+          className={[
+            "block rounded-md px-3 py-2 text-sm transition-colors",
+            pathname.startsWith("/foundry")
+              ? "bg-accent-soft font-medium text-accent"
+              : "text-ink-muted hover:bg-surface-sunken hover:text-ink",
+          ].join(" ")}
+        >
+          Foundry <span className="text-[0.65rem] text-ink-faint">(admin)</span>
+        </Link>
         <Link
           href="/safety"
           className={[

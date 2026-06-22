@@ -19,6 +19,8 @@ import type {
   EvidenceDecision,
   EvidenceItem,
   EvidenceVerifyResult,
+  FoundryDiscover,
+  FoundryObjectsResult,
   GraphView,
   MembershipStatus,
   Observation,
@@ -130,6 +132,16 @@ export const getCaseAudit = (id: string) => apiGet<AuditEntry[]>(`/cases/${id}/a
 export const getCaseReports = (id: string) => apiGet<Report[]>(`/cases/${id}/reports`);
 export const getCaseMembers = (id: string) => apiGet<CaseMember[]>(`/cases/${id}/members`);
 export const getCaseGraph = (id: string) => apiGet<GraphView>(`/cases/${id}/graph`);
+
+// --- Foundry integration (admin-only, read-only) -------------------------------
+
+export const getFoundryDiscover = () =>
+  apiGet<FoundryDiscover>("/integrations/foundry/discover");
+
+export const getFoundryObjects = (objectType: string, limit = 10) =>
+  apiGet<FoundryObjectsResult>(
+    `/integrations/foundry/objects/${encodeURIComponent(objectType)}?limit=${limit}`,
+  );
 
 export const getMe = () => apiGet<CurrentUser>("/me");
 export const getUsers = () => apiGet<User[]>("/users");
