@@ -3,6 +3,7 @@ import { BackendNotice, EmptyState } from "@/components/ui/States";
 import { PageIntro } from "@/components/ui/PageIntro";
 import { LogLeadForm } from "@/components/hunting/LogLeadForm";
 import { ProposeSourceForm } from "@/components/hunting/ProposeSourceForm";
+import { RunDiscoveryForm } from "@/components/hunting/RunDiscoveryForm";
 import { SourceControls } from "@/components/hunting/SourceControls";
 import { Table, Td, Th, Tr } from "@/components/ui/Table";
 import { getHuntingSources, getHuntingSummary } from "@/lib/api";
@@ -40,6 +41,13 @@ export default async function HuntingPage() {
       <GovernanceNote />
 
       {summary.ok && summary.data.totals.total > 0 && <AorPicture summary={summary.data} />}
+
+      <Card
+        title="Discovery"
+        subtitle="Propose candidate venues in bulk (the hunt surfaces new sites so the operator need not trawl). Deduped by URL; each still requires authorization before monitoring."
+      >
+        <RunDiscoveryForm defaultAor={DEFAULT_AOR} />
+      </Card>
 
       <Card
         title="Propose a source"

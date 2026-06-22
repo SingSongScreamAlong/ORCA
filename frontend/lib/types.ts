@@ -509,3 +509,9 @@ export interface HuntingSummary {
   aors: HuntingAorSummary[];
   totals: HuntingAorSummary;
 }
+
+export interface HuntingDiscoveryResult {
+  aor: string;
+  proposed: HuntingSource[];
+  skipped_existing: number;
+}

@@ -194,3 +194,37 @@ def test_lead_requires_create_capability(client):
     sid = _monitor(client)
     # 'vic' is a viewer — cannot create observations/leads.
     assert client.post(f"{SRC}/{sid}/leads", json=LEAD, headers={"X-ORCA-User": "vic"}).status_code == 403
+
+
+# --- discovery framework --------------------------------------------------------
+
+
+RUN = f"{PREFIX}/hunting/discovery/run"
+DISCOVERY = {
+    "aor": "Rhode Island",
+    "candidates": [
+        {"name": "Site A", "url": "https://a.invalid", "category": "escort_listing"},
+        {"name": "Site B", "url": "https://b.invalid"},
+    ],
+}
+
+
+def test_discovery_proposes_candidates_as_proposed_discovery_jobs(client):
+    resp = client.post(RUN, json=DISCOVERY, headers={"X-ORCA-User": "ana"})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert len(body["proposed"]) == 2
+    assert body["skipped_existing"] == 0
+    assert all(s["status"] == "proposed" for s in body["proposed"])
+    assert all(s["discovery_method"] == "discovery_job" for s in body["proposed"])
+
+
+def test_discovery_dedups_by_url_on_rerun(client):
+    client.post(RUN, json=DISCOVERY, headers={"X-ORCA-User": "ana"})
+    second = client.post(RUN, json=DISCOVERY, headers={"X-ORCA-User": "ana"}).json()
+    assert second["proposed"] == []
+    assert second["skipped_existing"] == 2
+
+
+def test_discovery_requires_create_capability(client):
+    assert client.post(RUN, json=DISCOVERY, headers={"X-ORCA-User": "vic"}).status_code == 403

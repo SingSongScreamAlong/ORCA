@@ -23,6 +23,7 @@ import type {
   FoundryImportResult,
   FoundryObjectsResult,
   GraphView,
+  HuntingDiscoveryResult,
   HuntingSource,
   HuntingSourceCategory,
   HuntingSourceStatus,
@@ -189,6 +190,11 @@ export const ingestHuntingLead = (
   sourceId: string,
   body: { summary: string; confidence?: number; entities?: { entity_type: string; value: string }[] },
 ) => apiSend<Observation>(`/hunting/sources/${sourceId}/leads`, "POST", body);
+
+export const runHuntingDiscovery = (body: {
+  aor: string;
+  candidates: { name: string; url: string }[];
+}) => apiSend<HuntingDiscoveryResult>("/hunting/discovery/run", "POST", body);
 
 export const getMe = () => apiGet<CurrentUser>("/me");
 export const getUsers = () => apiGet<User[]>("/users");

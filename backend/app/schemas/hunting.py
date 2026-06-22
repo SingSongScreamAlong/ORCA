@@ -107,3 +107,23 @@ class HuntingAorSummary(ORCAModel):
 class HuntingSummary(ORCAModel):
     aors: list[HuntingAorSummary]
     totals: HuntingAorSummary
+
+
+class HuntingDiscoveryCandidate(ORCAModel):
+    name: str = Field(min_length=1)
+    url: str = Field(min_length=1)
+    category: HuntingSourceCategory = HuntingSourceCategory.OTHER
+    notes: str | None = None
+
+
+class HuntingDiscoveryRun(ORCAModel):
+    """A batch of discovered candidate venues to propose into the registry."""
+
+    aor: str = Field(min_length=1)
+    candidates: list[HuntingDiscoveryCandidate] = Field(min_length=1)
+
+
+class HuntingDiscoveryResult(ORCAModel):
+    aor: str
+    proposed: list[HuntingSourceRead]
+    skipped_existing: int

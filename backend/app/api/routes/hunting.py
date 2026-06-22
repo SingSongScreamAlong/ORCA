@@ -20,6 +20,8 @@ from app.repositories.uow import UnitOfWork
 from app.schemas.hunting import (
     HuntingAuthorize,
     HuntingDecision,
+    HuntingDiscoveryResult,
+    HuntingDiscoveryRun,
     HuntingLeadCreate,
     HuntingSourcePropose,
     HuntingSourceRead,
@@ -44,6 +46,18 @@ def hunting_summary(
     _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
 ) -> HuntingSummary:
     return HuntingRegistryService().summary()
+
+
+@router.post(
+    "/discovery/run",
+    response_model=HuntingDiscoveryResult,
+    summary="Propose discovered candidate venues into the registry (dedup'd; proposes only)",
+)
+def run_discovery(
+    payload: HuntingDiscoveryRun,
+    principal: Principal = Depends(require(Capability.CREATE_OBSERVATION)),
+) -> HuntingDiscoveryResult:
+    return HuntingRegistryService().run_discovery(payload, principal)
 
 
 @router.get("/sources", response_model=list[HuntingSourceRead], summary="List Hunting Grounds sources")
