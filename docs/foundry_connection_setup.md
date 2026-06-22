@@ -14,15 +14,23 @@ deterministic mock client with no credentials.
 
 The connector supports two methods — provide **one**:
 
-- **Bearer token:** set `ORCA_FOUNDRY_TOKEN` (used directly; no token exchange).
-- **OAuth2 client credentials:** set `ORCA_FOUNDRY_CLIENT_ID` and `ORCA_FOUNDRY_CLIENT_SECRET`.
-  The REST connector exchanges these at `POST {tenant}/multipass/api/oauth2/token`
-  (`grant_type=client_credentials`) and caches the returned access token. If your tenant
-  requires explicit scopes for ontology reads, set `ORCA_FOUNDRY_SCOPES` (space-separated);
-  confirm the exact scope name(s) in your tenant's API/OAuth client configuration.
+- **Bearer token (user token):** set `ORCA_FOUNDRY_TOKEN` (used directly; no token exchange).
+  Generate one in Foundry under **User Settings → Tokens → Create token**. This is the
+  simplest path and works on any enrollment plan. Note a user token carries *your* full
+  permissions and expires, so keep it private and short-lived — good for connection tests and
+  single-user setups.
+- **OAuth2 client credentials (service identity):** set `ORCA_FOUNDRY_CLIENT_ID` and
+  `ORCA_FOUNDRY_CLIENT_SECRET`. The REST connector exchanges these at
+  `POST {tenant}/multipass/api/oauth2/token` (`grant_type=client_credentials`) and caches the
+  returned access token. If your tenant requires explicit scopes for ontology reads, set
+  `ORCA_FOUNDRY_SCOPES` (space-separated).
 
-Register the OAuth2 client (or mint the token) in the Foundry Control Panel with **read-only**
-access to the ontology you intend to read — no write or action permissions are needed.
+> **Enrollment-plan note.** Creating a *Backend service* application in the Developer Console
+> shows whether the **client-credentials grant** is available for your organization. Some
+> enrollment plans do **not** include it (the console will say a *public client* will be
+> created and you "will not need to handle client secrets"). On such a plan, use the **user
+> token** path above; the connector will use client credentials automatically once a plan
+> that includes the grant is in place — no code change.
 
 ## 2. Set environment variables
 
@@ -45,9 +53,24 @@ ORCA_FOUNDRY_TEST_OBJECT_TYPE=OrcaCase
 ORCA_FOUNDRY_TEST_OBJECT_ID=<a-non-sensitive-demo-object-id>
 ```
 
-For the ORCA tenant in the Control Panel screenshot, `ORCA_FOUNDRY_TENANT_URL` is the host
-shown in the address bar (e.g. `https://orca.usw-23.palantirfoundry.com`), and the ontology
-API name is the one published under your enrollment's ontology.
+For the ORCA tenant, `ORCA_FOUNDRY_TENANT_URL` is the host shown in the address bar (e.g.
+`https://orca.usw-23.palantirfoundry.com`). Don't know your ontology's API name yet? You can
+set `ORCA_FOUNDRY_ONTOLOGY_API_NAME=unknown` for now — the health check only *lists* ontologies
+and doesn't use it — then discover the real value in the next step.
+
+## 2a. Discover ontology / object-type API names
+
+With at least the tenant URL and an auth method set, list what your credential can see:
+
+```bash
+cd backend
+python -m app.foundry.discover
+```
+
+It prints the ontologies (their `apiName`s) and, once `ORCA_FOUNDRY_ONTOLOGY_API_NAME` is set,
+the object types in that ontology — all read-only metadata. Copy the ontology's `apiName` (it
+looks like `ontology-<uuid>`) into `ORCA_FOUNDRY_ONTOLOGY_API_NAME`. Both CLIs load
+`backend/.env` automatically and never print secrets.
 
 ## 3. Run the read-only health check
 

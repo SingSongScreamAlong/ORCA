@@ -116,6 +116,19 @@ class RestFoundryClient:
             "note": "Read-only ontology metadata listing; no records were read.",
         }
 
+    def list_ontologies(self) -> list[dict]:
+        """Ontologies visible to the credential (metadata only; reads no records)."""
+        data = self._get("api/v2/ontologies")
+        items = data.get("data", [])
+        return items if isinstance(items, list) else []
+
+    def list_object_types(self, *, ontology: str | None = None) -> list[dict]:
+        """Object types defined in an ontology (metadata only; reads no records)."""
+        ont = ontology or self._require_ontology()
+        data = self._get(f"api/v2/ontologies/{ont}/objectTypes")
+        items = data.get("data", [])
+        return items if isinstance(items, list) else []
+
     def get_object_type_metadata(self, object_type: str) -> dict:
         ont = self._require_ontology()
         return self._get(f"api/v2/ontologies/{ont}/objectTypes/{object_type}")

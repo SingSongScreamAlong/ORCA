@@ -50,6 +50,8 @@ def _client(config, record, *, token_status=200, get_status=200) -> RestFoundryC
             return httpx.Response(200, json={"access_token": "tok-XYZ", "expires_in": 3600})
         if get_status >= 400:
             return httpx.Response(get_status, json={"error": "forbidden"})
+        if path.endswith("/objectTypes"):
+            return httpx.Response(200, json={"data": [{"apiName": "OrcaCase"}, {"apiName": "OrcaEntity"}]})
         if "/objectTypes/" in path:
             return httpx.Response(200, json={"apiName": "OrcaCase", "primaryKey": "caseId"})
         if "/objects/" in path:
@@ -145,6 +147,51 @@ def test_secret_never_appears_in_any_error():
         except FoundryConnectionError as exc:
             assert SECRET_CS not in str(exc)
             assert PRE_TOKEN not in str(exc)
+
+
+# --- discovery ------------------------------------------------------------------
+
+
+def test_list_ontologies_returns_metadata():
+    record: list[dict] = []
+    onts = _client(_cfg(), record).list_ontologies()
+    assert onts == [{"apiName": "orca-demo"}]
+    assert any(r["path"] == "/api/v2/ontologies" for r in record)
+
+
+def test_list_object_types_path():
+    record: list[dict] = []
+    types = _client(_cfg(), record).list_object_types()
+    assert {t["apiName"] for t in types} == {"OrcaCase", "OrcaEntity"}
+    assert any(r["path"] == "/api/v2/ontologies/orca-demo/objectTypes" for r in record)
+
+
+def test_discover_lists_ontologies_and_object_types():
+    record: list[dict] = []
+    client = _client(_cfg(), record)  # mock-transport client; no real network
+    snapshot = _run_discover_with(client, _cfg())
+    assert snapshot["ok"] is True
+    assert {o["apiName"] for o in snapshot["ontologies"]} == {"orca-demo"}
+    assert {t["apiName"] for t in snapshot["object_types"]} == {"OrcaCase", "OrcaEntity"}
+
+
+def test_discover_reports_disabled():
+    from app.foundry import discover as discover_mod
+
+    snap = discover_mod.discover(_cfg(enabled=False))
+    assert snap["ok"] is None and "disabled" in snap["message"].lower()
+
+
+def _run_discover_with(client, config):
+    """Run discover() against an already-built (mock-transport) client."""
+    from app.foundry import discover as discover_mod
+
+    original = discover_mod.build_foundry_client
+    discover_mod.build_foundry_client = lambda _cfg: client
+    try:
+        return discover_mod.discover(config)
+    finally:
+        discover_mod.build_foundry_client = original
 
 
 # --- factory --------------------------------------------------------------------
