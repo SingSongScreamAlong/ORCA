@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/Card";
 import { BackendNotice, EmptyState } from "@/components/ui/States";
 import { PageIntro } from "@/components/ui/PageIntro";
+import { AorReferralButton } from "@/components/hunting/AorReferralButton";
 import { AutoDiscoveryPanel } from "@/components/hunting/AutoDiscoveryPanel";
 import { CollectionPanel } from "@/components/hunting/CollectionPanel";
 import { CollectSourceButton } from "@/components/hunting/CollectSourceButton";
@@ -171,7 +172,7 @@ function AorPicture({ summary }: { summary: HuntingSummary }) {
   return (
     <Card
       title="AOR picture"
-      subtitle="The regional posture at a glance — source counts by status, per area of responsibility."
+      subtitle="The regional posture at a glance — source counts by status, per area of responsibility. Generate a consolidated LE operation rollup for any AOR."
     >
       <Table
         head={
@@ -181,6 +182,7 @@ function AorPicture({ summary }: { summary: HuntingSummary }) {
               <Th key={c}>{humanize(c)}</Th>
             ))}
             <Th>Total</Th>
+            <Th>Operation rollup</Th>
           </>
         }
       >
@@ -198,6 +200,9 @@ function AorPicture({ summary }: { summary: HuntingSummary }) {
             ))}
             <Td>
               <span className="tabular-nums font-medium text-ink">{row.total}</span>
+            </Td>
+            <Td>
+              <AorReferralButton aor={row.aor} />
             </Td>
           </Tr>
         ))}

@@ -21,6 +21,7 @@ from app.core.security import Principal
 from app.models.enums import EntityType
 from app.repositories.uow import UnitOfWork
 from app.schemas.hunting import (
+    AorReferralPackage,
     HuntingReferralPackage,
     IdentifierReferralPackage,
     ReferralEntity,
@@ -144,22 +145,7 @@ class HuntingReferralService:
             entity = self.uow.entities.find_by_value(c.entity_type, c.value)
             if entity is not None:
                 cited.add(entity.id)
-        relationships = []
-        for rel in self.uow.relationships.list(limit=_MAX):
-            if rel.source_entity_id in cited or rel.target_entity_id in cited:
-                s = self.uow.entities.get(rel.source_entity_id)
-                t = self.uow.entities.get(rel.target_entity_id)
-                if s is None or t is None:
-                    continue
-                relationships.append(
-                    ReferralRelationship(
-                        relationship_type=rel.relationship_type.value,
-                        source_value=s.value,
-                        target_value=t.value,
-                        confidence=rel.confidence,
-                        status=rel.status.value,
-                    )
-                )
+        relationships = self._relationships_among(cited)
 
         now = datetime.now(UTC)
         package = IdentifierReferralPackage(
@@ -196,6 +182,104 @@ class HuntingReferralService:
             )
         )
 
+    def _relationships_among(self, cited: set[UUID]) -> list[ReferralRelationship]:
+        """The relationships ORCA proposed/confirmed touching any of the cited identifiers."""
+        relationships: list[ReferralRelationship] = []
+        for rel in self.uow.relationships.list(limit=_MAX):
+            if rel.source_entity_id in cited or rel.target_entity_id in cited:
+                s = self.uow.entities.get(rel.source_entity_id)
+                t = self.uow.entities.get(rel.target_entity_id)
+                if s is None or t is None:
+                    continue
+                relationships.append(
+                    ReferralRelationship(
+                        relationship_type=rel.relationship_type.value,
+                        source_value=s.value,
+                        target_value=t.value,
+                        confidence=rel.confidence,
+                        status=rel.status.value,
+                    )
+                )
+        return relationships
+
+    def build_for_aor(self, aor: str, principal: Principal) -> AorReferralPackage:
+        """The AOR operation rollup: consolidate a whole region into one LE dossier — every
+        monitored venue (with lawful basis), all located identifiers (cross-venue ones flagged),
+        the cross-venue links tying venues into one operation, and the relationship map.
+
+        Composes the per-venue and per-identifier referrals at AOR scope. Always returns a package
+        (possibly empty when nothing is monitored/located). Pointers and metadata only — no media.
+        Audited.
+        """
+        intel = HuntingIntelService(self.uow)
+        sources = intel.monitored_sources(aor)
+        picture = intel.picture(aor)
+        venue_index = intel.entity_source_index(sources)  # within-AOR venue counts
+
+        # The located identifiers across the AOR's venues (deduped, first-seen order), plus leads.
+        entity_ids: list[UUID] = []
+        entities_by_id: dict[UUID, object] = {}
+        lead_count = 0
+        for source in sources:
+            marker = hunting_collector_marker(source.id)
+            observations = self.uow.observations.list(collector=marker, limit=_MAX)
+            lead_count += len(observations)
+            for obs in observations:
+                for eid in obs.entity_ids:
+                    if eid not in entities_by_id:
+                        entity = self.uow.entities.get(eid)
+                        if entity is not None:
+                            entities_by_id[eid] = entity
+                            entity_ids.append(eid)
+
+        located = [
+            ReferralEntity(
+                entity_type=e.entity_type,
+                value=e.value,
+                venue_count=max(1, len(venue_index.get(e.id, ()))),
+            )
+            for e in (entities_by_id[i] for i in entity_ids)
+        ]
+        relationships = self._relationships_among(set(entity_ids))
+
+        now = datetime.now(UTC)
+        package = AorReferralPackage(
+            aor=aor,
+            generated_at=now,
+            generated_by=principal.username,
+            source_count=len(sources),
+            identifier_count=len(located),
+            lead_count=lead_count,
+            cross_venue_count=picture.cross_venue_count,
+            sources=[_to_referral_source(s) for s in sources],
+            located_identifiers=located,
+            cross_venue=picture.cross_venue,
+            relationships=relationships,
+            summary_markdown=_render_aor_markdown(
+                aor, [_to_referral_source(s) for s in sources], located,
+                picture.cross_venue, relationships, lead_count, now,
+            ),
+        )
+        self._audit_aor(principal, package)
+        return package
+
+    def _audit_aor(self, principal: Principal, package: AorReferralPackage) -> None:
+        self.uow.audit.record(
+            new_audit_entry(
+                actor_id=principal.id,
+                action="hunting.referral.aor_generated",
+                target_type="hunting_aor",
+                target_id=package.aor,
+                case_id=None,
+                context={
+                    "aor": package.aor,
+                    "sources": package.source_count,
+                    "identifiers": package.identifier_count,
+                    "cross_venue": package.cross_venue_count,
+                },
+            )
+        )
+
     def _audit(self, principal: Principal, source_id: UUID, package: HuntingReferralPackage) -> None:
         self.uow.audit.record(
             new_audit_entry(
@@ -220,6 +304,64 @@ def _to_referral_source(source) -> ReferralSource:
         access_method=source.access_method, jurisdiction=source.jurisdiction,
         proposed_by=source.proposed_by, authorized_by=source.authorized_by,
     )
+
+
+def _render_aor_markdown(aor, sources, identifiers, cross_venue, relationships, lead_count, now) -> str:
+    cross = sorted(identifiers, key=lambda i: i.venue_count, reverse=True)
+    lines = [
+        f"# Operation rollup — {aor}",
+        "",
+        "_Lawful OSINT referral. Pointers and metadata only — no media. Identifiers are leads for "
+        "lawful follow-up; de-anonymization requires legal process._",
+        "",
+        "## Scope",
+        f"- **AOR:** {aor}",
+        f"- **Monitored venues:** {len(sources)} · **Located identifiers:** {len(identifiers)}"
+        f" · **Text leads:** {lead_count}",
+        f"- **Cross-venue links (≥2 venues):** {len(cross_venue)} — the strongest signal that "
+        "separate venues are one operation.",
+        f"- **Generated:** {now.isoformat()}",
+        "",
+        f"## Monitored venues / provenance ({len(sources)})",
+    ]
+    if sources:
+        for s in sources:
+            lines.append(
+                f"- **{s.name}** (`{s.url}`) — {s.category.value} · status {s.status.value}"
+            )
+            lines.append(
+                f"  - Lawful basis: {s.lawful_basis or '—'} · Access: {s.access_method or '—'}"
+                f" · Jurisdiction: {s.jurisdiction or '—'}"
+            )
+    else:
+        lines.append("- (none monitored in this AOR)")
+    lines += ["", f"## Cross-venue links ({len(cross_venue)})"]
+    if cross_venue:
+        lines += [
+            f"- `{i.entity_type.value}` — {i.value}  **({i.source_count} venues, {i.lead_count} leads)**"
+            for i in cross_venue
+        ]
+    else:
+        lines.append("- (none yet — located identifiers so far appear in a single venue)")
+    lines += ["", f"## Located identifiers ({len(identifiers)})"]
+    if identifiers:
+        lines += [
+            f"- `{i.entity_type.value}` — {i.value}"
+            + (f"  (cross-venue: {i.venue_count} venues)" if i.venue_count >= 2 else "")
+            for i in cross
+        ]
+    else:
+        lines.append("- (none located yet)")
+    lines += ["", f"## Relationships ({len(relationships)})"]
+    if relationships:
+        lines += [
+            f"- {r.source_value} —[{r.relationship_type}]→ {r.target_value} "
+            f"(confidence {r.confidence:.2f}, {r.status})"
+            for r in relationships
+        ]
+    else:
+        lines.append("- (none)")
+    return "\n".join(lines)
 
 
 def _render_identifier_markdown(dossier, sources, relationships, now) -> str:

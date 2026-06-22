@@ -223,6 +223,34 @@ class IdentifierReferralPackage(ORCAModel):
     )
 
 
+class AorReferralPackage(ORCAModel):
+    """A law-enforcement referral dossier for a whole area of responsibility — the operation rollup.
+
+    Where ``HuntingReferralPackage`` is per-venue and ``IdentifierReferralPackage`` is per-identifier,
+    this is per-AOR: it consolidates every monitored venue in the region (each with its lawful
+    basis), all located identifiers (cross-venue ones flagged), the **cross-venue links** that tie
+    separate venues into one operation, and the relationship map — the regional case file LE can act
+    on. Pointers and metadata only; no media, by construction.
+    """
+
+    aor: str
+    generated_at: datetime
+    generated_by: str
+    source_count: int
+    identifier_count: int
+    lead_count: int
+    cross_venue_count: int
+    sources: list[ReferralSource]  # the monitored venues in the AOR, with lawful basis
+    located_identifiers: list[ReferralEntity]  # all located identifiers, cross-venue flagged
+    cross_venue: list[IntelIdentifier]  # the >=2-venue identifiers (the strongest links)
+    relationships: list[ReferralRelationship]
+    summary_markdown: str
+    notice: str = (
+        "Lawful OSINT referral. Contains pointers and metadata only — no media, no CSAM. "
+        "Identifiers are leads for lawful follow-up; de-anonymization requires legal process."
+    )
+
+
 class ReferralObservation(ORCAModel):
     id: UUID
     summary: str  # the text lead (observation notes)

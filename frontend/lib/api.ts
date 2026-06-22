@@ -7,6 +7,7 @@
 
 import type {
   AiAssistResult,
+  AorReferralPackage,
   AuditEntry,
   Case,
   CaseDetail,
@@ -191,6 +192,9 @@ export const getHuntingIdentifierReferral = (entityType: string, value: string) 
   apiGet<IdentifierReferralPackage>(
     `/hunting/intel/identifier/referral?type=${encodeURIComponent(entityType)}&value=${encodeURIComponent(value)}`,
   );
+
+export const getHuntingAorReferral = (aor: string) =>
+  apiGet<AorReferralPackage>(`/hunting/intel/aor/referral?aor=${encodeURIComponent(aor)}`);
 
 export const proposeHuntingLinks = (aor?: string) =>
   apiSend<HuntingLinkResult>(
