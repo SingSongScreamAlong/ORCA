@@ -128,6 +128,22 @@ class IntelIdentifier(ORCAModel):
     sources: list[str]  # source names it appears in (for display)
 
 
+class ProposedLink(ORCAModel):
+    """A cross-venue relationship proposed into the review queue (analyst confirms)."""
+
+    relationship_id: UUID
+    source_value: str
+    target_value: str
+    relationship_type: str
+    venue_count: int
+
+
+class HuntingLinkResult(ORCAModel):
+    aor: str | None
+    proposed: int
+    links: list[ProposedLink]
+
+
 class HuntingIntelPicture(ORCAModel):
     """The AOR common operating picture: where the same actors/identifiers recur across venues.
 

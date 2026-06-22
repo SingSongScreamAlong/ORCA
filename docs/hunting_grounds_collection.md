@@ -112,6 +112,17 @@ returns pointers/metadata only. The LE referral dossier is enriched with the sam
 located identifier carries a `venue_count`, and cross-venue ones (`≥2`) are flagged in the markdown
 and the UI. `READ_CASE_MATERIAL`.
 
+## Cross-venue link proposal (intelligence → review queue)
+
+`POST /api/v1/hunting/links/propose?aor=…` turns the cross-venue intelligence into reviewable case
+links. For each identifier pair that co-occurs in **approved** leads across **two or more**
+monitored venues, ORCA proposes an `appears_with` relationship (`system_proposed` / `proposed`) into
+the review queue for an analyst to confirm. This preserves the lawful two-stage loop end to end: *AI
+proposes the lead → an analyst approves the observation → the system proposes the cross-venue link →
+an analyst approves the link.* Only **approved** observations are cited (an ontology invariant of the
+relationship layer); nothing is auto-confirmed and existing links are never re-proposed.
+`CREATE_OBSERVATION`. The "Suggest cross-venue links" action on the AOR intelligence card triggers it.
+
 ## Referral to law enforcement (locate → case)
 
 `GET /api/v1/hunting/sources/{id}/referral` builds a **referral dossier** for a source: the

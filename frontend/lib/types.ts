@@ -597,6 +597,20 @@ export interface IntelIdentifier {
   sources: string[];
 }
 
+export interface ProposedLink {
+  relationship_id: string;
+  source_value: string;
+  target_value: string;
+  relationship_type: string;
+  venue_count: number;
+}
+
+export interface HuntingLinkResult {
+  aor: string | null;
+  proposed: number;
+  links: ProposedLink[];
+}
+
 export interface HuntingIntelPicture {
   aor: string | null;
   monitored_sources: number;

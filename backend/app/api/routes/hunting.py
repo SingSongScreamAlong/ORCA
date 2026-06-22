@@ -30,6 +30,7 @@ from app.schemas.hunting import (
     HuntingDiscoverySweepResult,
     HuntingIntelPicture,
     HuntingLeadCreate,
+    HuntingLinkResult,
     HuntingReferralPackage,
     HuntingSourcePropose,
     HuntingSourceRead,
@@ -58,6 +59,7 @@ from app.services.hunting_discovery import (
 from app.services.hunting_escalation_service import HuntingEscalationService
 from app.services.hunting_intel_service import HuntingIntelService
 from app.services.hunting_lead_service import HuntingLeadService
+from app.services.hunting_link_service import HuntingLinkService
 from app.services.hunting_referral_service import HuntingReferralService
 from app.services.hunting_registry_service import HuntingRegistryService
 from app.services.hunting_scheduler import scheduler
@@ -92,6 +94,22 @@ def hunting_intel(
     """The common operating picture: which located identifiers recur across two or more monitored
     venues (the strongest case-building leads). Read-only — proposes nothing."""
     return HuntingIntelService(uow).picture(aor)
+
+
+@router.post(
+    "/links/propose",
+    response_model=HuntingLinkResult,
+    summary="Propose cross-venue links from approved leads into the review queue (analysts decide)",
+)
+def propose_links(
+    aor: str | None = Query(None, description="Scope to one AOR; omit for all monitored venues."),
+    principal: Principal = Depends(require(Capability.CREATE_OBSERVATION)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> HuntingLinkResult:
+    """For identifier pairs that co-occur in approved leads across two or more monitored venues,
+    propose an `appears_with` relationship into the review queue. Only approved observations are
+    cited; nothing is auto-confirmed; existing links are not re-proposed."""
+    return HuntingLinkService(uow).propose_links(principal, aor=aor)
 
 
 @router.post(

@@ -33,6 +33,7 @@ import type {
   HuntingEscalation,
   HuntingEscalationStatus,
   HuntingIntelPicture,
+  HuntingLinkResult,
   HuntingReferralPackage,
   HuntingSource,
   HuntingSourceCategory,
@@ -175,6 +176,13 @@ export const getHuntingSummary = () => apiGet<HuntingSummary>("/hunting/summary"
 
 export const getHuntingIntel = (aor?: string) =>
   apiGet<HuntingIntelPicture>(`/hunting/intel${aor ? `?aor=${encodeURIComponent(aor)}` : ""}`);
+
+export const proposeHuntingLinks = (aor?: string) =>
+  apiSend<HuntingLinkResult>(
+    `/hunting/links/propose${aor ? `?aor=${encodeURIComponent(aor)}` : ""}`,
+    "POST",
+    {},
+  );
 
 export const proposeHuntingSource = (body: {
   name: string;

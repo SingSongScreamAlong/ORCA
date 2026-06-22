@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/Card";
+import { ProposeLinksButton } from "@/components/hunting/ProposeLinksButton";
 import { Table, Td, Th, Tr } from "@/components/ui/Table";
 import { humanize } from "@/lib/format";
 import type { HuntingIntelPicture } from "@/lib/types";
@@ -28,6 +29,8 @@ export function IntelPicture({ intel }: { intel: HuntingIntelPicture }) {
           collection runs, recurring phones/wallets/handles will surface here.
         </p>
       ) : (
+        <>
+          <ProposeLinksButton />
         <Table
           head={
             <>
@@ -61,6 +64,7 @@ export function IntelPicture({ intel }: { intel: HuntingIntelPicture }) {
             </Tr>
           ))}
         </Table>
+        </>
       )}
     </Card>
   );
