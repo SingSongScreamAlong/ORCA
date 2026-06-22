@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/Card";
 import { BackendNotice, EmptyState } from "@/components/ui/States";
 import { PageIntro } from "@/components/ui/PageIntro";
+import { LogLeadForm } from "@/components/hunting/LogLeadForm";
 import { ProposeSourceForm } from "@/components/hunting/ProposeSourceForm";
 import { SourceControls } from "@/components/hunting/SourceControls";
 import { Table, Td, Th, Tr } from "@/components/ui/Table";
@@ -144,6 +145,8 @@ function SourceCard({ source }: { source: HuntingSource }) {
           )}
         </div>
       )}
+
+      {source.status === "monitored" && <LogLeadForm sourceId={source.id} />}
 
       <details className="text-xs">
         <summary className="cursor-pointer text-ink-faint hover:text-ink">

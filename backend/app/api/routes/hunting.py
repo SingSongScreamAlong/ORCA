@@ -12,18 +12,22 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from app.api.deps import current_principal, require
+from app.api.deps import current_principal, get_uow, require
 from app.core.rbac import Capability, Role
 from app.core.security import Principal
 from app.models.enums import HuntingSourceStatus
+from app.repositories.uow import UnitOfWork
 from app.schemas.hunting import (
     HuntingAuthorize,
     HuntingDecision,
+    HuntingLeadCreate,
     HuntingSourcePropose,
     HuntingSourceRead,
     HuntingSummary,
 )
+from app.schemas.observation import ObservationRead
 from app.services.errors import PermissionDenied
+from app.services.hunting_lead_service import HuntingLeadService
 from app.services.hunting_registry_service import HuntingRegistryService
 
 router = APIRouter(prefix="/hunting", tags=["hunting-grounds"])
@@ -139,3 +143,18 @@ def retire_source(
 ) -> HuntingSourceRead:
     _require_admin(principal)
     return HuntingRegistryService().retire(source_id, payload.reason, principal)
+
+
+@router.post(
+    "/sources/{source_id}/leads",
+    response_model=ObservationRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Ingest a text-only lead from a monitored source (→ proposed observation in review)",
+)
+def ingest_lead(
+    source_id: UUID,
+    payload: HuntingLeadCreate,
+    principal: Principal = Depends(require(Capability.CREATE_OBSERVATION)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> ObservationRead:
+    return HuntingLeadService(uow).ingest(source_id, payload, principal)

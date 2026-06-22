@@ -147,3 +147,50 @@ def test_aor_summary_rolls_up_by_status(client):
     assert by_aor["Rhode Island"]["by_status"]["authorized"] == 1
     assert by_aor["Rhode Island"]["by_status"]["proposed"] == 1
     assert by_aor["Connecticut"]["total"] == 1
+
+
+# --- lead -> review wiring ------------------------------------------------------
+
+
+def _monitor(client, **over):
+    sid = _id(_propose(client, **over))
+    client.post(f"{SRC}/{sid}/authorize", json=AUTH, headers={"X-ORCA-User": "admin"})
+    client.post(f"{SRC}/{sid}/monitor", headers={"X-ORCA-User": "admin"})
+    return sid
+
+
+LEAD = {
+    "summary": "Listing reuses phone +1 555 010 0000 seen in two ads.",
+    "confidence": 0.4,
+    "entities": [{"entity_type": "phone_number", "value": "+15550100000"}],
+}
+
+
+def test_lead_from_monitored_source_creates_proposed_observation(client):
+    sid = _monitor(client)
+    resp = client.post(f"{SRC}/{sid}/leads", json=LEAD, headers={"X-ORCA-User": "ana"})
+    assert resp.status_code == 201, resp.text
+    obs = resp.json()
+    assert obs["status"] == "proposed"
+    assert obs["notes"].startswith("Listing reuses")
+    assert obs["handling"]["requires_legal_review"] is True
+    # It is now in the review queue as a proposed observation.
+    queue = client.get(f"{PREFIX}/review?status=proposed", headers={"X-ORCA-User": "admin"}).json()
+    assert any(r["subject_id"] == obs["id"] for r in queue)
+    # The hinted entity was resolved into ORCA's entity store.
+    entities = client.get(f"{PREFIX}/entities", headers={"X-ORCA-User": "admin"}).json()
+    assert any(e["value"] == "+15550100000" for e in entities)
+
+
+def test_lead_rejected_when_source_not_monitored(client):
+    # proposed (not monitored) → leads are refused.
+    sid = _id(_propose(client))
+    resp = client.post(f"{SRC}/{sid}/leads", json=LEAD, headers={"X-ORCA-User": "ana"})
+    assert resp.status_code == 422
+    assert "monitored" in resp.json()["detail"].lower()
+
+
+def test_lead_requires_create_capability(client):
+    sid = _monitor(client)
+    # 'vic' is a viewer — cannot create observations/leads.
+    assert client.post(f"{SRC}/{sid}/leads", json=LEAD, headers={"X-ORCA-User": "vic"}).status_code == 403

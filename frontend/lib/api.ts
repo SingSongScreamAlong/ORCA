@@ -185,6 +185,11 @@ export const rejectHuntingSource = (id: string, reason: string) => huntingDecisi
 export const suspendHuntingSource = (id: string, reason: string) => huntingDecision(id, "suspend", reason);
 export const retireHuntingSource = (id: string, reason: string) => huntingDecision(id, "retire", reason);
 
+export const ingestHuntingLead = (
+  sourceId: string,
+  body: { summary: string; confidence?: number; entities?: { entity_type: string; value: string }[] },
+) => apiSend<Observation>(`/hunting/sources/${sourceId}/leads`, "POST", body);
+
 export const getMe = () => apiGet<CurrentUser>("/me");
 export const getUsers = () => apiGet<User[]>("/users");
 export const getPublishedReports = () => apiGet<Report[]>("/reports/published");
