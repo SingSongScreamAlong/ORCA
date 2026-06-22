@@ -49,9 +49,26 @@ Selected with `ORCA_HUNTING_DISCOVERY_PROVIDER`:
 | `ORCA_HUNTING_DISCOVERY_NAME_FIELD`   | —                  | Per-item field for the venue name. Default `name`.                 |
 | `ORCA_HUNTING_DISCOVERY_URL_FIELD`    | —                  | Per-item field for the venue URL. Default `url`.                   |
 | `ORCA_HUNTING_DISCOVERY_CATEGORY`     | —                  | Default category for candidates. Default `escort_listing`.         |
+| `ORCA_HUNTING_DISCOVERY_AORS`         | —                  | Comma-separated AOR **watchlist** a sweep covers by default.        |
 
 The configuration is read into a frozen `HuntingDiscoveryConfig`. Secrets are redacted in
 `repr`/`safe_dict`; the API key never appears in logs or error messages.
+
+## Seeking across many areas — the sweep
+
+`auto_discover` seeks one AOR; a **sweep** seeks across a list of AORs in one pass, so the
+operator can cover the whole region at once. The list comes from an explicit call/query, or
+falls back to the standing watchlist (`ORCA_HUNTING_DISCOVERY_AORS`). The provider is built
+once and reused; because the registry store updates synchronously, a venue found for an earlier
+AOR is skipped as a duplicate if it recurs later **in the same sweep**.
+
+## Idempotent re-runs — URL normalization
+
+Autonomous discovery is meant to run repeatedly, so it must not silt the registry up with
+near-duplicates. De-duplication compares a **normalized** URL key (`normalize_url`): scheme/host
+lower-cased, a leading `www.` dropped, a trailing slash and any `#fragment` removed. The source
+keeps its original, clickable URL; only the *comparison key* is normalized. Query strings are
+**preserved** — they can distinguish one listing from another.
 
 ## Expected endpoint shape (`http` provider)
 
@@ -75,13 +92,18 @@ Items without a URL are skipped (a candidate must be addressable). Errors are su
 ## API
 
 - `GET /api/v1/hunting/discovery/status` — secret-free posture (provider, enabled, configured,
-  lawful-basis-recorded, host). Readable by anyone with `READ_CASE_MATERIAL`.
-- `POST /api/v1/hunting/discovery/auto?aor={aor}&limit={n}` — run a pass. Requires
+  lawful-basis-recorded, host, AOR watchlist). Readable by anyone with `READ_CASE_MATERIAL`.
+- `POST /api/v1/hunting/discovery/auto?aor={aor}&limit={n}` — seek one AOR. Requires
   `CREATE_OBSERVATION`. Returns a `HuntingDiscoveryResult` (`proposed`, `skipped_existing`,
   `provider`). Returns `400` when disabled/misconfigured, `502` on an upstream/network failure.
-- Every run is recorded in the central append-only audit log as `hunting.discovery.auto`
-  (`{aor, provider, proposed, skipped_existing}`), and each proposed source additionally logs
-  `hunting.source.proposed`.
+- `POST /api/v1/hunting/discovery/sweep?aors={a,b}&limit={n}` — seek across many AORs in one
+  pass. Requires `CREATE_OBSERVATION`. `aors` is optional (comma-separated); with neither it nor
+  a configured watchlist present, returns a clear `400`. Returns a `HuntingDiscoverySweepResult`
+  (`aors`, per-AOR `results`, `total_proposed`, `total_skipped`, `provider`).
+- Every run is recorded in the central append-only audit log — `hunting.discovery.auto`
+  (`{aor, provider, proposed, skipped_existing}`) or `hunting.discovery.sweep`
+  (`{aors, provider, total_proposed, total_skipped}`) — and each proposed source additionally
+  logs `hunting.source.proposed`.
 
 Manual discovery (`POST /hunting/discovery/run`, operator-pasted candidates) remains available
 and behaves identically downstream — both only ever propose.

@@ -250,3 +250,130 @@ def test_service_handles_empty_discovery():
     assert result.proposed == []
     assert result.skipped_existing == 0
     assert result.provider == "stub"
+
+
+# --- AOR watchlist + sweep ------------------------------------------------------
+
+SWEEP = f"{PREFIX}/hunting/discovery/sweep"
+
+
+def test_config_parses_aor_watchlist():
+    cfg = HuntingDiscoveryConfig.from_env(
+        {"ORCA_HUNTING_DISCOVERY_AORS": "Rhode Island, Connecticut , , Massachusetts"}
+    )
+    assert cfg.aors == ("Rhode Island", "Connecticut", "Massachusetts")
+
+
+def test_status_includes_watchlist(client, monkeypatch):
+    monkeypatch.setenv("ORCA_HUNTING_DISCOVERY_PROVIDER", "mock")
+    monkeypatch.setenv("ORCA_HUNTING_DISCOVERY_AORS", "Rhode Island,Connecticut")
+    body = client.get(STATUS, headers=ANA).json()
+    assert body["aors"] == ["Rhode Island", "Connecticut"]
+
+
+def test_sweep_across_watchlist_proposes_per_aor(client, monkeypatch):
+    monkeypatch.setenv("ORCA_HUNTING_DISCOVERY_PROVIDER", "mock")
+    monkeypatch.setenv("ORCA_HUNTING_DISCOVERY_AORS", "Rhode Island,Connecticut")
+    resp = client.post(f"{SWEEP}?limit=2", headers=ANA)
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["aors"] == ["Rhode Island", "Connecticut"]
+    assert body["provider"] == "mock"
+    assert len(body["results"]) == 2
+    assert body["total_proposed"] == 4  # 2 per AOR, distinct URLs per AOR
+    assert body["total_skipped"] == 0
+    assert {r["aor"] for r in body["results"]} == {"Rhode Island", "Connecticut"}
+
+
+def test_sweep_accepts_explicit_aors_query(client, monkeypatch):
+    monkeypatch.setenv("ORCA_HUNTING_DISCOVERY_PROVIDER", "mock")
+    monkeypatch.delenv("ORCA_HUNTING_DISCOVERY_AORS", raising=False)
+    body = client.post(f"{SWEEP}?aors=Rhode%20Island,Maine&limit=1", headers=ANA).json()
+    assert [r["aor"] for r in body["results"]] == ["Rhode Island", "Maine"]
+    assert body["total_proposed"] == 2
+
+
+def test_sweep_dedups_across_reruns(client, monkeypatch):
+    monkeypatch.setenv("ORCA_HUNTING_DISCOVERY_PROVIDER", "mock")
+    monkeypatch.setenv("ORCA_HUNTING_DISCOVERY_AORS", "Rhode Island")
+    client.post(f"{SWEEP}?limit=3", headers=ANA)
+    second = client.post(f"{SWEEP}?limit=3", headers=ANA).json()
+    assert second["total_proposed"] == 0
+    assert second["total_skipped"] == 3
+
+
+def test_sweep_without_any_aors_returns_400(client, monkeypatch):
+    monkeypatch.setenv("ORCA_HUNTING_DISCOVERY_PROVIDER", "mock")
+    monkeypatch.delenv("ORCA_HUNTING_DISCOVERY_AORS", raising=False)
+    resp = client.post(SWEEP, headers=ANA)  # no watchlist, no query
+    assert resp.status_code == 400
+    assert "aor" in resp.json()["detail"].lower()
+
+
+def test_sweep_disabled_returns_400(client, monkeypatch):
+    monkeypatch.delenv("ORCA_HUNTING_DISCOVERY_PROVIDER", raising=False)
+    resp = client.post(f"{SWEEP}?aors=Rhode%20Island", headers=ANA)
+    assert resp.status_code == 400
+    assert "disabled" in resp.json()["detail"].lower()
+
+
+def test_sweep_requires_create_capability(client, monkeypatch):
+    monkeypatch.setenv("ORCA_HUNTING_DISCOVERY_PROVIDER", "mock")
+    assert client.post(f"{SWEEP}?aors=Rhode%20Island", headers={"X-ORCA-User": "vic"}).status_code == 403
+
+
+def test_sweep_is_audited(client, monkeypatch):
+    monkeypatch.setenv("ORCA_HUNTING_DISCOVERY_PROVIDER", "mock")
+    client.post(f"{SWEEP}?aors=Rhode%20Island,Maine&limit=1", headers=ANA)
+    entries = client.get(f"{PREFIX}/audit?action_prefix=hunting.discovery.sweep", headers=ADMIN).json()
+    assert entries, "expected a hunting.discovery.sweep audit entry"
+    ctx = entries[0]["context"]
+    assert ctx["provider"] == "mock"
+    assert ctx["aors"] == ["Rhode Island", "Maine"]
+    assert ctx["total_proposed"] == 2
+
+
+def test_sweep_service_dedups_same_venue_across_aors(client):
+    # A provider that returns the SAME venue for every AOR: the first AOR proposes it, later
+    # AORs in the same sweep skip it as a duplicate (the store updates synchronously).
+    from app.repositories.uow import build_unit_of_work
+    from app.schemas.hunting import HuntingDiscoveryCandidate
+
+    principal = Principal(id="ana", username="ana", display_name="Ana", role=Role.ANALYST)
+    shared = [HuntingDiscoveryCandidate(name="Shared", url="https://shared.invalid", notes="x")]
+    uow = build_unit_of_work()
+    sweep = HuntingDiscoveryService(uow, provider=_StubProvider(shared)).sweep(
+        principal, aors=["Rhode Island", "Connecticut"]
+    )
+    uow.commit()
+    assert sweep.total_proposed == 1
+    assert sweep.total_skipped == 1
+
+
+# --- URL normalization (robust dedup for repeated autonomous runs) --------------
+
+
+def test_normalize_url_collapses_incidental_variants():
+    from app.services.hunting_registry_service import normalize_url
+
+    base = normalize_url("https://example.invalid/ri")
+    assert normalize_url("https://example.invalid/ri/") == base  # trailing slash
+    assert normalize_url("https://www.example.invalid/ri") == base  # www.
+    assert normalize_url("HTTPS://Example.INVALID/ri") == base  # scheme/host case
+    assert normalize_url("https://example.invalid/ri#section") == base  # fragment
+    # Query strings are meaningful and preserved (not collapsed).
+    assert normalize_url("https://example.invalid/ri?id=7") != base
+
+
+def test_discovery_dedups_trivial_url_variants(client, monkeypatch):
+    # Two candidates that differ only by www./trailing slash collapse to one proposal.
+    run = {
+        "aor": "Rhode Island",
+        "candidates": [
+            {"name": "A", "url": "https://www.dup.invalid/x"},
+            {"name": "A again", "url": "https://dup.invalid/x/"},
+        ],
+    }
+    body = client.post(f"{PREFIX}/hunting/discovery/run", json=run, headers=ANA).json()
+    assert len(body["proposed"]) == 1
+    assert body["skipped_existing"] == 1

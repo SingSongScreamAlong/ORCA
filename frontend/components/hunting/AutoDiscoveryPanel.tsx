@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCan } from "@/components/auth/UserContext";
-import { runAutoDiscovery } from "@/lib/api";
+import { runAutoDiscovery, runAutoDiscoverySweep } from "@/lib/api";
 import type { HuntingDiscoveryStatus } from "@/lib/types";
 
 /**
@@ -24,37 +24,50 @@ export function AutoDiscoveryPanel({
   const canRun = useCan("create_observation");
   const [aor, setAor] = useState(defaultAor);
   const [limit, setLimit] = useState(10);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<null | "one" | "sweep">(null);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ proposed: number; skipped: number; provider: string | null } | null>(
-    null,
-  );
+  const [result, setResult] = useState<string | null>(null);
 
   if (!canRun) return null;
 
   const enabled = status?.enabled ?? false;
+  const watchlist = status?.aors ?? [];
 
-  async function seek(e: React.FormEvent) {
+  async function seekOne(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
+    setBusy("one");
     setError(null);
     setResult(null);
     const res = await runAutoDiscovery(aor.trim(), limit);
-    setBusy(false);
+    setBusy(null);
     if (!res.ok) {
       setError(res.error);
       return;
     }
-    setResult({
-      proposed: res.data.proposed.length,
-      skipped: res.data.skipped_existing,
-      provider: res.data.provider,
-    });
+    setResult(
+      `Sought ${res.data.aor} via ${res.data.provider ?? "provider"} — proposed ${res.data.proposed.length} · skipped ${res.data.skipped_existing} already known.`,
+    );
+    router.refresh();
+  }
+
+  async function sweep() {
+    setBusy("sweep");
+    setError(null);
+    setResult(null);
+    const res = await runAutoDiscoverySweep(undefined, limit);
+    setBusy(null);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    setResult(
+      `Swept ${res.data.aors.length} AOR(s) via ${res.data.provider ?? "provider"} — proposed ${res.data.total_proposed} · skipped ${res.data.total_skipped} already known.`,
+    );
     router.refresh();
   }
 
   return (
-    <form onSubmit={seek} className="space-y-3">
+    <form onSubmit={seekOne} className="space-y-3">
       <ProviderState status={status} />
 
       <div className="flex flex-wrap items-end gap-2">
@@ -79,17 +92,30 @@ export function AutoDiscoveryPanel({
         </div>
         <button
           type="submit"
-          disabled={busy || !aor.trim() || !enabled}
+          disabled={busy !== null || !aor.trim() || !enabled}
           className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
-          {busy ? "Seeking…" : "Run autonomous discovery"}
+          {busy === "one" ? "Seeking…" : "Run autonomous discovery"}
+        </button>
+        <button
+          type="button"
+          onClick={sweep}
+          disabled={busy !== null || !enabled || watchlist.length === 0}
+          title={watchlist.length === 0 ? "Set ORCA_HUNTING_DISCOVERY_AORS to enable the sweep." : undefined}
+          className="rounded-md border border-accent px-3 py-1.5 text-sm font-medium text-accent hover:bg-accent-soft disabled:opacity-50"
+        >
+          {busy === "sweep" ? "Sweeping…" : `Sweep watchlist (${watchlist.length})`}
         </button>
       </div>
 
+      {watchlist.length > 0 && (
+        <p className="text-xs text-ink-faint">
+          Watchlist: <span className="text-ink-muted">{watchlist.join(" · ")}</span>
+        </p>
+      )}
       {result && (
         <p className="text-xs text-green-700">
-          Sought via {result.provider ?? "provider"} — proposed {result.proposed} · skipped{" "}
-          {result.skipped} already known. Each still needs authorization before monitoring.
+          {result} Each still needs authorization before monitoring.
         </p>
       )}
       {error && <p className="text-xs text-amber-700">{error}</p>}

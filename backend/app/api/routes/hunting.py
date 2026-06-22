@@ -23,6 +23,7 @@ from app.schemas.hunting import (
     HuntingDiscoveryResult,
     HuntingDiscoveryRun,
     HuntingDiscoveryStatus,
+    HuntingDiscoverySweepResult,
     HuntingLeadCreate,
     HuntingSourcePropose,
     HuntingSourceRead,
@@ -105,6 +106,34 @@ def auto_discovery(
     """
     try:
         return HuntingDiscoveryService(uow).auto_discover(aor, principal, limit=limit)
+    except (DiscoveryNotEnabled, DiscoveryConfigError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except DiscoveryError as exc:  # network/HTTP/parse — message is written to be secret-free
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.post(
+    "/discovery/sweep",
+    response_model=HuntingDiscoverySweepResult,
+    summary="Autonomously seek across a list of AORs in one pass (the watchlist; proposes only)",
+)
+def auto_discovery_sweep(
+    aors: str | None = Query(
+        None, description="Comma-separated AORs to sweep; defaults to the configured watchlist."
+    ),
+    limit: int = Query(10, ge=1, le=50, description="Maximum candidates per AOR this pass."),
+    principal: Principal = Depends(require(Capability.CREATE_OBSERVATION)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> HuntingDiscoverySweepResult:
+    """Seek across many areas at once — the whole region in a single autonomous pass.
+
+    Each candidate enters as ``proposed`` (deduped by URL, across AORs and re-runs); an
+    administrator still authorizes each before monitoring. With no ``aors`` and no configured
+    watchlist, returns a clear 400. Errors carry no secrets.
+    """
+    aor_list = [a.strip() for a in aors.split(",") if a.strip()] if aors else None
+    try:
+        return HuntingDiscoveryService(uow).sweep(principal, aors=aor_list, limit_per_aor=limit)
     except (DiscoveryNotEnabled, DiscoveryConfigError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except DiscoveryError as exc:  # network/HTTP/parse — message is written to be secret-free

@@ -25,6 +25,7 @@ import type {
   GraphView,
   HuntingDiscoveryResult,
   HuntingDiscoveryStatus,
+  HuntingDiscoverySweepResult,
   HuntingEscalation,
   HuntingEscalationStatus,
   HuntingSource,
@@ -209,6 +210,15 @@ export const runAutoDiscovery = (aor: string, limit = 10) =>
     "POST",
     {},
   );
+
+export const runAutoDiscoverySweep = (aors?: string[], limit = 10) => {
+  const query = aors && aors.length ? `&aors=${encodeURIComponent(aors.join(","))}` : "";
+  return apiSend<HuntingDiscoverySweepResult>(
+    `/hunting/discovery/sweep?limit=${limit}${query}`,
+    "POST",
+    {},
+  );
+};
 
 // Suspected-minor / CSAM escalation — report-only, never-store.
 export const getHuntingEscalations = (status?: HuntingEscalationStatus) =>

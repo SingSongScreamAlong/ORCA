@@ -72,7 +72,7 @@ export default async function HuntingPage() {
 
       <Card
         title="Autonomous discovery"
-        subtitle="Let ORCA seek new venues in an AOR through the configured lawful source — the hunt, automated. It only ever proposes; an administrator still authorizes each before monitoring. Disabled until a licensed source is configured."
+        subtitle="Let ORCA seek new venues through the configured lawful source — one AOR, or sweep the whole watchlist in a pass. It only ever proposes; an administrator still authorizes each before monitoring. Disabled until a licensed source is configured."
       >
         <AutoDiscoveryPanel
           defaultAor={DEFAULT_AOR}

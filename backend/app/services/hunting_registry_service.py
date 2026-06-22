@@ -21,6 +21,7 @@ Discovery jobs (a later milestone) call ``propose`` only — they can never auth
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
 from app.core.audit import new_audit_entry
@@ -41,6 +42,29 @@ from app.schemas.hunting import (
 from app.services.errors import NotFoundError, ValidationError
 
 _S = HuntingSourceStatus
+
+
+def normalize_url(url: str) -> str:
+    """A canonical key for de-duplication.
+
+    Autonomous discovery re-runs hit the same venues repeatedly with trivially different URLs
+    (scheme case, a trailing slash, a ``#fragment``, ``www.``). Normalizing the *comparison key*
+    — while the source keeps its original, clickable URL — keeps repeated sweeps idempotent and
+    the registry free of near-duplicate proposals. Query strings are preserved (they can be
+    semantically meaningful for a listing); only incidental differences are collapsed.
+    """
+    raw = url.strip()
+    parsed = urlparse(raw if "://" in raw else f"//{raw}", scheme="https")
+    host = (parsed.hostname or "").lower()
+    if not host:
+        # Not URL-shaped — fall back to a lightly-normalized literal.
+        return raw.rstrip("/").lower()
+    if host.startswith("www."):
+        host = host[4:]
+    port = f":{parsed.port}" if parsed.port and parsed.port not in (80, 443) else ""
+    path = parsed.path.rstrip("/")
+    query = f"?{parsed.query}" if parsed.query else ""
+    return f"{parsed.scheme}://{host}{port}{path}{query}"
 
 
 def _rollup(aor: str, group: list[HuntingSourceRead]) -> HuntingAorSummary:
@@ -93,16 +117,19 @@ class HuntingRegistryService:
 
         This is the seam a future collector plugs into — "the hunt" surfaces *new* sites so the
         operator need not trawl. It can **only propose**; an administrator still authorizes each
-        before anything is monitored. Re-running is idempotent (existing URLs are skipped).
+        before anything is monitored. Re-running is idempotent: existing venues are skipped,
+        compared by a normalized URL key so trivial variants (trailing slash, ``www.``, scheme
+        case) don't slip through as duplicates.
         """
-        existing = {s.url for s in store.hunting_sources.values()}
+        existing = {normalize_url(s.url) for s in store.hunting_sources.values()}
         proposed = []
         skipped = 0
         for candidate in run.candidates:
-            if candidate.url in existing:
+            key = normalize_url(candidate.url)
+            if key in existing:
                 skipped += 1
                 continue
-            existing.add(candidate.url)
+            existing.add(key)
             proposed.append(
                 self.propose(
                     HuntingSourcePropose(

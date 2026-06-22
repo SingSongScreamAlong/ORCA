@@ -517,6 +517,14 @@ export interface HuntingDiscoveryResult {
   provider: string | null;
 }
 
+export interface HuntingDiscoverySweepResult {
+  aors: string[];
+  results: HuntingDiscoveryResult[];
+  total_proposed: number;
+  total_skipped: number;
+  provider: string | null;
+}
+
 export interface HuntingDiscoveryStatus {
   provider: string; // "disabled" | "mock" | "http"
   enabled: boolean;
@@ -524,6 +532,7 @@ export interface HuntingDiscoveryStatus {
   lawful_basis_recorded: boolean;
   host: string | null;
   category: HuntingSourceCategory;
+  aors: string[]; // standing AOR watchlist a sweep covers by default
 }
 
 export type HuntingEscalationStatus = "open" | "reported" | "closed" | "dismissed";

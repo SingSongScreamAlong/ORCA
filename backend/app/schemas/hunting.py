@@ -131,6 +131,16 @@ class HuntingDiscoveryResult(ORCAModel):
     provider: str | None = None
 
 
+class HuntingDiscoverySweepResult(ORCAModel):
+    """The outcome of an autonomous sweep across a list of AORs (one ``result`` per AOR)."""
+
+    aors: list[str]
+    results: list[HuntingDiscoveryResult]
+    total_proposed: int
+    total_skipped: int
+    provider: str | None = None
+
+
 class HuntingDiscoveryStatus(ORCAModel):
     """Secret-free posture of the autonomous discovery engine (for the UI/operator).
 
@@ -145,3 +155,6 @@ class HuntingDiscoveryStatus(ORCAModel):
     )
     host: str | None = Field(default=None, description="Discovery source host (no path/secrets).")
     category: HuntingSourceCategory = Field(description="Default category applied to candidates.")
+    aors: list[str] = Field(
+        default_factory=list, description="Standing AOR watchlist a sweep covers by default."
+    )

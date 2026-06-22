@@ -39,6 +39,7 @@ from app.schemas.hunting import (
     HuntingDiscoveryResult,
     HuntingDiscoveryRun,
     HuntingDiscoveryStatus,
+    HuntingDiscoverySweepResult,
 )
 
 _REDACTED = "***redacted***"
@@ -77,6 +78,26 @@ def _get(env: dict, key: str) -> str | None:
     return value or None
 
 
+def _split_aors(value: str | None) -> tuple[str, ...]:
+    """Parse a comma-separated AOR watchlist, trimming blanks and preserving order."""
+    if not value:
+        return ()
+    return tuple(part.strip() for part in value.split(",") if part.strip())
+
+
+def _dedup_preserving_order(values: list[str]) -> list[str]:
+    """Trim, drop blanks, and de-duplicate (case-insensitively) while keeping first-seen order."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for value in values:
+        cleaned = value.strip()
+        key = cleaned.lower()
+        if cleaned and key not in seen:
+            seen.add(key)
+            out.append(cleaned)
+    return out
+
+
 @dataclass(frozen=True)
 class HuntingDiscoveryConfig:
     """Autonomous-discovery configuration, read from ``ORCA_HUNTING_DISCOVERY_*``.
@@ -95,6 +116,8 @@ class HuntingDiscoveryConfig:
     name_field: str = "name"
     url_field: str = "url"
     category: str = HuntingSourceCategory.OTHER.value  # default category for candidates
+    # The standing AOR watchlist a sweep covers when none is named explicitly.
+    aors: tuple[str, ...] = ()
 
     @classmethod
     def from_env(cls, env: dict | None = None) -> HuntingDiscoveryConfig:
@@ -108,6 +131,7 @@ class HuntingDiscoveryConfig:
             name_field=_get(env, "ORCA_HUNTING_DISCOVERY_NAME_FIELD") or "name",
             url_field=_get(env, "ORCA_HUNTING_DISCOVERY_URL_FIELD") or "url",
             category=(_get(env, "ORCA_HUNTING_DISCOVERY_CATEGORY") or HuntingSourceCategory.OTHER.value),
+            aors=_split_aors(_get(env, "ORCA_HUNTING_DISCOVERY_AORS")),
         )
 
     @property
@@ -151,6 +175,7 @@ class HuntingDiscoveryConfig:
             "lawful_basis_recorded": bool(self.lawful_basis),
             "host": self.base_host(),
             "category": self.candidate_category().value,
+            "aors": list(self.aors),
             "api_key": _REDACTED if self.api_key else None,
         }
 
@@ -336,10 +361,16 @@ def build_discovery_provider(
 
 
 class HuntingDiscoveryService:
-    """Drives an autonomous discovery pass: query the configured provider, then feed every
-    candidate through the registry's ``run_discovery`` so each enters as ``proposed`` (deduped
-    by URL). Authorization stays a separate, human, admin-only step — this service never
-    authorizes or monitors anything. The run itself is recorded in the central audit log.
+    """Drives autonomous discovery: query the configured provider, then feed every candidate
+    through the registry's ``run_discovery`` so each enters as ``proposed`` (deduped by URL).
+    Authorization stays a separate, human, admin-only step — this service never authorizes or
+    monitors anything. Runs are recorded in the central audit log.
+
+    Two entry points:
+    * :meth:`auto_discover` — seek within one AOR.
+    * :meth:`sweep` — seek across a list of AORs (the standing watchlist) in one pass, so the
+      operator can cover the whole region at once. Candidates found earlier in a sweep dedup
+      later AORs in the same pass.
     """
 
     def __init__(
@@ -353,9 +384,12 @@ class HuntingDiscoveryService:
         self._provider = provider  # injectable for tests
         self._config = config
 
+    def _resolved_config(self) -> HuntingDiscoveryConfig:
+        return self._config or HuntingDiscoveryConfig.from_env()
+
     def status(self) -> HuntingDiscoveryStatus:
-        """Secret-free posture of the engine (provider, enabled, configured, host)."""
-        config = self._config or HuntingDiscoveryConfig.from_env()
+        """Secret-free posture of the engine (provider, enabled, configured, host, watchlist)."""
+        config = self._resolved_config()
         return HuntingDiscoveryStatus(
             provider=config.provider,
             enabled=config.enabled,
@@ -363,32 +397,72 @@ class HuntingDiscoveryService:
             lawful_basis_recorded=bool(config.lawful_basis),
             host=config.base_host(),
             category=config.candidate_category(),
+            aors=list(config.aors),
         )
 
     def auto_discover(
         self, aor: str, principal: Principal, *, limit: int = _DEFAULT_LIMIT
     ) -> HuntingDiscoveryResult:
+        provider = self._provider or build_discovery_provider(self._config)
+        result = self._discover_one(provider, aor, principal, limit=limit)
+        self._audit_auto(principal, aor, result)
+        return result
+
+    def sweep(
+        self,
+        principal: Principal,
+        *,
+        aors: list[str] | None = None,
+        limit_per_aor: int = _DEFAULT_LIMIT,
+    ) -> HuntingDiscoverySweepResult:
+        """Seek across a list of AORs in one autonomous pass.
+
+        ``aors`` overrides the configured watchlist for this call; with neither present a clear
+        :class:`DiscoveryConfigError` is raised. The provider is built once and reused across
+        AORs; the store updates synchronously, so a venue found for an earlier AOR is skipped
+        as a duplicate if it recurs later in the same sweep.
+        """
+        config = self._resolved_config()
+        targets = _dedup_preserving_order(aors if aors else list(config.aors))
+        if not targets:
+            raise DiscoveryConfigError(
+                "No AORs to sweep — pass an explicit list, or set ORCA_HUNTING_DISCOVERY_AORS "
+                "to a comma-separated watchlist. See docs/hunting_grounds_discovery.md."
+            )
+        provider = self._provider or build_discovery_provider(self._config)
+        results = [
+            self._discover_one(provider, aor, principal, limit=limit_per_aor) for aor in targets
+        ]
+        sweep = HuntingDiscoverySweepResult(
+            aors=targets,
+            results=results,
+            total_proposed=sum(len(r.proposed) for r in results),
+            total_skipped=sum(r.skipped_existing for r in results),
+            provider=getattr(provider, "name", None),
+        )
+        self._audit_sweep(principal, sweep)
+        return sweep
+
+    # --- internal ----------------------------------------------------------------
+
+    def _discover_one(
+        self, provider: DiscoveryProvider, aor: str, principal: Principal, *, limit: int
+    ) -> HuntingDiscoveryResult:
         # Lazy import keeps the engine module importable without the full service stack and
         # avoids any import cycle through the registry service.
         from app.services.hunting_registry_service import HuntingRegistryService
 
-        provider = self._provider or build_discovery_provider(self._config)
         candidates = provider.discover(aor, limit=limit)
         provider_name = getattr(provider, "name", None)
-
         if not candidates:
-            result = HuntingDiscoveryResult(
+            return HuntingDiscoveryResult(
                 aor=aor, proposed=[], skipped_existing=0, provider=provider_name
             )
-        else:
-            run = HuntingDiscoveryRun(aor=aor, candidates=candidates)
-            base = HuntingRegistryService(self.uow).run_discovery(run, principal)
-            result = base.model_copy(update={"provider": provider_name})
+        run = HuntingDiscoveryRun(aor=aor, candidates=candidates)
+        base = HuntingRegistryService(self.uow).run_discovery(run, principal)
+        return base.model_copy(update={"provider": provider_name})
 
-        self._audit(principal, aor, result)
-        return result
-
-    def _audit(self, principal: Principal, aor: str, result: HuntingDiscoveryResult) -> None:
+    def _audit_auto(self, principal: Principal, aor: str, result: HuntingDiscoveryResult) -> None:
         if self.uow is None:
             return
         self.uow.audit.record(
@@ -403,6 +477,25 @@ class HuntingDiscoveryService:
                     "provider": result.provider,
                     "proposed": len(result.proposed),
                     "skipped_existing": result.skipped_existing,
+                },
+            )
+        )
+
+    def _audit_sweep(self, principal: Principal, sweep: HuntingDiscoverySweepResult) -> None:
+        if self.uow is None:
+            return
+        self.uow.audit.record(
+            new_audit_entry(
+                actor_id=principal.id,
+                action="hunting.discovery.sweep",
+                target_type="hunting_discovery",
+                target_id=",".join(sweep.aors),
+                case_id=None,
+                context={
+                    "aors": sweep.aors,
+                    "provider": sweep.provider,
+                    "total_proposed": sweep.total_proposed,
+                    "total_skipped": sweep.total_skipped,
                 },
             )
         )
