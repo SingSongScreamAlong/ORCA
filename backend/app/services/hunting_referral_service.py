@@ -20,6 +20,7 @@ from app.core.audit import new_audit_entry
 from app.core.security import Principal
 from app.models.enums import EntityType
 from app.repositories.uow import UnitOfWork
+from app.schemas.entity import EntityRead
 from app.schemas.hunting import (
     AorReferralPackage,
     HuntingReferralPackage,
@@ -218,7 +219,7 @@ class HuntingReferralService:
 
         # The located identifiers across the AOR's venues (deduped, first-seen order), plus leads.
         entity_ids: list[UUID] = []
-        entities_by_id: dict[UUID, object] = {}
+        entities_by_id: dict[UUID, EntityRead] = {}
         lead_count = 0
         for source in sources:
             marker = hunting_collector_marker(source.id)

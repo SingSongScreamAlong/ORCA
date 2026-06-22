@@ -72,9 +72,9 @@ export function AorReferralButton({ aor }: { aor: string }) {
           </p>
           {pkg.cross_venue.length > 0 && (
             <ul className="mt-2 flex flex-wrap gap-1.5">
-              {pkg.cross_venue.slice(0, 16).map((i, idx) => (
+              {pkg.cross_venue.slice(0, 16).map((i) => (
                 <li
-                  key={idx}
+                  key={`${i.entity_type}-${i.value}`}
                   className="rounded bg-accent-soft px-2 py-0.5 ring-1 ring-inset ring-accent/30"
                   title={humanize(i.entity_type)}
                 >
