@@ -10,13 +10,16 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.repositories.store import reset_store
+from app.services.hunting_scheduler import scheduler
 
 
 @pytest.fixture(autouse=True)
 def _fresh_store():
     reset_store()
+    scheduler.reset()
     yield
     reset_store()
+    scheduler.reset()
 
 
 @pytest.fixture

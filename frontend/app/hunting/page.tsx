@@ -1,14 +1,28 @@
 import { Card } from "@/components/ui/Card";
 import { BackendNotice, EmptyState } from "@/components/ui/States";
 import { PageIntro } from "@/components/ui/PageIntro";
+import { AutoDiscoveryPanel } from "@/components/hunting/AutoDiscoveryPanel";
+import { CollectionPanel } from "@/components/hunting/CollectionPanel";
+import { CollectSourceButton } from "@/components/hunting/CollectSourceButton";
+import { DiscoverySchedulePanel } from "@/components/hunting/DiscoverySchedulePanel";
 import { EscalationsPanel } from "@/components/hunting/EscalationsPanel";
 import { FlagConcernForm } from "@/components/hunting/FlagConcernForm";
+import { IntelPicture } from "@/components/hunting/IntelPicture";
 import { LogLeadForm } from "@/components/hunting/LogLeadForm";
 import { ProposeSourceForm } from "@/components/hunting/ProposeSourceForm";
+import { ReferralButton } from "@/components/hunting/ReferralButton";
 import { RunDiscoveryForm } from "@/components/hunting/RunDiscoveryForm";
 import { SourceControls } from "@/components/hunting/SourceControls";
 import { Table, Td, Th, Tr } from "@/components/ui/Table";
-import { getHuntingEscalations, getHuntingSources, getHuntingSummary } from "@/lib/api";
+import {
+  getHuntingCollectionStatus,
+  getHuntingDiscoverySchedule,
+  getHuntingDiscoveryStatus,
+  getHuntingEscalations,
+  getHuntingIntel,
+  getHuntingSources,
+  getHuntingSummary,
+} from "@/lib/api";
 import { humanize } from "@/lib/format";
 import type { HuntingSource, HuntingSourceStatus, HuntingSummary } from "@/lib/types";
 
@@ -26,11 +40,16 @@ const STATUS_STYLE: Record<HuntingSourceStatus, string> = {
 };
 
 export default async function HuntingPage() {
-  const [sources, summary, escalations] = await Promise.all([
-    getHuntingSources(),
-    getHuntingSummary(),
-    getHuntingEscalations(),
-  ]);
+  const [sources, summary, escalations, discoveryStatus, scheduleStatus, collectionStatus, intel] =
+    await Promise.all([
+      getHuntingSources(),
+      getHuntingSummary(),
+      getHuntingEscalations(),
+      getHuntingDiscoveryStatus(),
+      getHuntingDiscoverySchedule(),
+      getHuntingCollectionStatus(),
+      getHuntingIntel(),
+    ]);
 
   if (!sources.ok) {
     return (
@@ -63,9 +82,44 @@ export default async function HuntingPage() {
 
       {summary.ok && summary.data.totals.total > 0 && <AorPicture summary={summary.data} />}
 
+      {intel.ok && intel.data.monitored_sources > 0 && <IntelPicture intel={intel.data} />}
+
       <Card
-        title="Discovery"
-        subtitle="Propose candidate venues in bulk (the hunt surfaces new sites so the operator need not trawl). Deduped by URL; each still requires authorization before monitoring."
+        title="Autonomous discovery"
+        subtitle="Let ORCA seek new venues through the configured lawful source — one AOR, or sweep the whole watchlist in a pass. It only ever proposes; an administrator still authorizes each before monitoring. Disabled until a licensed source is configured."
+      >
+        {!discoveryStatus.ok && (
+          <BackendNotice error={discoveryStatus.error} status={discoveryStatus.status} />
+        )}
+        <AutoDiscoveryPanel
+          defaultAor={DEFAULT_AOR}
+          status={discoveryStatus.ok ? discoveryStatus.data : null}
+        />
+      </Card>
+
+      <Card
+        title="Automated collection"
+        subtitle="Pull text-only candidate leads from monitored sources into the review queue — first-pass triage, automated. CSAM-safe (no media); analysts decide. Disabled until a licensed source is configured."
+      >
+        {!collectionStatus.ok && (
+          <BackendNotice error={collectionStatus.error} status={collectionStatus.status} />
+        )}
+        <CollectionPanel status={collectionStatus.ok ? collectionStatus.data : null} />
+      </Card>
+
+      <Card
+        title="Continuous cadence"
+        subtitle="The autonomous loop — on an interval ORCA sweeps the watchlist for new venues, then collects leads from monitored ones. Still proposes only; administrators hold a runtime kill-switch. Disabled by default."
+      >
+        {!scheduleStatus.ok && (
+          <BackendNotice error={scheduleStatus.error} status={scheduleStatus.status} />
+        )}
+        <DiscoverySchedulePanel status={scheduleStatus.ok ? scheduleStatus.data : null} />
+      </Card>
+
+      <Card
+        title="Manual discovery"
+        subtitle="Propose candidate venues in bulk by hand (the hunt surfaces new sites so the operator need not trawl). Deduped by URL; each still requires authorization before monitoring."
       >
         <RunDiscoveryForm defaultAor={DEFAULT_AOR} />
       </Card>
@@ -177,6 +231,8 @@ function SourceCard({ source }: { source: HuntingSource }) {
 
       {source.status === "monitored" && (
         <div className="space-y-2">
+          <CollectSourceButton sourceId={source.id} />
+          <ReferralButton sourceId={source.id} />
           <LogLeadForm sourceId={source.id} />
           <FlagConcernForm sourceId={source.id} aor={source.aor} url={source.url} />
         </div>

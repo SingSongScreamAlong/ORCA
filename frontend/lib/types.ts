@@ -69,7 +69,11 @@ export type EntityType =
   | "vehicle"
   | "image"
   | "advertisement"
-  | "tattoo_marker";
+  | "tattoo_marker"
+  | "email"
+  | "crypto_address"
+  | "onion_service"
+  | "url";
 
 export type RelationshipType =
   | "shared_phone"
@@ -514,6 +518,134 @@ export interface HuntingDiscoveryResult {
   aor: string;
   proposed: HuntingSource[];
   skipped_existing: number;
+  provider: string | null;
+}
+
+export interface HuntingDiscoverySweepResult {
+  aors: string[];
+  results: HuntingDiscoveryResult[];
+  total_proposed: number;
+  total_skipped: number;
+  provider: string | null;
+}
+
+export interface HuntingDiscoveryStatus {
+  provider: string; // "disabled" | "mock" | "http"
+  enabled: boolean;
+  configured: boolean;
+  lawful_basis_recorded: boolean;
+  host: string | null;
+  category: HuntingSourceCategory;
+  aors: string[]; // standing AOR watchlist a sweep covers by default
+  tor_enabled: boolean;
+  darkweb_acknowledged: boolean;
+}
+
+export interface HuntingDiscoveryScheduleStatus {
+  enabled: boolean;
+  interval_minutes: number;
+  limit_per_aor: number;
+  paused: boolean;
+  running: boolean;
+  runs: number;
+  last_run_at: string | null;
+  last_error: string | null;
+  last_total_proposed: number | null;
+  last_total_skipped: number | null;
+  last_aors: string[];
+  collection_runs: number;
+  last_collection_proposed: number | null;
+  last_collection_sources: number | null;
+  last_collection_error: string | null;
+}
+
+export interface HuntingCollectionStatus {
+  provider: string; // "disabled" | "mock" | "http"
+  enabled: boolean;
+  configured: boolean;
+  lawful_basis_recorded: boolean;
+  host: string | null;
+  tor_enabled: boolean;
+  darkweb_acknowledged: boolean;
+}
+
+export interface HuntingCollectionResult {
+  source_id: string;
+  source_name: string;
+  proposed_observation_ids: string[];
+  provider: string | null;
+}
+
+export interface HuntingCollectionSweepResult {
+  results: HuntingCollectionResult[];
+  total_proposed: number;
+  sources_collected: number;
+  provider: string | null;
+}
+
+export interface ReferralEntity {
+  entity_type: EntityType;
+  value: string;
+  venue_count: number;
+}
+
+export interface IntelIdentifier {
+  entity_type: EntityType;
+  value: string;
+  source_count: number;
+  lead_count: number;
+  sources: string[];
+}
+
+export interface HuntingIntelPicture {
+  aor: string | null;
+  monitored_sources: number;
+  leads: number;
+  identifiers: number;
+  cross_venue_count: number;
+  cross_venue: IntelIdentifier[];
+  top_identifiers: IntelIdentifier[];
+}
+
+export interface ReferralObservation {
+  id: string;
+  summary: string;
+  observed_at: string;
+  confidence: number;
+  status: string;
+}
+
+export interface ReferralRelationship {
+  relationship_type: string;
+  source_value: string;
+  target_value: string;
+  confidence: number;
+  status: string;
+}
+
+export interface HuntingReferralPackage {
+  source: {
+    id: string;
+    name: string;
+    url: string;
+    category: HuntingSourceCategory;
+    aor: string;
+    status: HuntingSourceStatus;
+    lawful_basis: string | null;
+    access_method: string | null;
+    jurisdiction: string | null;
+    proposed_by: string;
+    authorized_by: string | null;
+  };
+  generated_at: string;
+  generated_by: string;
+  observation_count: number;
+  identifier_count: number;
+  located_identifiers: ReferralEntity[];
+  observations: ReferralObservation[];
+  relationships: ReferralRelationship[];
+  summary_markdown: string;
+  notice: string;
 }
 
 export type HuntingEscalationStatus = "open" | "reported" | "closed" | "dismissed";

@@ -168,3 +168,47 @@ def test_full_loop_against_postgres(pg_client):
         "report_package.manifest_downloaded", "report_package.downloaded",
     ):
         assert expected in actions
+
+
+def test_hunting_grounds_against_postgres(pg_client):
+    """The Hunting Grounds registry + escalation channel persist through the SQL unit of work
+    (JSONB document round-trip), and their privileged actions reach the system audit log."""
+    c = pg_client
+    admin = {"X-ORCA-User": "admin"}
+
+    sid = c.post(
+        f"{PREFIX}/hunting/sources",
+        json={"name": "PG RI listings", "url": "https://pg.invalid/ri", "category": "escort_listing", "aor": "Rhode Island"},
+        headers=admin,
+    ).json()["id"]
+    c.post(
+        f"{PREFIX}/hunting/sources/{sid}/authorize",
+        json={
+            "lawful_basis": "publicly available; licensed feed",
+            "access_method": "licensed search API (read-only)",
+            "jurisdiction": "Rhode Island, USA",
+        },
+        headers=admin,
+    )
+    monitored = c.post(f"{PREFIX}/hunting/sources/{sid}/monitor", headers=admin).json()
+    assert monitored["status"] == "monitored"
+    # Persisted: re-read carries the authorization record and the full history (document round-trip).
+    fetched = c.get(f"{PREFIX}/hunting/sources/{sid}", headers=admin).json()
+    assert fetched["lawful_basis"] == "publicly available; licensed feed"
+    assert [h["to_status"] for h in fetched["history"]] == ["proposed", "authorized", "monitored"]
+    assert c.get(f"{PREFIX}/hunting/summary", headers=admin).json()["totals"]["monitored"] == 1
+
+    # Escalation channel persists too.
+    c.post(
+        f"{PREFIX}/hunting/escalations",
+        json={"aor": "Rhode Island", "concern": "Appears to depict a minor."},
+        headers=admin,
+    )
+    assert len(c.get(f"{PREFIX}/hunting/escalations", headers=admin).json()) == 1
+
+    sys_actions = [e["action"] for e in c.get(f"{PREFIX}/audit?action_prefix=hunting.", headers=admin).json()]
+    for expected in (
+        "hunting.source.proposed", "hunting.source.authorized", "hunting.source.monitored",
+        "hunting.escalation.open",
+    ):
+        assert expected in sys_actions

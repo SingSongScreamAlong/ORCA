@@ -23,9 +23,17 @@ import type {
   FoundryImportResult,
   FoundryObjectsResult,
   GraphView,
+  HuntingCollectionResult,
+  HuntingCollectionStatus,
+  HuntingCollectionSweepResult,
   HuntingDiscoveryResult,
+  HuntingDiscoveryScheduleStatus,
+  HuntingDiscoveryStatus,
+  HuntingDiscoverySweepResult,
   HuntingEscalation,
   HuntingEscalationStatus,
+  HuntingIntelPicture,
+  HuntingReferralPackage,
   HuntingSource,
   HuntingSourceCategory,
   HuntingSourceStatus,
@@ -165,6 +173,9 @@ export const getHuntingSources = (status?: HuntingSourceStatus) =>
 
 export const getHuntingSummary = () => apiGet<HuntingSummary>("/hunting/summary");
 
+export const getHuntingIntel = (aor?: string) =>
+  apiGet<HuntingIntelPicture>(`/hunting/intel${aor ? `?aor=${encodeURIComponent(aor)}` : ""}`);
+
 export const proposeHuntingSource = (body: {
   name: string;
   url: string;
@@ -197,6 +208,57 @@ export const runHuntingDiscovery = (body: {
   aor: string;
   candidates: { name: string; url: string }[];
 }) => apiSend<HuntingDiscoveryResult>("/hunting/discovery/run", "POST", body);
+
+// Autonomous discovery — seek new venues via the configured lawful source (proposes only).
+export const getHuntingDiscoveryStatus = () =>
+  apiGet<HuntingDiscoveryStatus>("/hunting/discovery/status");
+
+export const runAutoDiscovery = (aor: string, limit = 10) =>
+  apiSend<HuntingDiscoveryResult>(
+    `/hunting/discovery/auto?aor=${encodeURIComponent(aor)}&limit=${limit}`,
+    "POST",
+    {},
+  );
+
+export const runAutoDiscoverySweep = (aors?: string[], limit = 10) => {
+  const query = aors && aors.length ? `&aors=${encodeURIComponent(aors.join(","))}` : "";
+  return apiSend<HuntingDiscoverySweepResult>(
+    `/hunting/discovery/sweep?limit=${limit}${query}`,
+    "POST",
+    {},
+  );
+};
+
+// Continuous (scheduled) discovery — the autonomous cadence + kill-switch.
+export const getHuntingDiscoverySchedule = () =>
+  apiGet<HuntingDiscoveryScheduleStatus>("/hunting/discovery/schedule");
+
+export const pauseHuntingSchedule = () =>
+  apiSend<HuntingDiscoveryScheduleStatus>("/hunting/discovery/schedule/pause", "POST", {});
+
+export const resumeHuntingSchedule = () =>
+  apiSend<HuntingDiscoveryScheduleStatus>("/hunting/discovery/schedule/resume", "POST", {});
+
+export const runHuntingScheduleNow = () =>
+  apiSend<HuntingDiscoverySweepResult>("/hunting/discovery/schedule/run-now", "POST", {});
+
+// Automated collection — pull text leads from monitored sources into the review queue.
+export const getHuntingCollectionStatus = () =>
+  apiGet<HuntingCollectionStatus>("/hunting/collection/status");
+
+export const runHuntingCollection = (limit = 10) =>
+  apiSend<HuntingCollectionSweepResult>(`/hunting/collection/run?limit=${limit}`, "POST", {});
+
+export const collectHuntingSource = (sourceId: string, limit = 10) =>
+  apiSend<HuntingCollectionResult>(
+    `/hunting/sources/${sourceId}/collect?limit=${limit}`,
+    "POST",
+    {},
+  );
+
+// LE referral dossier — located identifiers + leads + relationships + provenance (no media).
+export const getHuntingReferral = (sourceId: string) =>
+  apiGet<HuntingReferralPackage>(`/hunting/sources/${sourceId}/referral`);
 
 // Suspected-minor / CSAM escalation — report-only, never-store.
 export const getHuntingEscalations = (status?: HuntingEscalationStatus) =>

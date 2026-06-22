@@ -23,6 +23,8 @@ from app.models import (
     Cluster,
     Entity,
     EvidenceItem,
+    HuntingEscalationRow,
+    HuntingSourceRow,
     Observation,
     Relationship,
     Report,
@@ -37,6 +39,8 @@ from app.schemas.cluster import ClusterRead
 from app.schemas.entity import EntityRead
 from app.schemas.evidence import EvidenceItemRead, LegalFlags
 from app.schemas.handling import Handling
+from app.schemas.hunting import HuntingSourceRead
+from app.schemas.hunting_escalation import HuntingEscalationRead
 from app.schemas.observation import ObservationRead
 from app.schemas.relationship import RelationshipRead
 from app.schemas.report import ReportRead
@@ -200,6 +204,15 @@ def _audit(o: AuditLogEntry) -> AuditEntry:
     )
 
 
+def _hunting_source(o: HuntingSourceRow) -> HuntingSourceRead:
+    # The full read model (incl. append-only history) lives in the JSONB document.
+    return HuntingSourceRead.model_validate(o.document)
+
+
+def _hunting_escalation(o: HuntingEscalationRow) -> HuntingEscalationRead:
+    return HuntingEscalationRead.model_validate(o.document)
+
+
 # --- repositories ----------------------------------------------------------------
 
 
@@ -306,12 +319,14 @@ class SqlObservationRepository(_Repo):
         o = self.s.get(Observation, observation_id)
         return _observation(o) if o else None
 
-    def list(self, *, limit=50, offset=0, case_id=None, status=None) -> list[ObservationRead]:
+    def list(self, *, limit=50, offset=0, case_id=None, status=None, collector=None) -> list[ObservationRead]:
         stmt = select(Observation)
         if case_id is not None:
             stmt = stmt.where(Observation.case_id == case_id)
         if status is not None:
             stmt = stmt.where(Observation.status == status)
+        if collector is not None:
+            stmt = stmt.where(Observation.collector == collector)
         stmt = stmt.order_by(Observation.created_at.desc()).limit(limit).offset(offset)
         return [_observation(o) for o in self.s.scalars(stmt).all()]
 
@@ -632,6 +647,64 @@ class SqlReviewRepository(_Repo):
         return _review(o)
 
 
+class SqlHuntingSourceRepository(_Repo):
+    def get(self, source_id: UUID) -> HuntingSourceRead | None:
+        o = self.s.get(HuntingSourceRow, source_id)
+        return _hunting_source(o) if o else None
+
+    def list(self) -> list[HuntingSourceRead]:
+        rows = self.s.scalars(
+            select(HuntingSourceRow).order_by(HuntingSourceRow.created_at.desc())
+        ).all()
+        return [_hunting_source(o) for o in rows]
+
+    def add(self, source: HuntingSourceRead) -> HuntingSourceRead:
+        o = HuntingSourceRow(
+            id=source.id, status=source.status.value, aor=source.aor,
+            document=source.model_dump(mode="json"),
+        )
+        self.s.add(o)
+        self.s.flush()
+        return source
+
+    def replace(self, source: HuntingSourceRead) -> HuntingSourceRead:
+        o = self.s.get(HuntingSourceRow, source.id)
+        o.status = source.status.value
+        o.aor = source.aor
+        o.document = source.model_dump(mode="json")
+        self.s.flush()
+        return source
+
+
+class SqlHuntingEscalationRepository(_Repo):
+    def get(self, escalation_id: UUID) -> HuntingEscalationRead | None:
+        o = self.s.get(HuntingEscalationRow, escalation_id)
+        return _hunting_escalation(o) if o else None
+
+    def list(self) -> list[HuntingEscalationRead]:
+        rows = self.s.scalars(
+            select(HuntingEscalationRow).order_by(HuntingEscalationRow.created_at.desc())
+        ).all()
+        return [_hunting_escalation(o) for o in rows]
+
+    def add(self, escalation: HuntingEscalationRead) -> HuntingEscalationRead:
+        o = HuntingEscalationRow(
+            id=escalation.id, status=escalation.status.value, aor=escalation.aor,
+            document=escalation.model_dump(mode="json"),
+        )
+        self.s.add(o)
+        self.s.flush()
+        return escalation
+
+    def replace(self, escalation: HuntingEscalationRead) -> HuntingEscalationRead:
+        o = self.s.get(HuntingEscalationRow, escalation.id)
+        o.status = escalation.status.value
+        o.aor = escalation.aor
+        o.document = escalation.model_dump(mode="json")
+        self.s.flush()
+        return escalation
+
+
 class SqlAuditRepository(_Repo):
     def record(self, entry: AuditEntry) -> AuditEntry:
         o = AuditLogEntry(
@@ -672,6 +745,8 @@ class SqlUnitOfWork:
         self.users = SqlUserRepository(session)
         self.memberships = SqlMembershipRepository(session)
         self.audit = SqlAuditRepository(session)
+        self.hunting_sources = SqlHuntingSourceRepository(session)
+        self.hunting_escalations = SqlHuntingEscalationRepository(session)
         self.graph = self._build_graph()
         from app.core.content_store import build_content_store
 

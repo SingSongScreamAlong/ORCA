@@ -17,7 +17,8 @@ CREATE TYPE evidence_type      AS ENUM ('screenshot', 'document', 'image', 'vide
                                         'analyst_note', 'partner_file', 'other');
 CREATE TYPE evidence_status    AS ENUM ('proposed', 'approved', 'rejected', 'needs_more_review', 'quarantined');
 CREATE TYPE entity_type        AS ENUM ('phone_number', 'alias', 'account', 'username',
-                                        'location', 'vehicle', 'image', 'advertisement', 'tattoo_marker');
+                                        'location', 'vehicle', 'image', 'advertisement', 'tattoo_marker',
+                                        'email', 'crypto_address', 'onion_service', 'url');
 CREATE TYPE relationship_type  AS ENUM ('shared_phone', 'shared_image', 'shared_location',
                                         'shared_account', 'appears_with', 'analyst_confirmed');
 CREATE TYPE origin             AS ENUM ('system_proposed', 'analyst_created', 'imported');
@@ -235,6 +236,33 @@ CREATE TABLE case_members (
 );
 CREATE INDEX ix_case_members_user ON case_members (user_id);
 CREATE INDEX ix_case_members_case ON case_members (case_id);
+
+-- --- Hunting Grounds (reconnaissance registry) ------------------------------
+-- The source/NAI registry and the report-only CSAM-escalation channel. Each row keeps the
+-- indexed filter fields (status, aor) plus a JSONB document holding the full read model,
+-- including the append-only per-record history. The escalation table stores NO media.
+
+CREATE TABLE hunting_sources (
+    id         UUID PRIMARY KEY,
+    status     VARCHAR(32) NOT NULL,
+    aor        VARCHAR(255) NOT NULL,
+    document   JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_hunting_sources_status ON hunting_sources (status);
+CREATE INDEX ix_hunting_sources_aor ON hunting_sources (aor);
+
+CREATE TABLE hunting_escalations (
+    id         UUID PRIMARY KEY,
+    status     VARCHAR(32) NOT NULL,
+    aor        VARCHAR(255) NOT NULL,
+    document   JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_hunting_escalations_status ON hunting_escalations (status);
+CREATE INDEX ix_hunting_escalations_aor ON hunting_escalations (aor);
 
 -- --- Association tables (many-to-many) --------------------------------------
 

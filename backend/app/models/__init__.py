@@ -11,6 +11,7 @@ from app.models.case import Case
 from app.models.cluster import Cluster
 from app.models.entity import Entity
 from app.models.evidence import EvidenceItem
+from app.models.hunting import HuntingEscalationRow, HuntingSourceRow
 from app.models.observation import Observation
 from app.models.relationship import Relationship
 from app.models.report import Report
@@ -27,6 +28,8 @@ __all__ = [
     "Cluster",
     "Entity",
     "EvidenceItem",
+    "HuntingEscalationRow",
+    "HuntingSourceRow",
     "Observation",
     "Relationship",
     "Report",
