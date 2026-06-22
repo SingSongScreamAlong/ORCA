@@ -1,0 +1,6 @@
+entityId,entityType,value,confidence,createdAt
+demo-ent-001,phone,+1-555-0100,0.90,2026-01-01T00:00:00Z
+demo-ent-002,email,demo.user@example.invalid,0.80,2026-01-02T00:00:00Z
+demo-ent-003,username,demo_handle_01,0.75,2026-01-03T00:00:00Z
+demo-ent-004,organization,Example Holdings LLC,0.60,2026-01-04T00:00:00Z
+demo-ent-005,location,"Springfield, Example State",0.50,2026-01-05T00:00:00Z
