@@ -173,3 +173,16 @@ class HuntingDiscoveryMethod(str, Enum):
     OPERATOR_SEED = "operator_seed"  # an operator added it by hand
     DISCOVERY_JOB = "discovery_job"  # found by an authorized discovery run
     REFERRAL = "referral"  # supplied by a partner / tip
+
+
+class HuntingEscalationStatus(str, Enum):
+    """Lifecycle of a suspected-minor/CSAM escalation — a report-only, never-store channel.
+
+    ORCA flags and routes; a human files the NCMEC CyberTipline report. The material itself is
+    never stored. See docs/hunting_grounds_charter.md (CSAM hard-stop).
+    """
+
+    OPEN = "open"  # raised, awaiting an NCMEC report
+    REPORTED = "reported"  # a CyberTipline report has been filed (reference recorded)
+    CLOSED = "closed"  # resolved after reporting
+    DISMISSED = "dismissed"  # reviewed and found not to be CSAM

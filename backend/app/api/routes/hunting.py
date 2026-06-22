@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, Query, status
 from app.api.deps import current_principal, get_uow, require
 from app.core.rbac import Capability, Role
 from app.core.security import Principal
-from app.models.enums import HuntingSourceStatus
+from app.models.enums import HuntingEscalationStatus, HuntingSourceStatus
 from app.repositories.uow import UnitOfWork
 from app.schemas.hunting import (
     HuntingAuthorize,
@@ -27,8 +27,15 @@ from app.schemas.hunting import (
     HuntingSourceRead,
     HuntingSummary,
 )
+from app.schemas.hunting_escalation import (
+    HuntingEscalationDecision,
+    HuntingEscalationRaise,
+    HuntingEscalationRead,
+    HuntingEscalationReport,
+)
 from app.schemas.observation import ObservationRead
 from app.services.errors import PermissionDenied
+from app.services.hunting_escalation_service import HuntingEscalationService
 from app.services.hunting_lead_service import HuntingLeadService
 from app.services.hunting_registry_service import HuntingRegistryService
 
@@ -172,3 +179,74 @@ def ingest_lead(
     uow: UnitOfWork = Depends(get_uow),
 ) -> ObservationRead:
     return HuntingLeadService(uow).ingest(source_id, payload, principal)
+
+
+# --- suspected-minor / CSAM escalation (report-only, never-store) ----------------
+
+
+@router.post(
+    "/escalations",
+    response_model=HuntingEscalationRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Raise a suspected-minor/CSAM concern (report-only; stores no material)",
+)
+def raise_escalation(
+    payload: HuntingEscalationRaise,
+    principal: Principal = Depends(require(Capability.CREATE_OBSERVATION)),
+) -> HuntingEscalationRead:
+    return HuntingEscalationService().raise_concern(payload, principal)
+
+
+@router.get(
+    "/escalations",
+    response_model=list[HuntingEscalationRead],
+    summary="List escalations (admin-only)",
+)
+def list_escalations(
+    status_filter: HuntingEscalationStatus | None = Query(None, alias="status"),
+    principal: Principal = Depends(current_principal),
+) -> list[HuntingEscalationRead]:
+    _require_admin(principal)
+    return HuntingEscalationService().list(status=status_filter)
+
+
+@router.post(
+    "/escalations/{escalation_id}/report",
+    response_model=HuntingEscalationRead,
+    summary="Record that an NCMEC CyberTipline report was filed (admin-only)",
+)
+def report_escalation(
+    escalation_id: UUID,
+    payload: HuntingEscalationReport,
+    principal: Principal = Depends(current_principal),
+) -> HuntingEscalationRead:
+    _require_admin(principal)
+    return HuntingEscalationService().report(escalation_id, payload.ncmec_reference, principal)
+
+
+@router.post(
+    "/escalations/{escalation_id}/close",
+    response_model=HuntingEscalationRead,
+    summary="Close a reported escalation (admin-only)",
+)
+def close_escalation(
+    escalation_id: UUID,
+    payload: HuntingEscalationDecision,
+    principal: Principal = Depends(current_principal),
+) -> HuntingEscalationRead:
+    _require_admin(principal)
+    return HuntingEscalationService().close(escalation_id, payload.reason, principal)
+
+
+@router.post(
+    "/escalations/{escalation_id}/dismiss",
+    response_model=HuntingEscalationRead,
+    summary="Dismiss an escalation found not to be CSAM (admin-only)",
+)
+def dismiss_escalation(
+    escalation_id: UUID,
+    payload: HuntingEscalationDecision,
+    principal: Principal = Depends(current_principal),
+) -> HuntingEscalationRead:
+    _require_admin(principal)
+    return HuntingEscalationService().dismiss(escalation_id, payload.reason, principal)

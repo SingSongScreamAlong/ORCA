@@ -515,3 +515,30 @@ export interface HuntingDiscoveryResult {
   proposed: HuntingSource[];
   skipped_existing: number;
 }
+
+export type HuntingEscalationStatus = "open" | "reported" | "closed" | "dismissed";
+
+export interface HuntingEscalationTransition {
+  from_status: HuntingEscalationStatus | null;
+  to_status: HuntingEscalationStatus;
+  by: string;
+  at: string;
+  note: string | null;
+}
+
+export interface HuntingEscalation {
+  id: string;
+  source_id: string | null;
+  url: string | null;
+  aor: string;
+  concern: string;
+  status: HuntingEscalationStatus;
+  raised_by: string;
+  raised_at: string;
+  ncmec_reference: string | null;
+  reported_by: string | null;
+  reported_at: string | null;
+  resolution: string | null;
+  updated_at: string;
+  history: HuntingEscalationTransition[];
+}
