@@ -718,9 +718,15 @@ class SqlHuntingWatchlistRepository(_Repo):
         existing = self.s.scalars(
             select(HuntingWatchlistRow).where(HuntingWatchlistRow.aor_key == key)
         ).first()
-        if existing is None:
-            self.s.add(HuntingWatchlistRow(aor_key=key, aor=entry.aor, added_by=entry.added_by))
-            self.s.flush()
+        if existing is not None:
+            # Dedup is idempotent: return the canonical persisted entry (its original
+            # added_by/added_at), not the caller's. The unique constraint backstops the rare
+            # concurrent duplicate at this single-writer recon scale.
+            return HuntingWatchlistEntry(
+                aor=existing.aor, added_by=existing.added_by, added_at=existing.created_at
+            )
+        self.s.add(HuntingWatchlistRow(aor_key=key, aor=entry.aor, added_by=entry.added_by))
+        self.s.flush()
         return entry
 
     def remove(self, aor: str) -> bool:

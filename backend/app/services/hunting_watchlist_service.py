@@ -33,13 +33,15 @@ class HuntingWatchlistService:
         if not aor:
             raise ValidationError("An AOR is required.")
         entry = HuntingWatchlistEntry(aor=aor, added_by=principal.username, added_at=datetime.now(UTC))
-        self.uow.hunting_watchlist.add(entry)
+        # The repo dedups: on a duplicate it returns the canonical (first-added) entry.
+        stored = self.uow.hunting_watchlist.add(entry)
         self._audit(principal, "hunting.watchlist.added", aor)
-        return entry
+        return stored
 
     def remove(self, aor: str, principal: Principal) -> None:
-        self.uow.hunting_watchlist.remove(aor)
-        self._audit(principal, "hunting.watchlist.removed", aor)
+        # Only audit a real deletion — a no-op remove must not leave a false "removed" trail.
+        if self.uow.hunting_watchlist.remove(aor.strip()):
+            self._audit(principal, "hunting.watchlist.removed", aor.strip())
 
     def _audit(self, principal: Principal, action: str, aor: str) -> None:
         self.uow.audit.record(

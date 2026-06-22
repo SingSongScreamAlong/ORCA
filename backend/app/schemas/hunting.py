@@ -260,7 +260,11 @@ class HuntingWatchlistEntry(ORCAModel):
 
 
 class HuntingWatchlistAdd(ORCAModel):
-    aor: str = Field(min_length=1, description="Area of responsibility to add, e.g. 'Rhode Island'.")
+    aor: str = Field(
+        min_length=1,
+        max_length=255,  # matches the hunting_watchlist.aor / aor_key column
+        description="Area of responsibility to add, e.g. 'Rhode Island'.",
+    )
 
 
 class HuntingDiscoveryCandidate(ORCAModel):

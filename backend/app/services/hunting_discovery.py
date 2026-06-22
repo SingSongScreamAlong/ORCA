@@ -488,7 +488,9 @@ class HuntingDiscoveryService:
         earlier AOR is skipped as a duplicate if it recurs later in the same sweep.
         """
         config = self._resolved_config()
-        targets = _dedup_preserving_order(aors if aors else self._watchlist(config))
+        # An explicit list wins — including an explicit empty list, which must NOT silently fall
+        # back to the watchlist (that would risk an unintended full sweep). Only None falls back.
+        targets = _dedup_preserving_order(aors if aors is not None else self._watchlist(config))
         if not targets:
             raise DiscoveryConfigError(
                 "No AORs to sweep — add areas to the watchlist (POST /hunting/watchlist), pass an "

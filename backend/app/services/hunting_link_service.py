@@ -103,10 +103,19 @@ class HuntingLinkService:
         return HuntingLinkResult(aor=aor, proposed=len(links), links=links)
 
     def _existing_pairs(self) -> set[frozenset[UUID]]:
-        return {
-            frozenset((r.source_entity_id, r.target_entity_id))
-            for r in self.uow.relationships.list(limit=_MAX)
-        }
+        # Exhaustive: page through every relationship so a pre-existing link is never missed (and
+        # thus never re-proposed), regardless of how many relationships the store holds.
+        pairs: set[frozenset[UUID]] = set()
+        offset = 0
+        while True:
+            batch = self.uow.relationships.list(limit=_MAX, offset=offset)
+            if not batch:
+                break
+            pairs.update(frozenset((r.source_entity_id, r.target_entity_id)) for r in batch)
+            if len(batch) < _MAX:
+                break
+            offset += _MAX
+        return pairs
 
     def _audit(self, principal: Principal, aor: str | None, links: list[ProposedLink]) -> None:
         self.uow.audit.record(

@@ -37,6 +37,21 @@ def test_add_dedups_case_insensitively(client):
     assert len(client.get(WL, headers=ANA).json()) == 1
 
 
+def test_add_is_idempotent_and_keeps_the_original_entry(client):
+    # A duplicate add is a no-op that returns the canonical (first-added) entry, not an overwrite.
+    first = client.post(WL, json={"aor": "Rhode Island"}, headers=ADMIN).json()
+    second = client.post(WL, json={"aor": "rhode island"}, headers=ADMIN).json()
+    assert second["added_at"] == first["added_at"]
+    assert second["aor"] == "Rhode Island"
+
+
+def test_removing_absent_aor_is_not_audited(client):
+    # A no-op remove must not leave a false "removed" trail in the audit log.
+    assert client.delete(f"{WL}/Nowhere", headers=ADMIN).status_code == 204
+    entries = client.get(f"{PREFIX}/audit?action_prefix=hunting.watchlist", headers=ADMIN).json()
+    assert [e for e in entries if e["action"] == "hunting.watchlist.removed"] == []
+
+
 def test_watchlist_mutations_are_admin_only(client):
     assert client.post(WL, json={"aor": "Maine"}, headers=ANA).status_code == 403
     client.post(WL, json={"aor": "Maine"}, headers=ADMIN)
@@ -79,3 +94,13 @@ def test_persisted_watchlist_overrides_env(client, monkeypatch):
     client.post(WL, json={"aor": "Rhode Island"}, headers=ADMIN)  # persisted wins
     body = client.post(f"{PREFIX}/hunting/discovery/sweep?limit=1", headers=ANA).json()
     assert [r["aor"] for r in body["results"]] == ["Rhode Island"]
+
+
+def test_explicit_empty_aors_does_not_fall_back_to_watchlist(client, monkeypatch):
+    # An explicit (if empty) AOR list must not silently fall back to the watchlist — that would
+    # risk an unintended full sweep. It returns a clear 400 and proposes nothing.
+    monkeypatch.setenv("ORCA_HUNTING_DISCOVERY_PROVIDER", "mock")
+    client.post(WL, json={"aor": "Rhode Island"}, headers=ADMIN)  # watchlist present
+    res = client.post(f"{PREFIX}/hunting/discovery/sweep", params={"aors": ","}, headers=ANA)
+    assert res.status_code == 400
+    assert client.get(f"{PREFIX}/hunting/sources?status=proposed", headers=ADMIN).json() == []

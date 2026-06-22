@@ -352,8 +352,8 @@ class MemoryHuntingWatchlistRepository(_Base):
         return sorted(self._store.hunting_watchlist.values(), key=lambda e: e.aor.lower())
 
     def add(self, entry: HuntingWatchlistEntry) -> HuntingWatchlistEntry:
-        self._store.hunting_watchlist[entry.aor.lower()] = entry
-        return entry
+        # Dedup like the SQL repo: a duplicate AOR is a no-op, keeping the first added_by/added_at.
+        return self._store.hunting_watchlist.setdefault(entry.aor.lower(), entry)
 
     def remove(self, aor: str) -> bool:
         return self._store.hunting_watchlist.pop(aor.lower(), None) is not None
