@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/Card";
 import { BackendNotice, EmptyState } from "@/components/ui/States";
 import { PageIntro } from "@/components/ui/PageIntro";
+import { AutoDiscoveryPanel } from "@/components/hunting/AutoDiscoveryPanel";
 import { EscalationsPanel } from "@/components/hunting/EscalationsPanel";
 import { FlagConcernForm } from "@/components/hunting/FlagConcernForm";
 import { LogLeadForm } from "@/components/hunting/LogLeadForm";
@@ -8,7 +9,12 @@ import { ProposeSourceForm } from "@/components/hunting/ProposeSourceForm";
 import { RunDiscoveryForm } from "@/components/hunting/RunDiscoveryForm";
 import { SourceControls } from "@/components/hunting/SourceControls";
 import { Table, Td, Th, Tr } from "@/components/ui/Table";
-import { getHuntingEscalations, getHuntingSources, getHuntingSummary } from "@/lib/api";
+import {
+  getHuntingDiscoveryStatus,
+  getHuntingEscalations,
+  getHuntingSources,
+  getHuntingSummary,
+} from "@/lib/api";
 import { humanize } from "@/lib/format";
 import type { HuntingSource, HuntingSourceStatus, HuntingSummary } from "@/lib/types";
 
@@ -26,10 +32,11 @@ const STATUS_STYLE: Record<HuntingSourceStatus, string> = {
 };
 
 export default async function HuntingPage() {
-  const [sources, summary, escalations] = await Promise.all([
+  const [sources, summary, escalations, discoveryStatus] = await Promise.all([
     getHuntingSources(),
     getHuntingSummary(),
     getHuntingEscalations(),
+    getHuntingDiscoveryStatus(),
   ]);
 
   if (!sources.ok) {
@@ -64,8 +71,18 @@ export default async function HuntingPage() {
       {summary.ok && summary.data.totals.total > 0 && <AorPicture summary={summary.data} />}
 
       <Card
-        title="Discovery"
-        subtitle="Propose candidate venues in bulk (the hunt surfaces new sites so the operator need not trawl). Deduped by URL; each still requires authorization before monitoring."
+        title="Autonomous discovery"
+        subtitle="Let ORCA seek new venues in an AOR through the configured lawful source — the hunt, automated. It only ever proposes; an administrator still authorizes each before monitoring. Disabled until a licensed source is configured."
+      >
+        <AutoDiscoveryPanel
+          defaultAor={DEFAULT_AOR}
+          status={discoveryStatus.ok ? discoveryStatus.data : null}
+        />
+      </Card>
+
+      <Card
+        title="Manual discovery"
+        subtitle="Propose candidate venues in bulk by hand (the hunt surfaces new sites so the operator need not trawl). Deduped by URL; each still requires authorization before monitoring."
       >
         <RunDiscoveryForm defaultAor={DEFAULT_AOR} />
       </Card>

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import current_principal, get_uow, require
 from app.core.rbac import Capability, Role
@@ -22,6 +22,7 @@ from app.schemas.hunting import (
     HuntingDecision,
     HuntingDiscoveryResult,
     HuntingDiscoveryRun,
+    HuntingDiscoveryStatus,
     HuntingLeadCreate,
     HuntingSourcePropose,
     HuntingSourceRead,
@@ -35,6 +36,12 @@ from app.schemas.hunting_escalation import (
 )
 from app.schemas.observation import ObservationRead
 from app.services.errors import PermissionDenied
+from app.services.hunting_discovery import (
+    DiscoveryConfigError,
+    DiscoveryError,
+    DiscoveryNotEnabled,
+    HuntingDiscoveryService,
+)
 from app.services.hunting_escalation_service import HuntingEscalationService
 from app.services.hunting_lead_service import HuntingLeadService
 from app.services.hunting_registry_service import HuntingRegistryService
@@ -66,6 +73,42 @@ def run_discovery(
     uow: UnitOfWork = Depends(get_uow),
 ) -> HuntingDiscoveryResult:
     return HuntingRegistryService(uow).run_discovery(payload, principal)
+
+
+@router.get(
+    "/discovery/status",
+    response_model=HuntingDiscoveryStatus,
+    summary="Autonomous discovery posture (provider/enabled/configured; never the API key)",
+)
+def discovery_status(
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+) -> HuntingDiscoveryStatus:
+    return HuntingDiscoveryService().status()
+
+
+@router.post(
+    "/discovery/auto",
+    response_model=HuntingDiscoveryResult,
+    summary="Autonomously seek new venues via the configured lawful source (proposes only)",
+)
+def auto_discovery(
+    aor: str = Query(..., min_length=1, description="Area of responsibility to seek within."),
+    limit: int = Query(10, ge=1, le=50, description="Maximum candidates to seek this pass."),
+    principal: Principal = Depends(require(Capability.CREATE_OBSERVATION)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> HuntingDiscoveryResult:
+    """Reach out through the configured, licensed discovery source and propose what it finds.
+
+    Every candidate enters as ``proposed`` (deduped by URL); an administrator still authorizes
+    each with a lawful basis before anything is monitored. Disabled by default — returns a clear
+    400 until ``ORCA_HUNTING_DISCOVERY_PROVIDER`` is configured. Errors carry no secrets.
+    """
+    try:
+        return HuntingDiscoveryService(uow).auto_discover(aor, principal, limit=limit)
+    except (DiscoveryNotEnabled, DiscoveryConfigError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except DiscoveryError as exc:  # network/HTTP/parse — message is written to be secret-free
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @router.get("/sources", response_model=list[HuntingSourceRead], summary="List Hunting Grounds sources")

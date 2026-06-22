@@ -24,6 +24,7 @@ import type {
   FoundryObjectsResult,
   GraphView,
   HuntingDiscoveryResult,
+  HuntingDiscoveryStatus,
   HuntingEscalation,
   HuntingEscalationStatus,
   HuntingSource,
@@ -197,6 +198,17 @@ export const runHuntingDiscovery = (body: {
   aor: string;
   candidates: { name: string; url: string }[];
 }) => apiSend<HuntingDiscoveryResult>("/hunting/discovery/run", "POST", body);
+
+// Autonomous discovery — seek new venues via the configured lawful source (proposes only).
+export const getHuntingDiscoveryStatus = () =>
+  apiGet<HuntingDiscoveryStatus>("/hunting/discovery/status");
+
+export const runAutoDiscovery = (aor: string, limit = 10) =>
+  apiSend<HuntingDiscoveryResult>(
+    `/hunting/discovery/auto?aor=${encodeURIComponent(aor)}&limit=${limit}`,
+    "POST",
+    {},
+  );
 
 // Suspected-minor / CSAM escalation — report-only, never-store.
 export const getHuntingEscalations = (status?: HuntingEscalationStatus) =>

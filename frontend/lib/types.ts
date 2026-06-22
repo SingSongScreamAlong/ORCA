@@ -514,6 +514,16 @@ export interface HuntingDiscoveryResult {
   aor: string;
   proposed: HuntingSource[];
   skipped_existing: number;
+  provider: string | null;
+}
+
+export interface HuntingDiscoveryStatus {
+  provider: string; // "disabled" | "mock" | "http"
+  enabled: boolean;
+  configured: boolean;
+  lawful_basis_recorded: boolean;
+  host: string | null;
+  category: HuntingSourceCategory;
 }
 
 export type HuntingEscalationStatus = "open" | "reported" | "closed" | "dismissed";

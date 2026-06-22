@@ -127,3 +127,21 @@ class HuntingDiscoveryResult(ORCAModel):
     aor: str
     proposed: list[HuntingSourceRead]
     skipped_existing: int
+    # Which provider produced these (set by the autonomous engine; None for a manual run).
+    provider: str | None = None
+
+
+class HuntingDiscoveryStatus(ORCAModel):
+    """Secret-free posture of the autonomous discovery engine (for the UI/operator).
+
+    Reflects ``ORCA_HUNTING_DISCOVERY_*`` configuration — never the API key itself.
+    """
+
+    provider: str = Field(description="'disabled', 'mock', or 'http'.")
+    enabled: bool
+    configured: bool
+    lawful_basis_recorded: bool = Field(
+        description="Whether a lawful basis is recorded (required to enable the http provider)."
+    )
+    host: str | None = Field(default=None, description="Discovery source host (no path/secrets).")
+    category: HuntingSourceCategory = Field(description="Default category applied to candidates.")

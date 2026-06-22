@@ -19,7 +19,8 @@ proposed ──authorize──▶ authorized ──monitor──▶ monitored
 Enforced invariants (in `HuntingRegistryService`, not by convention):
 
 - **Discovery only proposes.** A discovery job or an operator can create a source only as
-  `proposed`. Auto-discovery never enrolls a site into monitoring.
+  `proposed`. Auto-discovery never enrolls a site into monitoring. See
+  [`hunting_grounds_discovery.md`](hunting_grounds_discovery.md) for the autonomous engine.
 - **Authorization requires a lawful-basis record.** A source moves `proposed → authorized`
   **only** with a complete record: `lawful_basis`, `access_method`, and `jurisdiction` (all
   required; an optional legal-review note is captured too). The authorizer is recorded.
