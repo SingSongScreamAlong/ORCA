@@ -20,6 +20,7 @@ import type {
   EvidenceItem,
   EvidenceVerifyResult,
   FoundryDiscover,
+  FoundryImportResult,
   FoundryObjectsResult,
   GraphView,
   MembershipStatus,
@@ -142,6 +143,13 @@ export const getFoundryObjects = (objectType: string, limit = 10) =>
   apiGet<FoundryObjectsResult>(
     `/integrations/foundry/objects/${encodeURIComponent(objectType)}?limit=${limit}`,
   );
+
+export const foundryImport = (body: {
+  object_type: string;
+  entity_type: string;
+  value_property: string;
+  limit?: number;
+}) => apiSend<FoundryImportResult>("/integrations/foundry/import", "POST", body);
 
 export const getMe = () => apiGet<CurrentUser>("/me");
 export const getUsers = () => apiGet<User[]>("/users");

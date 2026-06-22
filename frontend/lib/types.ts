@@ -437,3 +437,15 @@ export interface FoundryObjectsResult {
   count: number;
   objects: Record<string, unknown>[];
 }
+
+export interface FoundryImportResult {
+  mode: "mock" | "real";
+  object_type: string;
+  entity_type: string;
+  value_property: string;
+  read: number;
+  created: number;
+  resolved_existing: number;
+  skipped: number;
+  entities: Entity[];
+}

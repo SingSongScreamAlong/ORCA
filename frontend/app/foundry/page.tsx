@@ -4,6 +4,7 @@ import { Table, Td, Th, Tr } from "@/components/ui/Table";
 import { Tag } from "@/components/ui/Badges";
 import { BackendNotice, EmptyState } from "@/components/ui/States";
 import { PageIntro } from "@/components/ui/PageIntro";
+import { FoundryImportForm } from "@/components/foundry/FoundryImportForm";
 import { getFoundryDiscover, getFoundryObjects } from "@/lib/api";
 import { humanize } from "@/lib/format";
 import type { FoundryObjectType } from "@/lib/types";
@@ -112,6 +113,15 @@ export default async function FoundryPage({
           </Table>
         )}
       </Card>
+
+      {selectedType && (
+        <Card
+          title={`Import ${selectedType} into ORCA`}
+          subtitle="Materialise these Foundry objects as ORCA entities (deduplicated, idempotent). Read-only against Foundry — only ORCA's entity store is written."
+        >
+          <FoundryImportForm objectType={selectedType} />
+        </Card>
+      )}
 
       {selectedType && <SamplePreview objectType={selectedType} />}
     </div>
