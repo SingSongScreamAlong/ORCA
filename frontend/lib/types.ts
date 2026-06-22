@@ -69,7 +69,11 @@ export type EntityType =
   | "vehicle"
   | "image"
   | "advertisement"
-  | "tattoo_marker";
+  | "tattoo_marker"
+  | "email"
+  | "crypto_address"
+  | "onion_service"
+  | "url";
 
 export type RelationshipType =
   | "shared_phone"

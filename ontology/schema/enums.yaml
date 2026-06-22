@@ -50,6 +50,10 @@ entity_type:
     - image
     - advertisement
     - tattoo_marker
+    - email
+    - crypto_address
+    - onion_service
+    - url
 
 relationship_type:
   observational:        # may be proposed by the system from evidence

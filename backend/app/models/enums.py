@@ -57,6 +57,11 @@ class EntityType(str, Enum):
     IMAGE = "image"
     ADVERTISEMENT = "advertisement"
     TATTOO_MARKER = "tattoo_marker"
+    # Located identifiers extracted from lead text (recon/case-building; never media).
+    EMAIL = "email"
+    CRYPTO_ADDRESS = "crypto_address"
+    ONION_SERVICE = "onion_service"
+    URL = "url"
 
 
 class RelationshipType(str, Enum):

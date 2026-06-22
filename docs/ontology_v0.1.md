@@ -111,7 +111,8 @@ entity referenced by two observations.
 ### Entity types
 
 `phone_number`, `alias`, `account`, `username`, `location`, `vehicle`, `image`,
-`advertisement`, `tattoo_marker`.
+`advertisement`, `tattoo_marker`, and the located-identifier types extracted from lead text:
+`email`, `crypto_address`, `onion_service`, `url`.
 
 ### Properties
 

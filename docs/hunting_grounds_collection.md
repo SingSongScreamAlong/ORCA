@@ -72,6 +72,17 @@ A row without a text `summary` is skipped; a malformed entity hint is dropped wh
 kept. **There is no media field** to read. Errors are surfaced as a **secret-free**
 `CollectionConnectionError` (only HTTP status / host).
 
+## Located identifiers (every lead, every source)
+
+"Locate, don't collect": at ingestion, ORCA reads the lead **text** and extracts the *pointers
+and identifiers* that build a case — **phone numbers, emails, crypto wallet addresses, `.onion`
+services, URLs, and @handles** — resolving each into ORCA's entity graph. This runs on **every**
+lead (hand-logged, clearnet collection, or any future dark-web source), so a number/handle/wallet
+that recurs across listings collapses to one entity and cross-links automatically. It is purely
+**additive** — the full text lead is preserved and explicit entity hints are kept; extraction only
+surfaces *more* pointers. Extractors favour precision over recall, and everything remains a
+proposal an analyst reviews. No media is ever read or stored (see `app/services/identifier_extraction.py`).
+
 ## API
 
 - `GET /api/v1/hunting/collection/status` — secret-free posture. `READ_CASE_MATERIAL`.

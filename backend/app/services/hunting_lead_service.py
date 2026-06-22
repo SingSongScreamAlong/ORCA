@@ -28,6 +28,7 @@ from app.schemas.source import SourceCreate
 from app.services.entity_service import EntityService
 from app.services.errors import ValidationError
 from app.services.hunting_registry_service import HuntingRegistryService
+from app.services.identifier_extraction import extract_identifiers
 from app.services.observation_service import ObservationService
 
 
@@ -43,9 +44,19 @@ class HuntingLeadService:
                 f"(this one is '{source.status.value}')."
             )
 
-        # Resolve entity hints into deduplicated ORCA entities.
+        # Locate identifiers: the caller's explicit hints PLUS anything extracted from the lead
+        # text (phones, emails, crypto wallets, .onion services, URLs, @handles). This is purely
+        # additive — the full text lead is preserved as the observation's notes; extraction only
+        # surfaces more pointers, never fewer. Resolved into deduplicated ORCA entities, so a
+        # number/handle/wallet that recurs across leads collapses to one entity and cross-links.
+        hints = [*payload.entities, *extract_identifiers(payload.summary)]
         entity_ids = []
-        for hint in payload.entities:
+        seen: set[tuple] = set()
+        for hint in hints:
+            key = (hint.entity_type, hint.value)
+            if key in seen:
+                continue
+            seen.add(key)
             entity = EntityService(self.uow).create(
                 EntityCreate(entity_type=hint.entity_type, value=hint.value), principal
             )

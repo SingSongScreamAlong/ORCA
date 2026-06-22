@@ -17,7 +17,8 @@ CREATE TYPE evidence_type      AS ENUM ('screenshot', 'document', 'image', 'vide
                                         'analyst_note', 'partner_file', 'other');
 CREATE TYPE evidence_status    AS ENUM ('proposed', 'approved', 'rejected', 'needs_more_review', 'quarantined');
 CREATE TYPE entity_type        AS ENUM ('phone_number', 'alias', 'account', 'username',
-                                        'location', 'vehicle', 'image', 'advertisement', 'tattoo_marker');
+                                        'location', 'vehicle', 'image', 'advertisement', 'tattoo_marker',
+                                        'email', 'crypto_address', 'onion_service', 'url');
 CREATE TYPE relationship_type  AS ENUM ('shared_phone', 'shared_image', 'shared_location',
                                         'shared_account', 'appears_with', 'analyst_confirmed');
 CREATE TYPE origin             AS ENUM ('system_proposed', 'analyst_created', 'imported');
