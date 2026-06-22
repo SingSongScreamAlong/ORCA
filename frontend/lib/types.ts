@@ -497,3 +497,15 @@ export interface HuntingSource {
   updated_at: string;
   history: HuntingTransition[];
 }
+
+export interface HuntingAorSummary {
+  aor: string;
+  total: number;
+  monitored: number;
+  by_status: Record<string, number>;
+}
+
+export interface HuntingSummary {
+  aors: HuntingAorSummary[];
+  totals: HuntingAorSummary;
+}

@@ -21,6 +21,7 @@ from app.schemas.hunting import (
     HuntingDecision,
     HuntingSourcePropose,
     HuntingSourceRead,
+    HuntingSummary,
 )
 from app.services.errors import PermissionDenied
 from app.services.hunting_registry_service import HuntingRegistryService
@@ -32,6 +33,13 @@ def _require_admin(principal: Principal) -> None:
     # Authorizing/monitoring a source is the legal gate — administrators only.
     if principal.role != Role.ADMIN:
         raise PermissionDenied("Hunting Grounds source decisions are restricted to administrators.")
+
+
+@router.get("/summary", response_model=HuntingSummary, summary="AOR rollup of the source registry")
+def hunting_summary(
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+) -> HuntingSummary:
+    return HuntingRegistryService().summary()
 
 
 @router.get("/sources", response_model=list[HuntingSourceRead], summary="List Hunting Grounds sources")

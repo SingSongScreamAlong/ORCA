@@ -129,3 +129,21 @@ def test_list_and_filter_by_status(client):
     authorized = client.get(f"{SRC}?status=authorized", headers={"X-ORCA-User": "ana"}).json()
     assert {s["name"] for s in proposed} == {"B"}
     assert {s["name"] for s in authorized} == {"A"}
+
+
+# --- AOR summary ----------------------------------------------------------------
+
+
+def test_aor_summary_rolls_up_by_status(client):
+    a = _id(_propose(client, name="A", aor="Rhode Island"))
+    _propose(client, name="B", aor="Rhode Island")
+    _propose(client, name="C", aor="Connecticut")
+    client.post(f"{SRC}/{a}/authorize", json=AUTH, headers={"X-ORCA-User": "admin"})
+
+    summ = client.get(f"{PREFIX}/hunting/summary", headers={"X-ORCA-User": "ana"}).json()
+    assert summ["totals"]["total"] == 3
+    by_aor = {a["aor"]: a for a in summ["aors"]}
+    assert by_aor["Rhode Island"]["total"] == 2
+    assert by_aor["Rhode Island"]["by_status"]["authorized"] == 1
+    assert by_aor["Rhode Island"]["by_status"]["proposed"] == 1
+    assert by_aor["Connecticut"]["total"] == 1

@@ -26,6 +26,7 @@ import type {
   HuntingSource,
   HuntingSourceCategory,
   HuntingSourceStatus,
+  HuntingSummary,
   MembershipStatus,
   Observation,
   Relationship,
@@ -158,6 +159,8 @@ export const foundryImport = (body: {
 
 export const getHuntingSources = (status?: HuntingSourceStatus) =>
   apiGet<HuntingSource[]>(`/hunting/sources${status ? `?status=${status}` : ""}`);
+
+export const getHuntingSummary = () => apiGet<HuntingSummary>("/hunting/summary");
 
 export const proposeHuntingSource = (body: {
   name: string;

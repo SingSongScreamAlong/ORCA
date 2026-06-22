@@ -76,3 +76,17 @@ class HuntingSourceRead(ORCAModel):
     last_decision_reason: str | None
     updated_at: datetime
     history: list[HuntingTransition]
+
+
+class HuntingAorSummary(ORCAModel):
+    """Rollup of the registry for one area of responsibility (or all)."""
+
+    aor: str
+    total: int
+    monitored: int
+    by_status: dict[str, int]  # status value -> count
+
+
+class HuntingSummary(ORCAModel):
+    aors: list[HuntingAorSummary]
+    totals: HuntingAorSummary
