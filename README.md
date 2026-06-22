@@ -279,7 +279,7 @@ For PostgreSQL, seed the users after `alembic upgrade head` with `python -m app.
 # Backend lint + tests (from backend/)
 cd backend
 ruff check .
-python -m pytest -q                       # in-memory; 212 passing + 1 skipped (PG)
+python -m pytest -q                       # in-memory; 215 passing + 1 skipped (PG)
 
 # PostgreSQL integration test (optional; needs a migrated DB)
 ORCA_RUN_PG_IT=1 ORCA_POSTGRES_DSN=postgresql+psycopg://orca:orca@localhost:5432/orca \

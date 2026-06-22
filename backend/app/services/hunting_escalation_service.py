@@ -14,9 +14,11 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
+from app.core.audit import new_audit_entry
 from app.core.security import Principal
 from app.models.enums import HuntingEscalationStatus
 from app.repositories.store import store
+from app.repositories.uow import UnitOfWork
 from app.schemas.hunting_escalation import (
     HuntingEscalationRaise,
     HuntingEscalationRead,
@@ -28,6 +30,24 @@ _E = HuntingEscalationStatus
 
 
 class HuntingEscalationService:
+    def __init__(self, uow: UnitOfWork | None = None) -> None:
+        # With a unit of work, transitions are also written to the append-only audit log.
+        self.uow = uow
+
+    def _audit(self, principal: Principal, action: str, esc: HuntingEscalationRead) -> None:
+        if self.uow is None:
+            return
+        self.uow.audit.record(
+            new_audit_entry(
+                actor_id=principal.id,
+                action=action,
+                target_type="hunting_escalation",
+                target_id=esc.id,
+                case_id=None,
+                context={"aor": esc.aor, "status": esc.status.value},
+            )
+        )
+
     def list(self, *, status: HuntingEscalationStatus | None = None) -> list[HuntingEscalationRead]:
         items = list(store.hunting_escalations.values())
         if status is not None:
@@ -65,6 +85,7 @@ class HuntingEscalationService:
             ],
         )
         store.hunting_escalations[escalation.id] = escalation
+        self._audit(principal, "hunting.escalation.open", escalation)
         return escalation
 
     def report(
@@ -126,4 +147,5 @@ class HuntingEscalationService:
             }
         )
         store.hunting_escalations[updated.id] = updated
+        self._audit(principal, f"hunting.escalation.{to.value}", updated)
         return updated
