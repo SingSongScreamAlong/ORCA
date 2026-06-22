@@ -35,3 +35,13 @@ class HuntingEscalationRow(UUIDPrimaryKey, TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     aor: Mapped[str] = mapped_column(String(255), nullable=False)
     document: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
+class HuntingWatchlistRow(UUIDPrimaryKey, TimestampMixin, Base):
+    """An operator-managed AOR the autonomous cadence sweeps. ``aor_key`` (lower-cased) is unique."""
+
+    __tablename__ = "hunting_watchlist"
+
+    aor_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    aor: Mapped[str] = mapped_column(String(255), nullable=False)
+    added_by: Mapped[str] = mapped_column(String(255), nullable=False)

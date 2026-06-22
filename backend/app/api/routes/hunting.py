@@ -35,6 +35,8 @@ from app.schemas.hunting import (
     HuntingSourcePropose,
     HuntingSourceRead,
     HuntingSummary,
+    HuntingWatchlistAdd,
+    HuntingWatchlistEntry,
 )
 from app.schemas.hunting_escalation import (
     HuntingEscalationDecision,
@@ -63,6 +65,7 @@ from app.services.hunting_link_service import HuntingLinkService
 from app.services.hunting_referral_service import HuntingReferralService
 from app.services.hunting_registry_service import HuntingRegistryService
 from app.services.hunting_scheduler import scheduler
+from app.services.hunting_watchlist_service import HuntingWatchlistService
 
 router = APIRouter(prefix="/hunting", tags=["hunting-grounds"])
 
@@ -112,6 +115,50 @@ def propose_links(
     return HuntingLinkService(uow).propose_links(principal, aor=aor)
 
 
+# --- operator-managed AOR watchlist (the autonomous cadence's targets) -----------
+
+
+@router.get(
+    "/watchlist",
+    response_model=list[HuntingWatchlistEntry],
+    summary="The operator-managed AOR watchlist the cadence sweeps",
+)
+def list_watchlist(
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> list[HuntingWatchlistEntry]:
+    return HuntingWatchlistService(uow).list()
+
+
+@router.post(
+    "/watchlist",
+    response_model=HuntingWatchlistEntry,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add an AOR to the watchlist (admin-only)",
+)
+def add_watchlist(
+    payload: HuntingWatchlistAdd,
+    principal: Principal = Depends(current_principal),
+    uow: UnitOfWork = Depends(get_uow),
+) -> HuntingWatchlistEntry:
+    _require_admin(principal)
+    return HuntingWatchlistService(uow).add(payload.aor, principal)
+
+
+@router.delete(
+    "/watchlist/{aor}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove an AOR from the watchlist (admin-only)",
+)
+def remove_watchlist(
+    aor: str,
+    principal: Principal = Depends(current_principal),
+    uow: UnitOfWork = Depends(get_uow),
+) -> None:
+    _require_admin(principal)
+    HuntingWatchlistService(uow).remove(aor, principal)
+
+
 @router.post(
     "/discovery/run",
     response_model=HuntingDiscoveryResult,
@@ -132,8 +179,9 @@ def run_discovery(
 )
 def discovery_status(
     _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> HuntingDiscoveryStatus:
-    return HuntingDiscoveryService().status()
+    return HuntingDiscoveryService(uow).status()
 
 
 @router.post(

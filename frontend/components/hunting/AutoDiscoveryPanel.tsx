@@ -110,18 +110,13 @@ export function AutoDiscoveryPanel({
           type="button"
           onClick={sweep}
           disabled={busy !== null || !enabled || watchlist.length === 0}
-          title={watchlist.length === 0 ? "Set ORCA_HUNTING_DISCOVERY_AORS to enable the sweep." : undefined}
+          title={watchlist.length === 0 ? "Add an AOR to the watchlist to enable the sweep." : undefined}
           className="rounded-md border border-accent px-3 py-1.5 text-sm font-medium text-accent hover:bg-accent-soft disabled:opacity-50"
         >
           {busy === "sweep" ? "Sweeping…" : `Sweep watchlist (${watchlist.length})`}
         </button>
       </div>
 
-      {watchlist.length > 0 && (
-        <p className="text-xs text-ink-faint">
-          Watchlist: <span className="text-ink-muted">{watchlist.join(" · ")}</span>
-        </p>
-      )}
       {result && (
         <p className="text-xs text-green-700">
           {result} Each still needs authorization before monitoring.

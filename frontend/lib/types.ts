@@ -549,6 +549,12 @@ export interface HuntingDiscoveryStatus {
   darkweb_acknowledged: boolean;
 }
 
+export interface HuntingWatchlistEntry {
+  aor: string;
+  added_by: string;
+  added_at: string;
+}
+
 export interface HuntingDiscoveryScheduleStatus {
   enabled: boolean;
   interval_minutes: number;

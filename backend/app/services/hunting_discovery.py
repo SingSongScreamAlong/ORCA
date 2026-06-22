@@ -431,6 +431,16 @@ class HuntingDiscoveryService:
     def _resolved_config(self) -> HuntingDiscoveryConfig:
         return self._config or HuntingDiscoveryConfig.from_env()
 
+    def _watchlist(self, config: HuntingDiscoveryConfig) -> list[str]:
+        """Effective default watchlist: the operator-managed list, else the env fallback."""
+        if self.uow is not None:
+            from app.services.hunting_watchlist_service import HuntingWatchlistService
+
+            persisted = HuntingWatchlistService(self.uow).aors()
+            if persisted:
+                return persisted
+        return list(config.aors)
+
     def status(self) -> HuntingDiscoveryStatus:
         """Secret-free posture of the engine (provider, enabled, configured, host, watchlist)."""
         config = self._resolved_config()
@@ -441,7 +451,7 @@ class HuntingDiscoveryService:
             lawful_basis_recorded=bool(config.lawful_basis),
             host=config.base_host(),
             category=config.candidate_category(),
-            aors=list(config.aors),
+            aors=self._watchlist(config),
             tor_enabled=config.tor_enabled,
             darkweb_acknowledged=config.darkweb_acknowledged,
         )
@@ -463,17 +473,18 @@ class HuntingDiscoveryService:
     ) -> HuntingDiscoverySweepResult:
         """Seek across a list of AORs in one autonomous pass.
 
-        ``aors`` overrides the configured watchlist for this call; with neither present a clear
-        :class:`DiscoveryConfigError` is raised. The provider is built once and reused across
-        AORs; the store updates synchronously, so a venue found for an earlier AOR is skipped
-        as a duplicate if it recurs later in the same sweep.
+        Target selection: an explicit ``aors`` argument wins; otherwise the operator-managed
+        watchlist (persisted) is used; otherwise the ``ORCA_HUNTING_DISCOVERY_AORS`` env fallback.
+        With none present a clear :class:`DiscoveryConfigError` is raised. The provider is built
+        once and reused across AORs; the store updates synchronously, so a venue found for an
+        earlier AOR is skipped as a duplicate if it recurs later in the same sweep.
         """
         config = self._resolved_config()
-        targets = _dedup_preserving_order(aors if aors else list(config.aors))
+        targets = _dedup_preserving_order(aors if aors else self._watchlist(config))
         if not targets:
             raise DiscoveryConfigError(
-                "No AORs to sweep — pass an explicit list, or set ORCA_HUNTING_DISCOVERY_AORS "
-                "to a comma-separated watchlist. See docs/hunting_grounds_discovery.md."
+                "No AORs to sweep — add areas to the watchlist (POST /hunting/watchlist), pass an "
+                "explicit list, or set ORCA_HUNTING_DISCOVERY_AORS. See docs/hunting_grounds_discovery.md."
             )
         provider = self._provider or build_discovery_provider(self._config)
         results = [

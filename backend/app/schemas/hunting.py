@@ -216,6 +216,18 @@ class HuntingReferralPackage(ORCAModel):
     )
 
 
+class HuntingWatchlistEntry(ORCAModel):
+    """One operator-managed area of responsibility the autonomous cadence sweeps for new venues."""
+
+    aor: str
+    added_by: str
+    added_at: datetime
+
+
+class HuntingWatchlistAdd(ORCAModel):
+    aor: str = Field(min_length=1, description="Area of responsibility to add, e.g. 'Rhode Island'.")
+
+
 class HuntingDiscoveryCandidate(ORCAModel):
     name: str = Field(min_length=1)
     url: str = Field(min_length=1)

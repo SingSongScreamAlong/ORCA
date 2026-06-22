@@ -13,6 +13,7 @@ import { ProposeSourceForm } from "@/components/hunting/ProposeSourceForm";
 import { ReferralButton } from "@/components/hunting/ReferralButton";
 import { RunDiscoveryForm } from "@/components/hunting/RunDiscoveryForm";
 import { SourceControls } from "@/components/hunting/SourceControls";
+import { WatchlistEditor } from "@/components/hunting/WatchlistEditor";
 import { Table, Td, Th, Tr } from "@/components/ui/Table";
 import {
   getHuntingCollectionStatus,
@@ -22,6 +23,7 @@ import {
   getHuntingIntel,
   getHuntingSources,
   getHuntingSummary,
+  getHuntingWatchlist,
 } from "@/lib/api";
 import { humanize } from "@/lib/format";
 import type { HuntingSource, HuntingSourceStatus, HuntingSummary } from "@/lib/types";
@@ -40,16 +42,25 @@ const STATUS_STYLE: Record<HuntingSourceStatus, string> = {
 };
 
 export default async function HuntingPage() {
-  const [sources, summary, escalations, discoveryStatus, scheduleStatus, collectionStatus, intel] =
-    await Promise.all([
-      getHuntingSources(),
-      getHuntingSummary(),
-      getHuntingEscalations(),
-      getHuntingDiscoveryStatus(),
-      getHuntingDiscoverySchedule(),
-      getHuntingCollectionStatus(),
-      getHuntingIntel(),
-    ]);
+  const [
+    sources,
+    summary,
+    escalations,
+    discoveryStatus,
+    scheduleStatus,
+    collectionStatus,
+    intel,
+    watchlist,
+  ] = await Promise.all([
+    getHuntingSources(),
+    getHuntingSummary(),
+    getHuntingEscalations(),
+    getHuntingDiscoveryStatus(),
+    getHuntingDiscoverySchedule(),
+    getHuntingCollectionStatus(),
+    getHuntingIntel(),
+    getHuntingWatchlist(),
+  ]);
 
   if (!sources.ok) {
     return (
@@ -91,10 +102,13 @@ export default async function HuntingPage() {
         {!discoveryStatus.ok && (
           <BackendNotice error={discoveryStatus.error} status={discoveryStatus.status} />
         )}
-        <AutoDiscoveryPanel
-          defaultAor={DEFAULT_AOR}
-          status={discoveryStatus.ok ? discoveryStatus.data : null}
-        />
+        <div className="space-y-4">
+          <WatchlistEditor entries={watchlist.ok ? watchlist.data : []} />
+          <AutoDiscoveryPanel
+            defaultAor={DEFAULT_AOR}
+            status={discoveryStatus.ok ? discoveryStatus.data : null}
+          />
+        </div>
       </Card>
 
       <Card
