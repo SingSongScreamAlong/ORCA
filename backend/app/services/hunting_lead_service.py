@@ -36,7 +36,7 @@ class HuntingLeadService:
         self.uow = uow
 
     def ingest(self, source_id, payload: HuntingLeadCreate, principal: Principal) -> ObservationRead:
-        source = HuntingRegistryService().get(source_id)  # 404 if missing
+        source = HuntingRegistryService(self.uow).get(source_id)  # 404 if missing
         if source.status != HuntingSourceStatus.MONITORED:
             raise ValidationError(
                 "Leads can only be ingested from a monitored source "

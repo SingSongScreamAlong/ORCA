@@ -27,8 +27,7 @@ from uuid import UUID, uuid4
 from app.core.audit import new_audit_entry
 from app.core.security import Principal
 from app.models.enums import HuntingDiscoveryMethod, HuntingSourceStatus
-from app.repositories.store import store
-from app.repositories.uow import UnitOfWork
+from app.repositories.uow import UnitOfWork, build_unit_of_work
 from app.schemas.hunting import (
     HuntingAorSummary,
     HuntingAuthorize,
@@ -78,13 +77,12 @@ def _rollup(aor: str, group: list[HuntingSourceRead]) -> HuntingAorSummary:
 
 class HuntingRegistryService:
     def __init__(self, uow: UnitOfWork | None = None) -> None:
-        # When constructed with a unit of work (mutating routes), privileged actions are
-        # written to ORCA's append-only audit log in addition to the per-source history.
-        self.uow = uow
+        # The registry is persisted through the unit of work (durable across restarts), and
+        # privileged actions are written to ORCA's append-only audit log in addition to the
+        # per-source history. A default unit of work is built if one isn't supplied.
+        self.uow = uow or build_unit_of_work()
 
     def _audit(self, principal: Principal, action: str, source: HuntingSourceRead) -> None:
-        if self.uow is None:
-            return
         self.uow.audit.record(
             new_audit_entry(
                 actor_id=principal.id,
@@ -99,7 +97,7 @@ class HuntingRegistryService:
     def list(
         self, *, status: HuntingSourceStatus | None = None, aor: str | None = None
     ) -> list[HuntingSourceRead]:
-        items = list(store.hunting_sources.values())
+        items = self.uow.hunting_sources.list()
         if status is not None:
             items = [s for s in items if s.status == status]
         if aor is not None:
@@ -107,7 +105,7 @@ class HuntingRegistryService:
         return sorted(items, key=lambda s: s.proposed_at, reverse=True)
 
     def get(self, source_id: UUID) -> HuntingSourceRead:
-        source = store.hunting_sources.get(source_id)
+        source = self.uow.hunting_sources.get(source_id)
         if source is None:
             raise NotFoundError(f"Hunting source {source_id} not found")
         return source
@@ -121,7 +119,7 @@ class HuntingRegistryService:
         compared by a normalized URL key so trivial variants (trailing slash, ``www.``, scheme
         case) don't slip through as duplicates.
         """
-        existing = {normalize_url(s.url) for s in store.hunting_sources.values()}
+        existing = {normalize_url(s.url) for s in self.uow.hunting_sources.list()}
         proposed = []
         skipped = 0
         for candidate in run.candidates:
@@ -147,7 +145,7 @@ class HuntingRegistryService:
 
     def summary(self) -> HuntingSummary:
         """An AOR rollup of the registry — the regional posture at a glance (read-only)."""
-        items = list(store.hunting_sources.values())
+        items = self.uow.hunting_sources.list()
         by_aor: dict[str, list[HuntingSourceRead]] = {}
         for src in items:
             by_aor.setdefault(src.aor, []).append(src)
@@ -180,7 +178,7 @@ class HuntingRegistryService:
             updated_at=now,
             history=[first],
         )
-        store.hunting_sources[source.id] = source
+        self.uow.hunting_sources.add(source)
         self._audit(principal, "hunting.source.proposed", source)
         return source
 
@@ -265,6 +263,6 @@ class HuntingRegistryService:
                 **(patch or {}),
             }
         )
-        store.hunting_sources[updated.id] = updated
+        self.uow.hunting_sources.replace(updated)
         self._audit(principal, f"hunting.source.{to.value}", updated)
         return updated

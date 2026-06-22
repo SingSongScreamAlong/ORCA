@@ -18,6 +18,8 @@ from app.schemas.case import CaseRead
 from app.schemas.cluster import ClusterRead
 from app.schemas.entity import EntityRead
 from app.schemas.evidence import EvidenceItemRead
+from app.schemas.hunting import HuntingSourceRead
+from app.schemas.hunting_escalation import HuntingEscalationRead
 from app.schemas.observation import ObservationRead
 from app.schemas.relationship import RelationshipRead
 from app.schemas.report import ReportRead
@@ -302,6 +304,42 @@ class MemoryMembershipRepository(_Base):
     def replace(self, member: CaseMemberRead) -> CaseMemberRead:
         self._store.memberships[member.id] = member
         return member
+
+
+class MemoryHuntingSourceRepository(_Base):
+    """Hunting Grounds source/NAI registry, over the development store (mirrors the SQL repo)."""
+
+    def get(self, source_id: UUID) -> HuntingSourceRead | None:
+        return self._store.hunting_sources.get(source_id)
+
+    def list(self) -> list[HuntingSourceRead]:
+        return list(self._store.hunting_sources.values())
+
+    def add(self, source: HuntingSourceRead) -> HuntingSourceRead:
+        self._store.hunting_sources[source.id] = source
+        return source
+
+    def replace(self, source: HuntingSourceRead) -> HuntingSourceRead:
+        self._store.hunting_sources[source.id] = source
+        return source
+
+
+class MemoryHuntingEscalationRepository(_Base):
+    """Suspected-minor / CSAM escalation channel (report-only, never-store)."""
+
+    def get(self, escalation_id: UUID) -> HuntingEscalationRead | None:
+        return self._store.hunting_escalations.get(escalation_id)
+
+    def list(self) -> list[HuntingEscalationRead]:
+        return list(self._store.hunting_escalations.values())
+
+    def add(self, escalation: HuntingEscalationRead) -> HuntingEscalationRead:
+        self._store.hunting_escalations[escalation.id] = escalation
+        return escalation
+
+    def replace(self, escalation: HuntingEscalationRead) -> HuntingEscalationRead:
+        self._store.hunting_escalations[escalation.id] = escalation
+        return escalation
 
 
 class MemoryAuditRepository(_Base):

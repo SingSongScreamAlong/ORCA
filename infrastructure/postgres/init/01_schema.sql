@@ -236,6 +236,32 @@ CREATE TABLE case_members (
 CREATE INDEX ix_case_members_user ON case_members (user_id);
 CREATE INDEX ix_case_members_case ON case_members (case_id);
 
+-- --- Hunting Grounds (reconnaissance registry) ------------------------------
+-- The source/NAI registry and the report-only CSAM-escalation channel. Each row keeps the
+-- indexed filter fields (status, aor) plus a JSONB document holding the full read model,
+-- including the append-only per-record history. The escalation table stores NO media.
+
+CREATE TABLE hunting_sources (
+    id         UUID PRIMARY KEY,
+    status     VARCHAR(32) NOT NULL,
+    aor        VARCHAR(255) NOT NULL,
+    document   JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_hunting_sources_status ON hunting_sources (status);
+CREATE INDEX ix_hunting_sources_aor ON hunting_sources (aor);
+
+CREATE TABLE hunting_escalations (
+    id         UUID PRIMARY KEY,
+    status     VARCHAR(32) NOT NULL,
+    aor        VARCHAR(255) NOT NULL,
+    document   JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_hunting_escalations_status ON hunting_escalations (status);
+
 -- --- Association tables (many-to-many) --------------------------------------
 
 CREATE TABLE observation_entities (

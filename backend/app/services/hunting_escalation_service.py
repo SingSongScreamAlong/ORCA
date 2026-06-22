@@ -17,8 +17,7 @@ from uuid import UUID, uuid4
 from app.core.audit import new_audit_entry
 from app.core.security import Principal
 from app.models.enums import HuntingEscalationStatus
-from app.repositories.store import store
-from app.repositories.uow import UnitOfWork
+from app.repositories.uow import UnitOfWork, build_unit_of_work
 from app.schemas.hunting_escalation import (
     HuntingEscalationRaise,
     HuntingEscalationRead,
@@ -31,12 +30,12 @@ _E = HuntingEscalationStatus
 
 class HuntingEscalationService:
     def __init__(self, uow: UnitOfWork | None = None) -> None:
-        # With a unit of work, transitions are also written to the append-only audit log.
-        self.uow = uow
+        # The escalation channel is persisted through the unit of work (durable across restarts);
+        # transitions are also written to the append-only audit log. A default unit of work is
+        # built if one isn't supplied.
+        self.uow = uow or build_unit_of_work()
 
     def _audit(self, principal: Principal, action: str, esc: HuntingEscalationRead) -> None:
-        if self.uow is None:
-            return
         self.uow.audit.record(
             new_audit_entry(
                 actor_id=principal.id,
@@ -49,13 +48,13 @@ class HuntingEscalationService:
         )
 
     def list(self, *, status: HuntingEscalationStatus | None = None) -> list[HuntingEscalationRead]:
-        items = list(store.hunting_escalations.values())
+        items = self.uow.hunting_escalations.list()
         if status is not None:
             items = [e for e in items if e.status == status]
         return sorted(items, key=lambda e: e.raised_at, reverse=True)
 
     def get(self, escalation_id: UUID) -> HuntingEscalationRead:
-        item = store.hunting_escalations.get(escalation_id)
+        item = self.uow.hunting_escalations.get(escalation_id)
         if item is None:
             raise NotFoundError(f"Escalation {escalation_id} not found")
         return item
@@ -84,7 +83,7 @@ class HuntingEscalationService:
                 )
             ],
         )
-        store.hunting_escalations[escalation.id] = escalation
+        self.uow.hunting_escalations.add(escalation)
         self._audit(principal, "hunting.escalation.open", escalation)
         return escalation
 
@@ -146,6 +145,6 @@ class HuntingEscalationService:
                 **(patch or {}),
             }
         )
-        store.hunting_escalations[updated.id] = updated
+        self.uow.hunting_escalations.replace(updated)
         self._audit(principal, f"hunting.escalation.{to.value}", updated)
         return updated

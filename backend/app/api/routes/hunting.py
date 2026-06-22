@@ -61,8 +61,9 @@ def _require_admin(principal: Principal) -> None:
 @router.get("/summary", response_model=HuntingSummary, summary="AOR rollup of the source registry")
 def hunting_summary(
     _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> HuntingSummary:
-    return HuntingRegistryService().summary()
+    return HuntingRegistryService(uow).summary()
 
 
 @router.post(
@@ -215,8 +216,9 @@ def list_sources(
     status_filter: HuntingSourceStatus | None = Query(None, alias="status"),
     aor: str | None = Query(None),
     _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> list[HuntingSourceRead]:
-    return HuntingRegistryService().list(status=status_filter, aor=aor)
+    return HuntingRegistryService(uow).list(status=status_filter, aor=aor)
 
 
 @router.post(
@@ -237,8 +239,9 @@ def propose_source(
 def get_source(
     source_id: UUID,
     _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> HuntingSourceRead:
-    return HuntingRegistryService().get(source_id)
+    return HuntingRegistryService(uow).get(source_id)
 
 
 @router.post(
@@ -355,9 +358,10 @@ def raise_escalation(
 def list_escalations(
     status_filter: HuntingEscalationStatus | None = Query(None, alias="status"),
     principal: Principal = Depends(current_principal),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> list[HuntingEscalationRead]:
     _require_admin(principal)
-    return HuntingEscalationService().list(status=status_filter)
+    return HuntingEscalationService(uow).list(status=status_filter)
 
 
 @router.post(

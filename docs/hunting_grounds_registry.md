@@ -49,9 +49,14 @@ missing any required field is rejected by schema validation (`422`).
 
 ## Storage
 
-Sources live in the in-memory store (`store.hunting_sources`), reset between tests like the
-rest of the dev backend. The registry is intentionally small and self-contained; wiring it to
-the central append-only audit log and the PostgreSQL backend are follow-ups.
+The registry and the escalation channel are persisted **through the unit of work**, like every
+other ORCA object: the in-memory development store (`uow.hunting_sources` / `uow.hunting_escalations`,
+reset between tests) or **PostgreSQL** as the system of record. On PostgreSQL each record is a row
+keyed by `id` with indexed `status`/`aor` columns and a JSONB `document` holding the full read
+model — including the append-only `history` — so proposals and authorizations survive a restart.
+See the `hunting_sources` / `hunting_escalations` tables in `backend/db/sql/schema.sql` and
+migration `0002_hunting_grounds`. Privileged actions are also written to the central append-only
+audit log.
 
 ## What's next (gated on this)
 
