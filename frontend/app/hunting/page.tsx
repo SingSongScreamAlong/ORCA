@@ -2,6 +2,8 @@ import { Card } from "@/components/ui/Card";
 import { BackendNotice, EmptyState } from "@/components/ui/States";
 import { PageIntro } from "@/components/ui/PageIntro";
 import { AutoDiscoveryPanel } from "@/components/hunting/AutoDiscoveryPanel";
+import { CollectionPanel } from "@/components/hunting/CollectionPanel";
+import { CollectSourceButton } from "@/components/hunting/CollectSourceButton";
 import { DiscoverySchedulePanel } from "@/components/hunting/DiscoverySchedulePanel";
 import { EscalationsPanel } from "@/components/hunting/EscalationsPanel";
 import { FlagConcernForm } from "@/components/hunting/FlagConcernForm";
@@ -11,6 +13,7 @@ import { RunDiscoveryForm } from "@/components/hunting/RunDiscoveryForm";
 import { SourceControls } from "@/components/hunting/SourceControls";
 import { Table, Td, Th, Tr } from "@/components/ui/Table";
 import {
+  getHuntingCollectionStatus,
   getHuntingDiscoverySchedule,
   getHuntingDiscoveryStatus,
   getHuntingEscalations,
@@ -34,13 +37,15 @@ const STATUS_STYLE: Record<HuntingSourceStatus, string> = {
 };
 
 export default async function HuntingPage() {
-  const [sources, summary, escalations, discoveryStatus, scheduleStatus] = await Promise.all([
-    getHuntingSources(),
-    getHuntingSummary(),
-    getHuntingEscalations(),
-    getHuntingDiscoveryStatus(),
-    getHuntingDiscoverySchedule(),
-  ]);
+  const [sources, summary, escalations, discoveryStatus, scheduleStatus, collectionStatus] =
+    await Promise.all([
+      getHuntingSources(),
+      getHuntingSummary(),
+      getHuntingEscalations(),
+      getHuntingDiscoveryStatus(),
+      getHuntingDiscoverySchedule(),
+      getHuntingCollectionStatus(),
+    ]);
 
   if (!sources.ok) {
     return (
@@ -84,8 +89,15 @@ export default async function HuntingPage() {
       </Card>
 
       <Card
-        title="Continuous discovery"
-        subtitle="The autonomous cadence — ORCA sweeps the watchlist on an interval, on its own. Still proposes only; administrators hold a runtime kill-switch. Disabled by default."
+        title="Automated collection"
+        subtitle="Pull text-only candidate leads from monitored sources into the review queue — first-pass triage, automated. CSAM-safe (no media); analysts decide. Disabled until a licensed source is configured."
+      >
+        <CollectionPanel status={collectionStatus.ok ? collectionStatus.data : null} />
+      </Card>
+
+      <Card
+        title="Continuous cadence"
+        subtitle="The autonomous loop — on an interval ORCA sweeps the watchlist for new venues, then collects leads from monitored ones. Still proposes only; administrators hold a runtime kill-switch. Disabled by default."
       >
         <DiscoverySchedulePanel status={scheduleStatus.ok ? scheduleStatus.data : null} />
       </Card>
@@ -204,6 +216,7 @@ function SourceCard({ source }: { source: HuntingSource }) {
 
       {source.status === "monitored" && (
         <div className="space-y-2">
+          <CollectSourceButton sourceId={source.id} />
           <LogLeadForm sourceId={source.id} />
           <FlagConcernForm sourceId={source.id} aor={source.aor} url={source.url} />
         </div>

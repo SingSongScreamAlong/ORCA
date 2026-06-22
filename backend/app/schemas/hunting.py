@@ -160,6 +160,39 @@ class HuntingDiscoveryStatus(ORCAModel):
     )
 
 
+class HuntingCollectionStatus(ORCAModel):
+    """Secret-free posture of the automated collection engine (text/metadata only; CSAM-safe).
+
+    Reflects ``ORCA_HUNTING_COLLECTION_*`` configuration — never the API key itself.
+    """
+
+    provider: str = Field(description="'disabled', 'mock', or 'http'.")
+    enabled: bool
+    configured: bool
+    lawful_basis_recorded: bool = Field(
+        description="Whether a lawful basis is recorded (required to enable the http provider)."
+    )
+    host: str | None = Field(default=None, description="Collection source host (no path/secrets).")
+
+
+class HuntingCollectionResult(ORCAModel):
+    """The outcome of collecting from one monitored source — proposed observations only."""
+
+    source_id: UUID
+    source_name: str
+    proposed_observation_ids: list[UUID]
+    provider: str | None = None
+
+
+class HuntingCollectionSweepResult(ORCAModel):
+    """The outcome of an automated collection pass across all monitored sources."""
+
+    results: list[HuntingCollectionResult]
+    total_proposed: int
+    sources_collected: int
+    provider: str | None = None
+
+
 class HuntingDiscoveryScheduleStatus(ORCAModel):
     """Posture of the continuous (scheduled) discovery loop — the autonomous cadence.
 
@@ -179,3 +212,8 @@ class HuntingDiscoveryScheduleStatus(ORCAModel):
     last_total_proposed: int | None = None
     last_total_skipped: int | None = None
     last_aors: list[str] = Field(default_factory=list)
+    # Collection runs on the same cadence (each tick: discovery sweep, then collection sweep).
+    collection_runs: int = 0
+    last_collection_proposed: int | None = None
+    last_collection_sources: int | None = None
+    last_collection_error: str | None = None

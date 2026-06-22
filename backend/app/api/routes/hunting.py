@@ -19,6 +19,9 @@ from app.models.enums import HuntingEscalationStatus, HuntingSourceStatus
 from app.repositories.uow import UnitOfWork
 from app.schemas.hunting import (
     HuntingAuthorize,
+    HuntingCollectionResult,
+    HuntingCollectionStatus,
+    HuntingCollectionSweepResult,
     HuntingDecision,
     HuntingDiscoveryResult,
     HuntingDiscoveryRun,
@@ -38,6 +41,12 @@ from app.schemas.hunting_escalation import (
 )
 from app.schemas.observation import ObservationRead
 from app.services.errors import PermissionDenied
+from app.services.hunting_collection import (
+    CollectionConfigError,
+    CollectionError,
+    CollectionNotEnabled,
+    HuntingCollectionService,
+)
 from app.services.hunting_discovery import (
     DiscoveryConfigError,
     DiscoveryError,
@@ -211,6 +220,42 @@ def run_discovery_schedule_now(
     return sweep
 
 
+# --- automated collection (monitored sources → proposed observations) ------------
+
+
+@router.get(
+    "/collection/status",
+    response_model=HuntingCollectionStatus,
+    summary="Automated collection posture (provider/enabled/configured; never the API key)",
+)
+def collection_status(
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> HuntingCollectionStatus:
+    return HuntingCollectionService(uow).status()
+
+
+@router.post(
+    "/collection/run",
+    response_model=HuntingCollectionSweepResult,
+    summary="Collect text leads from all monitored sources → proposed observations (proposes only)",
+)
+def run_collection(
+    limit: int = Query(10, ge=1, le=50, description="Maximum leads per source this pass."),
+    principal: Principal = Depends(require(Capability.CREATE_OBSERVATION)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> HuntingCollectionSweepResult:
+    """Pull text-only candidate leads from every monitored source and propose each as an
+    observation in the review queue. CSAM-safe (no media field); analysts decide. Disabled by
+    default — returns a clear 400 until configured; 502 on an upstream failure."""
+    try:
+        return HuntingCollectionService(uow).collect_all(principal, limit_per_source=limit)
+    except (CollectionNotEnabled, CollectionConfigError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except CollectionError as exc:  # network/HTTP/parse — message is written to be secret-free
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
 @router.get("/sources", response_model=list[HuntingSourceRead], summary="List Hunting Grounds sources")
 def list_sources(
     status_filter: HuntingSourceStatus | None = Query(None, alias="status"),
@@ -331,6 +376,28 @@ def ingest_lead(
     uow: UnitOfWork = Depends(get_uow),
 ) -> ObservationRead:
     return HuntingLeadService(uow).ingest(source_id, payload, principal)
+
+
+@router.post(
+    "/sources/{source_id}/collect",
+    response_model=HuntingCollectionResult,
+    summary="Automatically collect text leads from one monitored source (→ proposed observations)",
+)
+def collect_source(
+    source_id: UUID,
+    limit: int = Query(10, ge=1, le=50, description="Maximum leads to collect this pass."),
+    principal: Principal = Depends(require(Capability.CREATE_OBSERVATION)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> HuntingCollectionResult:
+    """Pull text-only candidate leads from a single monitored source and propose each as an
+    observation in the review queue. 422 if the source isn't monitored; 400 if collection is
+    disabled/misconfigured; 502 on an upstream failure. CSAM-safe; analysts decide."""
+    try:
+        return HuntingCollectionService(uow).collect(source_id, principal, limit=limit)
+    except (CollectionNotEnabled, CollectionConfigError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except CollectionError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 # --- suspected-minor / CSAM escalation (report-only, never-store) ----------------

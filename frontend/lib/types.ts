@@ -547,6 +547,32 @@ export interface HuntingDiscoveryScheduleStatus {
   last_total_proposed: number | null;
   last_total_skipped: number | null;
   last_aors: string[];
+  collection_runs: number;
+  last_collection_proposed: number | null;
+  last_collection_sources: number | null;
+  last_collection_error: string | null;
+}
+
+export interface HuntingCollectionStatus {
+  provider: string; // "disabled" | "mock" | "http"
+  enabled: boolean;
+  configured: boolean;
+  lawful_basis_recorded: boolean;
+  host: string | null;
+}
+
+export interface HuntingCollectionResult {
+  source_id: string;
+  source_name: string;
+  proposed_observation_ids: string[];
+  provider: string | null;
+}
+
+export interface HuntingCollectionSweepResult {
+  results: HuntingCollectionResult[];
+  total_proposed: number;
+  sources_collected: number;
+  provider: string | null;
 }
 
 export type HuntingEscalationStatus = "open" | "reported" | "closed" | "dismissed";

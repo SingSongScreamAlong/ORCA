@@ -144,3 +144,48 @@ def test_run_once_swallows_discovery_error(monkeypatch):
     assert result is None
     assert scheduler.last_error is not None
     assert scheduler.runs == 0
+
+
+# --- the cadence's collection pass (run_collection_once) -------------------------
+
+
+AUTH = {
+    "lawful_basis": "publicly available; licensed feed",
+    "access_method": "licensed search API (read-only)",
+    "jurisdiction": "Rhode Island, USA",
+}
+
+
+def _monitored(client, name="M", url="https://m.invalid"):
+    src = f"{PREFIX}/hunting/sources"
+    sid = client.post(
+        src,
+        json={"name": name, "url": url, "category": "escort_listing", "aor": "Rhode Island"},
+        headers=ANA,
+    ).json()["id"]
+    client.post(f"{src}/{sid}/authorize", json=AUTH, headers=ADMIN)
+    client.post(f"{src}/{sid}/monitor", headers=ADMIN)
+    return sid
+
+
+def test_run_collection_once_records_and_audits(client, monkeypatch):
+    monkeypatch.setenv("ORCA_HUNTING_COLLECTION_PROVIDER", "mock")
+    _monitored(client)
+    sweep = scheduler.run_collection_once()
+    assert sweep is not None
+    assert scheduler.collection_runs == 1
+    assert scheduler.last_collection_error is None
+    status = client.get(SCHED, headers=ADMIN).json()
+    assert status["collection_runs"] == 1
+    assert status["last_collection_sources"] == 1
+    entries = client.get(
+        f"{PREFIX}/audit?action_prefix=hunting.collection.sweep", headers=ADMIN
+    ).json()
+    assert any(e["actor_id"] == "system" for e in entries)
+
+
+def test_run_collection_once_swallows_error(monkeypatch):
+    monkeypatch.delenv("ORCA_HUNTING_COLLECTION_PROVIDER", raising=False)
+    assert scheduler.run_collection_once() is None
+    assert scheduler.last_collection_error is not None
+    assert scheduler.collection_runs == 0

@@ -79,6 +79,8 @@ through the **configured lawful source**, and is **CSAM-safe**. Two gates keep i
 Each automatic run is attributed to a clear `system` actor and recorded via the sweep audit, so an
 unattended cadence is still fully accountable. The loop is thin — it sleeps the interval and calls
 the same run path as the admin **run now** trigger, so manual and automatic runs behave identically.
+Each tick also runs an [automated collection](hunting_grounds_collection.md) sweep over the
+monitored sources (independently gated; a collection failure never blocks discovery).
 
 Schedule API (all under `/api/v1/hunting/discovery/schedule`):
 

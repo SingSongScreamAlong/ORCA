@@ -90,6 +90,10 @@ class DiscoveryScheduler:
         self.last_run_at: datetime | None = None
         self.last_error: str | None = None
         self.last_summary: dict | None = None
+        # Collection runs on the same cadence (each tick: discovery sweep, then collection sweep).
+        self.collection_runs = 0
+        self.last_collection_error: str | None = None
+        self.last_collection_summary: dict | None = None
         self._task: asyncio.Task | None = None
 
     def config(self) -> DiscoveryScheduleConfig:
@@ -102,6 +106,9 @@ class DiscoveryScheduler:
         self.last_run_at = None
         self.last_error = None
         self.last_summary = None
+        self.collection_runs = 0
+        self.last_collection_error = None
+        self.last_collection_summary = None
 
     # --- run recording -----------------------------------------------------------
 
@@ -119,6 +126,18 @@ class DiscoveryScheduler:
     def record_error(self, message: str) -> None:
         self.last_run_at = datetime.now(UTC)
         self.last_error = message
+
+    def record_collection(self, sweep) -> None:
+        self.collection_runs += 1
+        self.last_collection_error = None
+        self.last_collection_summary = {
+            "sources_collected": sweep.sources_collected,
+            "total_proposed": sweep.total_proposed,
+            "provider": sweep.provider,
+        }
+
+    def record_collection_error(self, message: str) -> None:
+        self.last_collection_error = message
 
     # --- the run path (shared by the loop and "run now") -------------------------
 
@@ -146,6 +165,32 @@ class DiscoveryScheduler:
         finally:
             uow.close()
 
+    def run_collection_once(self, principal: Principal = SYSTEM_PRINCIPAL):
+        """Run one automated collection pass over all monitored sources, recording the outcome.
+
+        Like :meth:`run_once`, builds its own unit of work and never raises for an expected
+        failure (collection disabled / upstream error) — those are recorded in
+        ``last_collection_error`` so the cadence survives. Returns the sweep, or ``None``.
+        """
+        from app.services.hunting_collection import CollectionError, HuntingCollectionService
+
+        cfg = self.config()
+        uow = build_unit_of_work()
+        try:
+            sweep = HuntingCollectionService(uow).collect_all(principal, limit_per_source=cfg.limit_per_aor)
+            uow.commit()
+            self.record_collection(sweep)
+            return sweep
+        except CollectionError as exc:  # disabled / upstream — message is secret-free
+            uow.rollback()
+            self.record_collection_error(str(exc))
+            return None
+        except Exception:
+            uow.rollback()
+            raise
+        finally:
+            uow.close()
+
     # --- async loop lifecycle ----------------------------------------------------
 
     async def _loop(self) -> None:
@@ -155,8 +200,11 @@ class DiscoveryScheduler:
             if self.paused:
                 continue
             try:
-                # Run the blocking sweep off the event loop so the API stays responsive.
+                # Run the blocking passes off the event loop so the API stays responsive.
+                # Each tick: discovery sweep (find new venues), then collection sweep (pull
+                # leads from monitored ones). Both no-op/record-error if their provider is off.
                 await asyncio.to_thread(self.run_once)
+                await asyncio.to_thread(self.run_collection_once)
             except Exception as exc:  # noqa: BLE001 — the cadence must never die on one bad run
                 self.record_error(f"Unexpected scheduler error: {exc!r}")
 
@@ -181,6 +229,7 @@ class DiscoveryScheduler:
     def status(self) -> HuntingDiscoveryScheduleStatus:
         cfg = self.config()
         summary = self.last_summary or {}
+        collection = self.last_collection_summary or {}
         return HuntingDiscoveryScheduleStatus(
             enabled=cfg.enabled,
             interval_minutes=cfg.interval_minutes,
@@ -193,6 +242,10 @@ class DiscoveryScheduler:
             last_total_proposed=summary.get("total_proposed"),
             last_total_skipped=summary.get("total_skipped"),
             last_aors=list(summary.get("aors", [])),
+            collection_runs=self.collection_runs,
+            last_collection_proposed=collection.get("total_proposed"),
+            last_collection_sources=collection.get("sources_collected"),
+            last_collection_error=self.last_collection_error,
         )
 
 

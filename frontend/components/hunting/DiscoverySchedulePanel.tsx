@@ -96,6 +96,7 @@ function CadenceState({ status }: { status: HuntingDiscoveryScheduleStatus }) {
         {status.limit_per_aor} candidates per AOR.
       </p>
       <p className="mt-0.5">
+        Discovery:{" "}
         {status.runs > 0 ? (
           <>
             {status.runs} run(s) ·{" "}
@@ -110,7 +111,23 @@ function CadenceState({ status }: { status: HuntingDiscoveryScheduleStatus }) {
             )}
           </>
         ) : (
-          "No runs yet."
+          "no runs yet."
+        )}
+      </p>
+      <p className="mt-0.5">
+        Collection:{" "}
+        {status.collection_runs > 0 ? (
+          status.last_collection_error ? (
+            <span className="text-amber-700">last error: {status.last_collection_error}</span>
+          ) : (
+            <>
+              {status.collection_runs} run(s) · last proposed{" "}
+              {status.last_collection_proposed ?? 0} from {status.last_collection_sources ?? 0}{" "}
+              monitored source(s)
+            </>
+          )
+        ) : (
+          "no runs yet."
         )}
       </p>
     </div>

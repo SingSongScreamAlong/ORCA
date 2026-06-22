@@ -23,6 +23,9 @@ import type {
   FoundryImportResult,
   FoundryObjectsResult,
   GraphView,
+  HuntingCollectionResult,
+  HuntingCollectionStatus,
+  HuntingCollectionSweepResult,
   HuntingDiscoveryResult,
   HuntingDiscoveryScheduleStatus,
   HuntingDiscoveryStatus,
@@ -233,6 +236,20 @@ export const resumeHuntingSchedule = () =>
 
 export const runHuntingScheduleNow = () =>
   apiSend<HuntingDiscoverySweepResult>("/hunting/discovery/schedule/run-now", "POST", {});
+
+// Automated collection — pull text leads from monitored sources into the review queue.
+export const getHuntingCollectionStatus = () =>
+  apiGet<HuntingCollectionStatus>("/hunting/collection/status");
+
+export const runHuntingCollection = (limit = 10) =>
+  apiSend<HuntingCollectionSweepResult>(`/hunting/collection/run?limit=${limit}`, "POST", {});
+
+export const collectHuntingSource = (sourceId: string, limit = 10) =>
+  apiSend<HuntingCollectionResult>(
+    `/hunting/sources/${sourceId}/collect?limit=${limit}`,
+    "POST",
+    {},
+  );
 
 // Suspected-minor / CSAM escalation — report-only, never-store.
 export const getHuntingEscalations = (status?: HuntingEscalationStatus) =>
