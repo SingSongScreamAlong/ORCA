@@ -32,6 +32,7 @@ import type {
   HuntingDiscoverySweepResult,
   HuntingEscalation,
   HuntingEscalationStatus,
+  HuntingIntelPicture,
   HuntingReferralPackage,
   HuntingSource,
   HuntingSourceCategory,
@@ -171,6 +172,9 @@ export const getHuntingSources = (status?: HuntingSourceStatus) =>
   apiGet<HuntingSource[]>(`/hunting/sources${status ? `?status=${status}` : ""}`);
 
 export const getHuntingSummary = () => apiGet<HuntingSummary>("/hunting/summary");
+
+export const getHuntingIntel = (aor?: string) =>
+  apiGet<HuntingIntelPicture>(`/hunting/intel${aor ? `?aor=${encodeURIComponent(aor)}` : ""}`);
 
 export const proposeHuntingSource = (body: {
   name: string;

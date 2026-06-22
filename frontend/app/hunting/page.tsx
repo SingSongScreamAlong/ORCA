@@ -7,6 +7,7 @@ import { CollectSourceButton } from "@/components/hunting/CollectSourceButton";
 import { DiscoverySchedulePanel } from "@/components/hunting/DiscoverySchedulePanel";
 import { EscalationsPanel } from "@/components/hunting/EscalationsPanel";
 import { FlagConcernForm } from "@/components/hunting/FlagConcernForm";
+import { IntelPicture } from "@/components/hunting/IntelPicture";
 import { LogLeadForm } from "@/components/hunting/LogLeadForm";
 import { ProposeSourceForm } from "@/components/hunting/ProposeSourceForm";
 import { ReferralButton } from "@/components/hunting/ReferralButton";
@@ -18,6 +19,7 @@ import {
   getHuntingDiscoverySchedule,
   getHuntingDiscoveryStatus,
   getHuntingEscalations,
+  getHuntingIntel,
   getHuntingSources,
   getHuntingSummary,
 } from "@/lib/api";
@@ -38,7 +40,7 @@ const STATUS_STYLE: Record<HuntingSourceStatus, string> = {
 };
 
 export default async function HuntingPage() {
-  const [sources, summary, escalations, discoveryStatus, scheduleStatus, collectionStatus] =
+  const [sources, summary, escalations, discoveryStatus, scheduleStatus, collectionStatus, intel] =
     await Promise.all([
       getHuntingSources(),
       getHuntingSummary(),
@@ -46,6 +48,7 @@ export default async function HuntingPage() {
       getHuntingDiscoveryStatus(),
       getHuntingDiscoverySchedule(),
       getHuntingCollectionStatus(),
+      getHuntingIntel(),
     ]);
 
   if (!sources.ok) {
@@ -78,6 +81,8 @@ export default async function HuntingPage() {
       )}
 
       {summary.ok && summary.data.totals.total > 0 && <AorPicture summary={summary.data} />}
+
+      {intel.ok && intel.data.monitored_sources > 0 && <IntelPicture intel={intel.data} />}
 
       <Card
         title="Autonomous discovery"

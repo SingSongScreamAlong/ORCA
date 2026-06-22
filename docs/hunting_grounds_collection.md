@@ -102,6 +102,16 @@ only the transport — leads stay **text/metadata only, CSAM-safe, locate-don't-
 clearnet ones automatically. Access is gated behind `ORCA_HUNTING_COLLECTION_DARKWEB_ACK=true`
 (records counsel sign-off + LE deconfliction); the provider refuses to build otherwise.
 
+## AOR intelligence (cross-venue links)
+
+`GET /api/v1/hunting/intel?aor=…` is the **common operating picture**: it reports which located
+identifiers recur across **two or more** monitored venues. The same phone, wallet, `.onion`, or
+handle seen in multiple places is the strongest signal that separate listings are one operation —
+this is the seam where located leads become a case. It is **read-only** (proposes nothing) and
+returns pointers/metadata only. The LE referral dossier is enriched with the same count: each
+located identifier carries a `venue_count`, and cross-venue ones (`≥2`) are flagged in the markdown
+and the UI. `READ_CASE_MATERIAL`.
+
 ## Referral to law enforcement (locate → case)
 
 `GET /api/v1/hunting/sources/{id}/referral` builds a **referral dossier** for a source: the

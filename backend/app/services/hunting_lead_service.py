@@ -32,6 +32,16 @@ from app.services.identifier_extraction import extract_identifiers
 from app.services.observation_service import ObservationService
 
 
+def hunting_collector_marker(source_id) -> str:
+    """The ``collector`` value stamped on observations ingested from a hunting source.
+
+    Keyed by the source's **immutable id** (not its mutable name), so a rename or name collision
+    never splits or merges a source's leads. This is the single source of truth for the marker —
+    the referral and intelligence services correlate by the same key.
+    """
+    return f"hunting-grounds:{source_id}"
+
+
 class HuntingLeadService:
     def __init__(self, uow: UnitOfWork) -> None:
         self.uow = uow
@@ -74,7 +84,7 @@ class HuntingLeadService:
             ),
             # Correlate by the source's immutable id (the readable name lives on the linked
             # source); a rename or name collision must not split/merge a source's leads.
-            collector=f"hunting-grounds:{source.id}",
+            collector=hunting_collector_marker(source.id),
             notes=payload.summary,
             confidence=payload.confidence,
             entity_ids=entity_ids,

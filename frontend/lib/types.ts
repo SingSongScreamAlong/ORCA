@@ -586,6 +586,25 @@ export interface HuntingCollectionSweepResult {
 export interface ReferralEntity {
   entity_type: EntityType;
   value: string;
+  venue_count: number;
+}
+
+export interface IntelIdentifier {
+  entity_type: EntityType;
+  value: string;
+  source_count: number;
+  lead_count: number;
+  sources: string[];
+}
+
+export interface HuntingIntelPicture {
+  aor: string | null;
+  monitored_sources: number;
+  leads: number;
+  identifiers: number;
+  cross_venue_count: number;
+  cross_venue: IntelIdentifier[];
+  top_identifiers: IntelIdentifier[];
 }
 
 export interface ReferralObservation {

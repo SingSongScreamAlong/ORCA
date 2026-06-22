@@ -73,11 +73,18 @@ export function ReferralButton({ sourceId }: { sourceId: string }) {
               {pkg.located_identifiers.slice(0, 24).map((i, idx) => (
                 <li
                   key={idx}
-                  className="rounded bg-surface px-2 py-0.5 ring-1 ring-inset ring-surface-border"
+                  className={`rounded px-2 py-0.5 ring-1 ring-inset ${
+                    i.venue_count >= 2
+                      ? "bg-accent-soft ring-accent/30"
+                      : "bg-surface ring-surface-border"
+                  }`}
                   title={humanize(i.entity_type)}
                 >
                   <span className="text-ink-faint">{humanize(i.entity_type)}:</span>{" "}
                   <span className="mono text-ink">{i.value}</span>
+                  {i.venue_count >= 2 && (
+                    <span className="ml-1 font-medium text-accent">×{i.venue_count} venues</span>
+                  )}
                 </li>
               ))}
             </ul>

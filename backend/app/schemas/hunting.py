@@ -114,6 +114,35 @@ class ReferralEntity(ORCAModel):
 
     entity_type: EntityType
     value: str
+    # How many monitored venues this identifier was located from (>=2 ⇒ a cross-venue link).
+    venue_count: int = 1
+
+
+class IntelIdentifier(ORCAModel):
+    """A located identifier and how widely it recurs across monitored venues (the case signal)."""
+
+    entity_type: EntityType
+    value: str
+    source_count: int  # distinct monitored sources it appears in
+    lead_count: int  # total leads referencing it
+    sources: list[str]  # source names it appears in (for display)
+
+
+class HuntingIntelPicture(ORCAModel):
+    """The AOR common operating picture: where the same actors/identifiers recur across venues.
+
+    Cross-venue identifiers — one phone/wallet/handle/.onion located from two or more monitored
+    venues — are the highest-value leads, the seam where separate listings become one case.
+    Pointers and metadata only; no media.
+    """
+
+    aor: str | None
+    monitored_sources: int
+    leads: int
+    identifiers: int
+    cross_venue_count: int
+    cross_venue: list[IntelIdentifier]  # identifiers in >=2 venues (sorted, strongest first)
+    top_identifiers: list[IntelIdentifier]  # most-referenced overall
 
 
 class ReferralObservation(ORCAModel):

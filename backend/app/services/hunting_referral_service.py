@@ -26,15 +26,11 @@ from app.schemas.hunting import (
     ReferralRelationship,
     ReferralSource,
 )
+from app.services.hunting_intel_service import HuntingIntelService
+from app.services.hunting_lead_service import hunting_collector_marker
 from app.services.hunting_registry_service import HuntingRegistryService
 
 _MAX = 1000  # recon scale; a source's lead volume is small relative to the case store
-
-
-def _marker(source_id: UUID) -> str:
-    # The lead service stamps observations from a hunting source with this collector (by the
-    # source's immutable id, so a rename/collision never splits or merges a source's leads).
-    return f"hunting-grounds:{source_id}"
 
 
 class HuntingReferralService:
@@ -46,7 +42,7 @@ class HuntingReferralService:
 
         # The text leads located from this source (proposed/approved observations alike). Filter
         # by collector at the repository so the cap applies to *this source's* leads, not globally.
-        marker = _marker(source.id)
+        marker = hunting_collector_marker(source.id)
         observations = self.uow.observations.list(collector=marker, limit=_MAX)
         observations.sort(key=lambda o: o.timestamp)
 
@@ -60,8 +56,17 @@ class HuntingReferralService:
                     if entity is not None:
                         entities_by_id[eid] = entity
                         entity_ids.append(eid)
+
+        # Cross-venue intelligence: how many monitored venues each located identifier appears in
+        # (>=2 ⇒ a cross-venue link, the strongest lead). Computed across all monitored sources.
+        intel = HuntingIntelService(self.uow)
+        venue_index = intel.entity_source_index(intel.monitored_sources())
         located = [
-            ReferralEntity(entity_type=e.entity_type, value=e.value)
+            ReferralEntity(
+                entity_type=e.entity_type,
+                value=e.value,
+                venue_count=max(1, len(venue_index.get(e.id, ()))),
+            )
             for e in (entities_by_id[i] for i in entity_ids)
         ]
 
@@ -149,7 +154,11 @@ def _render_markdown(source, identifiers, observations, relationships, now) -> s
         f"## Located identifiers ({len(identifiers)})",
     ]
     if identifiers:
-        lines += [f"- `{i.entity_type.value}` — {i.value}" for i in identifiers]
+        lines += [
+            f"- `{i.entity_type.value}` — {i.value}"
+            + (f"  **(cross-venue: {i.venue_count} venues)**" if i.venue_count >= 2 else "")
+            for i in identifiers
+        ]
     else:
         lines.append("- (none located yet)")
     lines += ["", f"## Relationships ({len(relationships)})"]

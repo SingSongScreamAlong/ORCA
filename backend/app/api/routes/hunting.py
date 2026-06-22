@@ -28,6 +28,7 @@ from app.schemas.hunting import (
     HuntingDiscoveryScheduleStatus,
     HuntingDiscoveryStatus,
     HuntingDiscoverySweepResult,
+    HuntingIntelPicture,
     HuntingLeadCreate,
     HuntingReferralPackage,
     HuntingSourcePropose,
@@ -55,6 +56,7 @@ from app.services.hunting_discovery import (
     HuntingDiscoveryService,
 )
 from app.services.hunting_escalation_service import HuntingEscalationService
+from app.services.hunting_intel_service import HuntingIntelService
 from app.services.hunting_lead_service import HuntingLeadService
 from app.services.hunting_referral_service import HuntingReferralService
 from app.services.hunting_registry_service import HuntingRegistryService
@@ -75,6 +77,21 @@ def hunting_summary(
     uow: UnitOfWork = Depends(get_uow),
 ) -> HuntingSummary:
     return HuntingRegistryService(uow).summary()
+
+
+@router.get(
+    "/intel",
+    response_model=HuntingIntelPicture,
+    summary="AOR intelligence — cross-venue identifier links (read-only; pointers/metadata only)",
+)
+def hunting_intel(
+    aor: str | None = Query(None, description="Scope to one AOR; omit for all monitored venues."),
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> HuntingIntelPicture:
+    """The common operating picture: which located identifiers recur across two or more monitored
+    venues (the strongest case-building leads). Read-only — proposes nothing."""
+    return HuntingIntelService(uow).picture(aor)
 
 
 @router.post(
