@@ -63,8 +63,9 @@ def hunting_summary(
 def run_discovery(
     payload: HuntingDiscoveryRun,
     principal: Principal = Depends(require(Capability.CREATE_OBSERVATION)),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> HuntingDiscoveryResult:
-    return HuntingRegistryService().run_discovery(payload, principal)
+    return HuntingRegistryService(uow).run_discovery(payload, principal)
 
 
 @router.get("/sources", response_model=list[HuntingSourceRead], summary="List Hunting Grounds sources")
@@ -85,8 +86,9 @@ def list_sources(
 def propose_source(
     payload: HuntingSourcePropose,
     principal: Principal = Depends(require(Capability.CREATE_OBSERVATION)),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> HuntingSourceRead:
-    return HuntingRegistryService().propose(payload, principal)
+    return HuntingRegistryService(uow).propose(payload, principal)
 
 
 @router.get("/sources/{source_id}", response_model=HuntingSourceRead, summary="Get a source")
@@ -106,9 +108,10 @@ def authorize_source(
     source_id: UUID,
     payload: HuntingAuthorize,
     principal: Principal = Depends(current_principal),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> HuntingSourceRead:
     _require_admin(principal)
-    return HuntingRegistryService().authorize(source_id, payload, principal)
+    return HuntingRegistryService(uow).authorize(source_id, payload, principal)
 
 
 @router.post(
@@ -120,9 +123,10 @@ def reject_source(
     source_id: UUID,
     payload: HuntingDecision,
     principal: Principal = Depends(current_principal),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> HuntingSourceRead:
     _require_admin(principal)
-    return HuntingRegistryService().reject(source_id, payload.reason, principal)
+    return HuntingRegistryService(uow).reject(source_id, payload.reason, principal)
 
 
 @router.post(
@@ -133,9 +137,10 @@ def reject_source(
 def monitor_source(
     source_id: UUID,
     principal: Principal = Depends(current_principal),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> HuntingSourceRead:
     _require_admin(principal)
-    return HuntingRegistryService().start_monitoring(source_id, principal)
+    return HuntingRegistryService(uow).start_monitoring(source_id, principal)
 
 
 @router.post(
@@ -147,9 +152,10 @@ def suspend_source(
     source_id: UUID,
     payload: HuntingDecision,
     principal: Principal = Depends(current_principal),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> HuntingSourceRead:
     _require_admin(principal)
-    return HuntingRegistryService().suspend(source_id, payload.reason, principal)
+    return HuntingRegistryService(uow).suspend(source_id, payload.reason, principal)
 
 
 @router.post(
@@ -161,9 +167,10 @@ def retire_source(
     source_id: UUID,
     payload: HuntingDecision,
     principal: Principal = Depends(current_principal),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> HuntingSourceRead:
     _require_admin(principal)
-    return HuntingRegistryService().retire(source_id, payload.reason, principal)
+    return HuntingRegistryService(uow).retire(source_id, payload.reason, principal)
 
 
 @router.post(
@@ -193,8 +200,9 @@ def ingest_lead(
 def raise_escalation(
     payload: HuntingEscalationRaise,
     principal: Principal = Depends(require(Capability.CREATE_OBSERVATION)),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> HuntingEscalationRead:
-    return HuntingEscalationService().raise_concern(payload, principal)
+    return HuntingEscalationService(uow).raise_concern(payload, principal)
 
 
 @router.get(
@@ -219,9 +227,10 @@ def report_escalation(
     escalation_id: UUID,
     payload: HuntingEscalationReport,
     principal: Principal = Depends(current_principal),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> HuntingEscalationRead:
     _require_admin(principal)
-    return HuntingEscalationService().report(escalation_id, payload.ncmec_reference, principal)
+    return HuntingEscalationService(uow).report(escalation_id, payload.ncmec_reference, principal)
 
 
 @router.post(
@@ -233,9 +242,10 @@ def close_escalation(
     escalation_id: UUID,
     payload: HuntingEscalationDecision,
     principal: Principal = Depends(current_principal),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> HuntingEscalationRead:
     _require_admin(principal)
-    return HuntingEscalationService().close(escalation_id, payload.reason, principal)
+    return HuntingEscalationService(uow).close(escalation_id, payload.reason, principal)
 
 
 @router.post(
@@ -247,6 +257,7 @@ def dismiss_escalation(
     escalation_id: UUID,
     payload: HuntingEscalationDecision,
     principal: Principal = Depends(current_principal),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> HuntingEscalationRead:
     _require_admin(principal)
-    return HuntingEscalationService().dismiss(escalation_id, payload.reason, principal)
+    return HuntingEscalationService(uow).dismiss(escalation_id, payload.reason, principal)

@@ -23,9 +23,11 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
+from app.core.audit import new_audit_entry
 from app.core.security import Principal
 from app.models.enums import HuntingDiscoveryMethod, HuntingSourceStatus
 from app.repositories.store import store
+from app.repositories.uow import UnitOfWork
 from app.schemas.hunting import (
     HuntingAorSummary,
     HuntingAuthorize,
@@ -51,6 +53,25 @@ def _rollup(aor: str, group: list[HuntingSourceRead]) -> HuntingAorSummary:
 
 
 class HuntingRegistryService:
+    def __init__(self, uow: UnitOfWork | None = None) -> None:
+        # When constructed with a unit of work (mutating routes), privileged actions are
+        # written to ORCA's append-only audit log in addition to the per-source history.
+        self.uow = uow
+
+    def _audit(self, principal: Principal, action: str, source: HuntingSourceRead) -> None:
+        if self.uow is None:
+            return
+        self.uow.audit.record(
+            new_audit_entry(
+                actor_id=principal.id,
+                action=action,
+                target_type="hunting_source",
+                target_id=source.id,
+                case_id=None,
+                context={"name": source.name, "aor": source.aor, "status": source.status.value},
+            )
+        )
+
     def list(
         self, *, status: HuntingSourceStatus | None = None, aor: str | None = None
     ) -> list[HuntingSourceRead]:
@@ -133,6 +154,7 @@ class HuntingRegistryService:
             history=[first],
         )
         store.hunting_sources[source.id] = source
+        self._audit(principal, "hunting.source.proposed", source)
         return source
 
     def authorize(
@@ -217,4 +239,5 @@ class HuntingRegistryService:
             }
         )
         store.hunting_sources[updated.id] = updated
+        self._audit(principal, f"hunting.source.{to.value}", updated)
         return updated
