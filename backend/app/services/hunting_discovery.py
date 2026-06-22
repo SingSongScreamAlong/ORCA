@@ -78,6 +78,10 @@ def _get(env: dict, key: str) -> str | None:
     return value or None
 
 
+def _as_bool(value: str | None) -> bool:
+    return (value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _split_aors(value: str | None) -> tuple[str, ...]:
     """Parse a comma-separated AOR watchlist, trimming blanks and preserving order."""
     if not value:
@@ -118,6 +122,10 @@ class HuntingDiscoveryConfig:
     category: str = HuntingSourceCategory.OTHER.value  # default category for candidates
     # The standing AOR watchlist a sweep covers when none is named explicitly.
     aors: tuple[str, ...] = ()
+    # Dark-web transport: a Tor SOCKS proxy (e.g. socks5://127.0.0.1:9050) to reach .onion
+    # sources, gated behind an explicit acknowledgment that counsel + LE deconfliction are in place.
+    tor_proxy: str | None = None
+    darkweb_acknowledged: bool = False
 
     @classmethod
     def from_env(cls, env: dict | None = None) -> HuntingDiscoveryConfig:
@@ -132,6 +140,8 @@ class HuntingDiscoveryConfig:
             url_field=_get(env, "ORCA_HUNTING_DISCOVERY_URL_FIELD") or "url",
             category=(_get(env, "ORCA_HUNTING_DISCOVERY_CATEGORY") or HuntingSourceCategory.OTHER.value),
             aors=_split_aors(_get(env, "ORCA_HUNTING_DISCOVERY_AORS")),
+            tor_proxy=_get(env, "ORCA_HUNTING_DISCOVERY_TOR_PROXY"),
+            darkweb_acknowledged=_as_bool(env.get("ORCA_HUNTING_DISCOVERY_DARKWEB_ACK")),
         )
 
     @property
@@ -161,7 +171,15 @@ class HuntingDiscoveryConfig:
         # The legal gate: the http provider cannot be built without a recorded lawful basis.
         if not self.lawful_basis:
             missing.append("ORCA_HUNTING_DISCOVERY_LAWFUL_BASIS")
+        # The dark-web gate: a Tor proxy cannot be used without an explicit acknowledgment that
+        # counsel sign-off and LE deconfliction are in place.
+        if self.tor_proxy and not self.darkweb_acknowledged:
+            missing.append("ORCA_HUNTING_DISCOVERY_DARKWEB_ACK (records counsel + LE deconfliction)")
         return missing
+
+    @property
+    def tor_enabled(self) -> bool:
+        return bool(self.tor_proxy)
 
     def is_configured(self) -> bool:
         return self.enabled and not self.missing_fields()
@@ -176,6 +194,8 @@ class HuntingDiscoveryConfig:
             "host": self.base_host(),
             "category": self.candidate_category().value,
             "aors": list(self.aors),
+            "tor": self.tor_enabled,
+            "darkweb_acknowledged": self.darkweb_acknowledged,
             "api_key": _REDACTED if self.api_key else None,
         }
 
@@ -259,9 +279,7 @@ class HttpDiscoveryProvider:
     def _client(self):
         if self._http is not None:
             return self._http
-        import httpx
-
-        self._http = httpx.Client(timeout=_TIMEOUT)
+        self._http = _build_http_client(self.config.tor_proxy, DiscoveryConnectionError)
         return self._http
 
     def discover(self, aor: str, *, limit: int = _DEFAULT_LIMIT) -> list[HuntingDiscoveryCandidate]:
@@ -332,6 +350,27 @@ def _clean(value: Any) -> str | None:
     return value or None
 
 
+def _build_http_client(tor_proxy: str | None, error_cls: type[Exception]):
+    """Build an httpx client, routing through a Tor SOCKS proxy when configured.
+
+    Reaching ``.onion`` sources needs a Tor proxy (e.g. ``socks5://127.0.0.1:9050``) and the
+    ``socksio`` dependency (``pip install httpx[socks]``). A missing dependency surfaces as a
+    clear, secret-free error rather than a stack trace. No secrets are involved — the proxy is a
+    local address.
+    """
+    import httpx
+
+    if not tor_proxy:
+        return httpx.Client(timeout=_TIMEOUT)
+    try:
+        return httpx.Client(timeout=_TIMEOUT, proxy=tor_proxy)
+    except ImportError as exc:  # SOCKS support not installed
+        raise error_cls(
+            "Tor/SOCKS support is not installed in this environment. Run "
+            "`pip install httpx[socks]` (socksio) to reach .onion sources through the Tor proxy."
+        ) from exc
+
+
 def build_discovery_provider(
     config: HuntingDiscoveryConfig | None = None, *, http_client: Any | None = None
 ) -> DiscoveryProvider:
@@ -398,6 +437,8 @@ class HuntingDiscoveryService:
             host=config.base_host(),
             category=config.candidate_category(),
             aors=list(config.aors),
+            tor_enabled=config.tor_enabled,
+            darkweb_acknowledged=config.darkweb_acknowledged,
         )
 
     def auto_discover(

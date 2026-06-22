@@ -196,6 +196,24 @@ def test_build_disabled_raises_not_enabled():
         build_collection_provider(HuntingCollectionConfig(provider="disabled"))
 
 
+def test_tor_requires_darkweb_acknowledgment():
+    cfg = HuntingCollectionConfig(
+        provider="http", url="http://svc.onion/api", lawful_basis="x",
+        tor_proxy="socks5://127.0.0.1:9050",
+    )
+    assert cfg.tor_enabled is True
+    assert any("DARKWEB_ACK" in m for m in cfg.missing_fields())
+    with pytest.raises(CollectionConfigError):
+        build_collection_provider(cfg)
+    # With the acknowledgment recorded, it builds.
+    ok = HuntingCollectionConfig(
+        provider="http", url="http://svc.onion/api", lawful_basis="x",
+        tor_proxy="socks5://127.0.0.1:9050", darkweb_acknowledged=True,
+    )
+    assert ok.is_configured() is True
+    assert build_collection_provider(ok).name == "http"
+
+
 # --- http provider against an injected mock transport (no network) --------------
 
 

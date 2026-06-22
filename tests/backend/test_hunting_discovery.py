@@ -139,6 +139,47 @@ def test_build_unknown_provider_raises_config_error():
         build_discovery_provider(HuntingDiscoveryConfig(provider="nope"))
 
 
+# --- dark-web (Tor) transport gate ----------------------------------------------
+
+
+def test_config_parses_tor_proxy_and_ack():
+    cfg = HuntingDiscoveryConfig.from_env(
+        {
+            "ORCA_HUNTING_DISCOVERY_PROVIDER": "http",
+            "ORCA_HUNTING_DISCOVERY_URL": "http://svc.onion/api",
+            "ORCA_HUNTING_DISCOVERY_LAWFUL_BASIS": "counsel-approved",
+            "ORCA_HUNTING_DISCOVERY_TOR_PROXY": "socks5://127.0.0.1:9050",
+            "ORCA_HUNTING_DISCOVERY_DARKWEB_ACK": "true",
+        }
+    )
+    assert cfg.tor_enabled is True
+    assert cfg.darkweb_acknowledged is True
+    assert cfg.is_configured() is True
+
+
+def test_tor_requires_darkweb_acknowledgment():
+    # Tor proxy set but no acknowledgment → refuses to build (counsel + LE deconfliction gate).
+    cfg = HuntingDiscoveryConfig(
+        provider="http", url="http://svc.onion/api", lawful_basis="x",
+        tor_proxy="socks5://127.0.0.1:9050",
+    )
+    assert any("DARKWEB_ACK" in m for m in cfg.missing_fields())
+    with pytest.raises(DiscoveryConfigError):
+        build_discovery_provider(cfg)
+
+
+def test_status_reports_tor(client, monkeypatch):
+    monkeypatch.setenv("ORCA_HUNTING_DISCOVERY_PROVIDER", "http")
+    monkeypatch.setenv("ORCA_HUNTING_DISCOVERY_URL", "http://svc.onion/api")
+    monkeypatch.setenv("ORCA_HUNTING_DISCOVERY_LAWFUL_BASIS", "counsel-approved")
+    monkeypatch.setenv("ORCA_HUNTING_DISCOVERY_TOR_PROXY", "socks5://127.0.0.1:9050")
+    monkeypatch.setenv("ORCA_HUNTING_DISCOVERY_DARKWEB_ACK", "true")
+    body = client.get(STATUS, headers=ANA).json()
+    assert body["tor_enabled"] is True
+    assert body["darkweb_acknowledged"] is True
+    assert body["host"] == "svc.onion"
+
+
 # --- http provider against an injected mock transport (no network) --------------
 
 

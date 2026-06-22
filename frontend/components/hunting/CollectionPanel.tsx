@@ -99,6 +99,7 @@ function ProviderState({ status }: { status: HuntingCollectionStatus | null }) {
         </>
       ) : null}{" "}
       · lawful basis {status.lawful_basis_recorded ? "recorded" : "not recorded"}
+      {status.tor_enabled ? " · via Tor (dark web)" : ""}
       {status.configured ? "" : " · not fully configured"}. Text-only leads → proposed observations.
     </p>
   );

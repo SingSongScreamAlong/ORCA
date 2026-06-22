@@ -537,6 +537,8 @@ export interface HuntingDiscoveryStatus {
   host: string | null;
   category: HuntingSourceCategory;
   aors: string[]; // standing AOR watchlist a sweep covers by default
+  tor_enabled: boolean;
+  darkweb_acknowledged: boolean;
 }
 
 export interface HuntingDiscoveryScheduleStatus {
@@ -563,6 +565,8 @@ export interface HuntingCollectionStatus {
   configured: boolean;
   lawful_basis_recorded: boolean;
   host: string | null;
+  tor_enabled: boolean;
+  darkweb_acknowledged: boolean;
 }
 
 export interface HuntingCollectionResult {

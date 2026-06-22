@@ -220,6 +220,10 @@ class HuntingDiscoveryStatus(ORCAModel):
     aors: list[str] = Field(
         default_factory=list, description="Standing AOR watchlist a sweep covers by default."
     )
+    tor_enabled: bool = Field(default=False, description="Reaching the source through a Tor proxy.")
+    darkweb_acknowledged: bool = Field(
+        default=False, description="Dark-web access acknowledged (counsel + LE deconfliction)."
+    )
 
 
 class HuntingCollectionStatus(ORCAModel):
@@ -235,6 +239,10 @@ class HuntingCollectionStatus(ORCAModel):
         description="Whether a lawful basis is recorded (required to enable the http provider)."
     )
     host: str | None = Field(default=None, description="Collection source host (no path/secrets).")
+    tor_enabled: bool = Field(default=False, description="Reaching the source through a Tor proxy.")
+    darkweb_acknowledged: bool = Field(
+        default=False, description="Dark-web access acknowledged (counsel + LE deconfliction)."
+    )
 
 
 class HuntingCollectionResult(ORCAModel):

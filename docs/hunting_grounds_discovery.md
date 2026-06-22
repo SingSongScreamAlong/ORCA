@@ -90,6 +90,20 @@ Schedule API (all under `/api/v1/hunting/discovery/schedule`):
 - `POST /schedule/run-now` — run one sweep immediately, attributed to the triggering admin
   (admin-only); `400`/`502` mirror the sweep endpoint.
 
+## Dark web (Tor / `.onion`)
+
+The same `http` provider can reach **`.onion`** sources by routing through a **Tor SOCKS proxy**
+(your hardened VM/VPN): set `ORCA_HUNTING_DISCOVERY_TOR_PROXY=socks5://127.0.0.1:9050` and install
+the transport (`pip install ".[tor]"`). Tor is a *transport* — the locate-only, text/metadata,
+CSAM-safe rules are unchanged; ORCA still fetches no media.
+
+Because dark-web access carries legal exposure that clearnet OSINT does not, it is gated behind an
+explicit acknowledgment: the provider **refuses to build** unless
+`ORCA_HUNTING_DISCOVERY_DARKWEB_ACK=true`, which records that **legal counsel sign-off** and
+**law-enforcement deconfliction** are in place (alongside the always-required lawful basis). The
+status surfaces `tor_enabled` / `darkweb_acknowledged`. This mirrors the registry's
+authorization-first gate — autonomy never reaches the dark web without a recorded human decision.
+
 ## Idempotent re-runs — URL normalization
 
 Autonomous discovery is meant to run repeatedly, so it must not silt the registry up with

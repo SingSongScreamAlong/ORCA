@@ -153,6 +153,7 @@ function ProviderState({ status }: { status: HuntingDiscoveryStatus | null }) {
         </>
       ) : null}{" "}
       · lawful basis {status.lawful_basis_recorded ? "recorded" : "not recorded"}
+      {status.tor_enabled ? " · via Tor (dark web)" : ""}
       {status.configured ? "" : " · not fully configured"}. Discovered venues enter as proposals only.
     </p>
   );

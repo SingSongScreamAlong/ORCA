@@ -42,7 +42,12 @@ from app.schemas.hunting import (
     HuntingLeadCreate,
     HuntingSourceRead,
 )
-from app.services.hunting_discovery import _clean, _dig  # shared, secret-free JSON helpers
+from app.services.hunting_discovery import (  # shared, secret-free helpers
+    _as_bool,
+    _build_http_client,
+    _clean,
+    _dig,
+)
 
 _REDACTED = "***redacted***"
 _TIMEOUT = 30.0
@@ -106,6 +111,10 @@ class HuntingCollectionConfig:
     observed_at_field: str = "observed_at"
     entities_field: str = "entities"  # optional per-row list of {entity_type, value}
     default_confidence: float = 0.4
+    # Dark-web transport: a Tor SOCKS proxy to reach .onion sources, gated behind an explicit
+    # acknowledgment that counsel sign-off + LE deconfliction are in place.
+    tor_proxy: str | None = None
+    darkweb_acknowledged: bool = False
 
     @classmethod
     def from_env(cls, env: dict | None = None) -> HuntingCollectionConfig:
@@ -120,6 +129,8 @@ class HuntingCollectionConfig:
             observed_at_field=_get(env, "ORCA_HUNTING_COLLECTION_OBSERVED_AT_FIELD") or "observed_at",
             entities_field=_get(env, "ORCA_HUNTING_COLLECTION_ENTITIES_FIELD") or "entities",
             default_confidence=_as_float(_get(env, "ORCA_HUNTING_COLLECTION_DEFAULT_CONFIDENCE"), 0.4),
+            tor_proxy=_get(env, "ORCA_HUNTING_COLLECTION_TOR_PROXY"),
+            darkweb_acknowledged=_as_bool(env.get("ORCA_HUNTING_COLLECTION_DARKWEB_ACK")),
         )
 
     @property
@@ -140,10 +151,18 @@ class HuntingCollectionConfig:
             missing.append("ORCA_HUNTING_COLLECTION_URL")
         if not self.lawful_basis:
             missing.append("ORCA_HUNTING_COLLECTION_LAWFUL_BASIS")
+        # The dark-web gate: a Tor proxy cannot be used without an explicit acknowledgment that
+        # counsel sign-off and LE deconfliction are in place.
+        if self.tor_proxy and not self.darkweb_acknowledged:
+            missing.append("ORCA_HUNTING_COLLECTION_DARKWEB_ACK (records counsel + LE deconfliction)")
         return missing
 
     def is_configured(self) -> bool:
         return self.enabled and not self.missing_fields()
+
+    @property
+    def tor_enabled(self) -> bool:
+        return bool(self.tor_proxy)
 
     def safe_dict(self) -> dict:
         return {
@@ -152,6 +171,8 @@ class HuntingCollectionConfig:
             "configured": self.is_configured(),
             "lawful_basis_recorded": bool(self.lawful_basis),
             "host": self.base_host(),
+            "tor": self.tor_enabled,
+            "darkweb_acknowledged": self.darkweb_acknowledged,
             "api_key": _REDACTED if self.api_key else None,
         }
 
@@ -223,9 +244,7 @@ class HttpCollectionProvider:
     def _client(self):
         if self._http is not None:
             return self._http
-        import httpx
-
-        self._http = httpx.Client(timeout=_TIMEOUT)
+        self._http = _build_http_client(self.config.tor_proxy, CollectionConnectionError)
         return self._http
 
     def collect(self, source: HuntingSourceRead, *, limit: int = _DEFAULT_LIMIT) -> list[HuntingLeadCreate]:
@@ -339,6 +358,8 @@ class HuntingCollectionService:
             configured=config.is_configured(),
             lawful_basis_recorded=bool(config.lawful_basis),
             host=config.base_host(),
+            tor_enabled=config.tor_enabled,
+            darkweb_acknowledged=config.darkweb_acknowledged,
         )
 
     def collect(

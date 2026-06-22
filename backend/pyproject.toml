@@ -31,6 +31,11 @@ dev = [
     "ruff>=0.3",
     "PyYAML>=6.0",
 ]
+# Tor/SOCKS support for reaching .onion sources (dark-web recon). Install in the
+# collection environment when a Tor proxy is configured: pip install ".[tor]".
+tor = [
+    "httpx[socks]>=0.27",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]

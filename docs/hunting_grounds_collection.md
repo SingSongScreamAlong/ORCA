@@ -93,6 +93,15 @@ proposal an analyst reviews. No media is ever read or stored (see `app/services/
 - Audited as `hunting.collection.run` / `hunting.collection.sweep`; each lead also creates the
   usual `observation.intake` record.
 
+## Dark web (Tor / `.onion`)
+
+Collection reaches **`.onion`** sources through a **Tor SOCKS proxy** the same way discovery does:
+`ORCA_HUNTING_COLLECTION_TOR_PROXY=socks5://127.0.0.1:9050` plus `pip install ".[tor]"`. Tor is
+only the transport — leads stay **text/metadata only, CSAM-safe, locate-don't-collect**. The
+`.onion`/crypto/handle identifier extraction is already wired, so dark-web leads cross-link with
+clearnet ones automatically. Access is gated behind `ORCA_HUNTING_COLLECTION_DARKWEB_ACK=true`
+(records counsel sign-off + LE deconfliction); the provider refuses to build otherwise.
+
 ## Referral to law enforcement (locate → case)
 
 `GET /api/v1/hunting/sources/{id}/referral` builds a **referral dossier** for a source: the
