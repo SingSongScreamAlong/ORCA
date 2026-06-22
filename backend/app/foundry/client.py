@@ -27,14 +27,19 @@ class FoundryClient(Protocol):
 def build_foundry_client(config: FoundryConfig, *, allow_mock_fallback: bool = True) -> FoundryClient:
     """Construct a client for the active configuration.
 
-    * enabled → the real client (which fails gracefully if its SDK is not installed);
+    * enabled + ``client_kind == "rest"`` (default) → the real REST connector (httpx);
+    * enabled + ``client_kind == "sdk"`` → the SDK placeholder (fails gracefully if absent);
     * disabled → the mock client (so local dev/tests work with no credentials), unless
       ``allow_mock_fallback=False``.
     """
     if config.enabled:
-        from app.foundry.real_client import RealFoundryClient
+        if config.client_kind == "sdk":
+            from app.foundry.real_client import RealFoundryClient
 
-        return RealFoundryClient(config)
+            return RealFoundryClient(config)
+        from app.foundry.rest_client import RestFoundryClient
+
+        return RestFoundryClient(config)
     if allow_mock_fallback:
         from app.foundry.mock_client import MockFoundryClient
 

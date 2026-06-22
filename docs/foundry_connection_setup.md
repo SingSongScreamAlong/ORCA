@@ -1,8 +1,10 @@
 # Foundry Connection Setup (Manual)
 
-How to point ORCA's v1.1 connection spike at a real Palantir Foundry tenant for a
-**read-only** check. This is optional and never required for development or CI — ORCA runs
-fully on the deterministic mock client with no credentials.
+How to point ORCA's Foundry connector at a real Palantir Foundry tenant for a **read-only**
+check. As of **v1.2** the default client (`ORCA_FOUNDRY_CLIENT=rest`) is a real httpx REST
+connector that calls Foundry's documented v2 API; v1.1 shipped only a mock + SDK placeholder.
+This is optional and never required for development or CI — ORCA runs fully on the
+deterministic mock client with no credentials.
 
 > **Never commit credentials.** Put them only in a local `.env` (gitignored). `.env.example`
 > contains placeholders. ORCA redacts secrets in logs/health output, but the operator is
@@ -10,10 +12,17 @@ fully on the deterministic mock client with no credentials.
 
 ## 1. Choose an auth method
 
-The spike supports two methods — provide **one**:
+The connector supports two methods — provide **one**:
 
-- **Bearer token:** set `ORCA_FOUNDRY_TOKEN`.
+- **Bearer token:** set `ORCA_FOUNDRY_TOKEN` (used directly; no token exchange).
 - **OAuth2 client credentials:** set `ORCA_FOUNDRY_CLIENT_ID` and `ORCA_FOUNDRY_CLIENT_SECRET`.
+  The REST connector exchanges these at `POST {tenant}/multipass/api/oauth2/token`
+  (`grant_type=client_credentials`) and caches the returned access token. If your tenant
+  requires explicit scopes for ontology reads, set `ORCA_FOUNDRY_SCOPES` (space-separated);
+  confirm the exact scope name(s) in your tenant's API/OAuth client configuration.
+
+Register the OAuth2 client (or mint the token) in the Foundry Control Panel with **read-only**
+access to the ontology you intend to read — no write or action permissions are needed.
 
 ## 2. Set environment variables
 
@@ -21,6 +30,7 @@ In `backend/.env` (copy from `backend/.env.example`):
 
 ```bash
 ORCA_FOUNDRY_ENABLED=true
+ORCA_FOUNDRY_CLIENT=rest                      # real REST connector (default)
 ORCA_FOUNDRY_TENANT_URL=https://your-tenant.palantirfoundry.com
 ORCA_FOUNDRY_ONTOLOGY_API_NAME=your-ontology-api-name
 
@@ -28,11 +38,16 @@ ORCA_FOUNDRY_ONTOLOGY_API_NAME=your-ontology-api-name
 ORCA_FOUNDRY_TOKEN=...                       # OR
 # ORCA_FOUNDRY_CLIENT_ID=...
 # ORCA_FOUNDRY_CLIENT_SECRET=...
+# ORCA_FOUNDRY_SCOPES=                        # optional, only if your tenant requires scopes
 
 # a single harmless demo object to read:
 ORCA_FOUNDRY_TEST_OBJECT_TYPE=OrcaCase
 ORCA_FOUNDRY_TEST_OBJECT_ID=<a-non-sensitive-demo-object-id>
 ```
+
+For the ORCA tenant in the Control Panel screenshot, `ORCA_FOUNDRY_TENANT_URL` is the host
+shown in the address bar (e.g. `https://orca.usw-23.palantirfoundry.com`), and the ontology
+API name is the one published under your enrollment's ontology.
 
 ## 3. Run the read-only health check
 
@@ -43,23 +58,41 @@ python -m app.foundry.health
 curl -s http://localhost:8000/api/v1/integrations/foundry/health -H "X-ORCA-User: admin" | jq
 ```
 
-### Expected results in v1.1
+### Expected results (v1.2, REST connector)
 
 - **Disabled** (default): `{"enabled": false, "mode": "disabled", "ok": null}`.
 - **Enabled but misconfigured:** `ok: false` with an `errors` list naming the missing vars.
-- **Enabled and configured, no SDK installed:** `ok: false` with a clear message that the
-  Palantir SDK (`ORCA_FOUNDRY_SDK_MODULE`, default `foundry_sdk`) is not installed. **This
-  is the expected state today** — the spike ships the abstraction + mock, not a wired SDK.
+- **Enabled, configured, tenant reachable:** `ok: true`, `mode: "real"`, with a `result`
+  carrying an `ontology_count` (from the read-only `GET /api/v2/ontologies`).
+- **Enabled but auth/scope/path rejected:** `ok: false` with a clear, **secret-free** message
+  such as `OAuth2 token request was rejected (HTTP 401)` or `GET api/v2/ontologies returned
+  HTTP 403`. Re-check the auth method, the scopes, and the tenant URL.
 
 The health output never contains secret values (only a host display and redacted markers).
 
-## 4. Wiring a real SDK (future work)
+> If you prefer the official Palantir SDK over REST, set `ORCA_FOUNDRY_CLIENT=sdk`. That path
+> is still the honest v1.1 placeholder: it probes for an SDK module
+> (`ORCA_FOUNDRY_SDK_MODULE`, default `foundry_sdk`) and fails gracefully if it is not
+> installed/implemented. The REST connector (`rest`) is the working default.
 
-To make real read-only calls, implement the methods in
-`backend/app/foundry/real_client.py` against the official Palantir OSDK/client once its
-package and read API are confirmed. Keep it **read-only**, keep secrets in env, and surface
-failures through `FoundryError` subclasses (which must remain secret-free). Set
-`ORCA_FOUNDRY_SDK_MODULE` if the package name differs from the default probe.
+## 4. Read a demo object (optional)
+
+With the health check green, you can confirm an object read from a quick Python shell (still
+read-only, one harmless object):
+
+```bash
+cd backend
+python -c "
+from app.foundry.config import FoundryConfig
+from app.foundry.client import build_foundry_client
+c = build_foundry_client(FoundryConfig.from_env())
+print(c.get_object_type_metadata('OrcaCase'))      # object-type metadata
+"
+```
+
+Use a non-sensitive demo object type/id. To wire object reads into a workflow later, keep
+them **read-only**, keep secrets in env, and surface failures through `FoundryError`
+subclasses (which must remain secret-free).
 
 ## Safety reminders
 
@@ -67,5 +100,6 @@ failures through `FoundryError` subclasses (which must remain secret-free). Set
 - Use a **non-sensitive demo object** for the first connection test.
 - Do not transmit raw evidence files to Foundry.
 - Do not paste tenant secrets into docs, issues, or commit messages.
-- See [`v1.1_foundry_connection_spike.md`](v1.1_foundry_connection_spike.md) and
+- See [`v1.2_foundry_rest_connector.md`](v1.2_foundry_rest_connector.md),
+  [`v1.1_foundry_connection_spike.md`](v1.1_foundry_connection_spike.md), and
   [`safety_and_handling.md`](safety_and_handling.md).

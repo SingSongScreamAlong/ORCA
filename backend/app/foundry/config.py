@@ -41,6 +41,10 @@ class FoundryConfig:
     ontology_api_name: str | None = None
     test_object_type: str | None = None
     test_object_id: str | None = None
+    # Which real client to use when enabled: "rest" (httpx, default) or "sdk" (placeholder).
+    client_kind: str = "rest"
+    # Optional OAuth2 scopes for the client-credentials grant (space-separated).
+    scopes: str | None = None
 
     @classmethod
     def from_env(cls, env: dict | None = None) -> FoundryConfig:
@@ -54,7 +58,16 @@ class FoundryConfig:
             ontology_api_name=_get(env, "ORCA_FOUNDRY_ONTOLOGY_API_NAME"),
             test_object_type=_get(env, "ORCA_FOUNDRY_TEST_OBJECT_TYPE"),
             test_object_id=_get(env, "ORCA_FOUNDRY_TEST_OBJECT_ID"),
+            client_kind=(_get(env, "ORCA_FOUNDRY_CLIENT") or "rest").lower(),
+            scopes=_get(env, "ORCA_FOUNDRY_SCOPES"),
         )
+
+    def base_url(self) -> str | None:
+        """Normalised tenant base URL (scheme, no trailing slash). Safe (no secrets)."""
+        if not self.tenant_url:
+            return None
+        url = self.tenant_url if "://" in self.tenant_url else f"https://{self.tenant_url}"
+        return url.rstrip("/")
 
     # --- derived ----------------------------------------------------------------
 
@@ -96,6 +109,7 @@ class FoundryConfig:
             "enabled": self.enabled,
             "configured": self.is_configured(),
             "auth_method": self.auth_method(),
+            "client_kind": self.client_kind,
             "host": self.safe_host(),
             "ontology_api_name": self.ontology_api_name,
             "test_object_type": self.test_object_type,

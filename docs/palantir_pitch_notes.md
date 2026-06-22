@@ -9,7 +9,7 @@ spec in `foundry/*.json`.
 
 A lawful, auditable **case-intelligence workspace** for OSINT analysis in support of
 anti-trafficking work. It runs locally end to end: a FastAPI backend (in-memory or
-PostgreSQL), a Next.js analyst UI, and 126 passing backend tests. Its defining property is
+PostgreSQL), a Next.js analyst UI, and 151 passing backend tests. Its defining property is
 discipline, not breadth: **AI proposes, analysts decide**; evidence is hash-verifiable and
 case-scoped; access is need-to-know; every consequential action is audited.
 
@@ -43,11 +43,17 @@ ORCA would remain the **system of record and authorization authority**; Foundry 
 call back into ORCA's services so RBAC, membership, separation of duties, and audit still
 apply (one-directional, audited backfill — not the live sync the prototype forbids).
 
-> **v1.1 connection spike.** ORCA already includes read-only connection *scaffolding*
+> **v1.1–v1.2 connection work.** ORCA includes read-only connection plumbing
 > (`backend/app/foundry/`): a config shape, a client abstraction, a deterministic mock
-> client, an honest real-client placeholder, and a secret-free health check
-> (`python -m app.foundry.health`). It is disabled by default and needs no credentials —
-> the natural place to wire a real OSDK in a pilot. See
+> client, and a secret-free health check (`python -m app.foundry.health`). v1.2 adds a real,
+> **read-only REST connector** (`RestFoundryClient`, httpx) that authenticates via OAuth2
+> client-credentials or a bearer token and calls Foundry's documented v2 ontology endpoints
+> (`GET /api/v2/ontologies` as the connectivity proof; object-type/object reads on demand).
+> It is disabled by default, never tested against a live tenant (an injected mock transport),
+> and its first real call against the ORCA tenant is a deliberate, operator-run manual step —
+> the natural seam to validate scopes/paths and then wire pilot reads. An OSDK path remains
+> selectable (`ORCA_FOUNDRY_CLIENT=sdk`). See
+> [`v1.2_foundry_rest_connector.md`](v1.2_foundry_rest_connector.md) and
 > [`v1.1_foundry_connection_spike.md`](v1.1_foundry_connection_spike.md).
 
 ## Why AIP is propose-only

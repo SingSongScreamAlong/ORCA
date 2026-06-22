@@ -25,7 +25,17 @@ sequence is the commitment.
 The skeleton is deliberately honest: endpoints and screens exist and are wired to the
 data model, but business logic is minimal and clearly marked.
 
-> **v1.1 status.** **Foundry Connection Spike** begins Phase 6 integration work: the
+> **v1.2 status.** **Foundry REST Connector** advances Phase 6 integration: the v1.1
+> placeholder is replaced by a real, **read-only** httpx connector (`RestFoundryClient`)
+> behind the same abstraction. It authenticates via OAuth2 client-credentials or a pre-issued
+> bearer token and calls Foundry's documented **v2 ontology/object endpoints**
+> (`GET /api/v2/ontologies` for the health check; object-type/object reads on demand). It is
+> the default client when Foundry is enabled (`ORCA_FOUNDRY_CLIENT=rest`), still disabled by
+> default, still read-only, secret-free in logs/errors, and tested with **no live tenant** (an
+> injected mock transport) — the first live call is a deliberate operator-run manual test.
+> See [`v1.2_foundry_rest_connector.md`](v1.2_foundry_rest_connector.md).
+>
+> **v1.1 status.** **Foundry Connection Spike** began Phase 6 integration work: the
 > smallest safe step from *Palantir-ready* to *Palantir-connected* — a Foundry connection
 > config shape, a **read-only** client abstraction, a deterministic mock client, honest
 > real-client scaffolding, and a secret-free health check
