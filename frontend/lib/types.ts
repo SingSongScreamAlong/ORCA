@@ -579,6 +579,52 @@ export interface HuntingCollectionSweepResult {
   provider: string | null;
 }
 
+export interface ReferralEntity {
+  entity_type: EntityType;
+  value: string;
+}
+
+export interface ReferralObservation {
+  id: string;
+  summary: string;
+  observed_at: string;
+  confidence: number;
+  status: string;
+}
+
+export interface ReferralRelationship {
+  relationship_type: string;
+  source_value: string;
+  target_value: string;
+  confidence: number;
+  status: string;
+}
+
+export interface HuntingReferralPackage {
+  source: {
+    id: string;
+    name: string;
+    url: string;
+    category: HuntingSourceCategory;
+    aor: string;
+    status: HuntingSourceStatus;
+    lawful_basis: string | null;
+    access_method: string | null;
+    jurisdiction: string | null;
+    proposed_by: string;
+    authorized_by: string | null;
+  };
+  generated_at: string;
+  generated_by: string;
+  observation_count: number;
+  identifier_count: number;
+  located_identifiers: ReferralEntity[];
+  observations: ReferralObservation[];
+  relationships: ReferralRelationship[];
+  summary_markdown: string;
+  notice: string;
+}
+
 export type HuntingEscalationStatus = "open" | "reported" | "closed" | "dismissed";
 
 export interface HuntingEscalationTransition {

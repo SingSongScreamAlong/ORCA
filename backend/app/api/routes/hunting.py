@@ -29,6 +29,7 @@ from app.schemas.hunting import (
     HuntingDiscoveryStatus,
     HuntingDiscoverySweepResult,
     HuntingLeadCreate,
+    HuntingReferralPackage,
     HuntingSourcePropose,
     HuntingSourceRead,
     HuntingSummary,
@@ -55,6 +56,7 @@ from app.services.hunting_discovery import (
 )
 from app.services.hunting_escalation_service import HuntingEscalationService
 from app.services.hunting_lead_service import HuntingLeadService
+from app.services.hunting_referral_service import HuntingReferralService
 from app.services.hunting_registry_service import HuntingRegistryService
 from app.services.hunting_scheduler import scheduler
 
@@ -398,6 +400,21 @@ def collect_source(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except CollectionError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.get(
+    "/sources/{source_id}/referral",
+    response_model=HuntingReferralPackage,
+    summary="Generate a law-enforcement referral dossier for a source (pointers/metadata; no media)",
+)
+def source_referral(
+    source_id: UUID,
+    principal: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> HuntingReferralPackage:
+    """Aggregate the located identifiers, text leads, and relationship map for a source into a
+    referral package for LE — provenance + lawful basis included, no media. Audited."""
+    return HuntingReferralService(uow).build(source_id, principal)
 
 
 # --- suspected-minor / CSAM escalation (report-only, never-store) ----------------

@@ -93,6 +93,16 @@ proposal an analyst reviews. No media is ever read or stored (see `app/services/
 - Audited as `hunting.collection.run` / `hunting.collection.sweep`; each lead also creates the
   usual `observation.intake` record.
 
+## Referral to law enforcement (locate → case)
+
+`GET /api/v1/hunting/sources/{id}/referral` builds a **referral dossier** for a source: the
+located identifiers, the text leads, and the relationship map ORCA assembled, together with the
+source's provenance and the **lawful basis** it was watched under. It returns structured JSON plus
+a ready-to-hand `summary_markdown`. **No media** — pointers and metadata only. It does not unmask
+anyone: identifiers are leads for lawful follow-up, and de-anonymization (handle → person) is law
+enforcement's job with legal process. Requires `READ_CASE_MATERIAL`; generating one is audited as
+`hunting.referral.generated`. This is the seam where ORCA's recon becomes a Project 1591 referral.
+
 ## On the cadence
 
 When the [continuous cadence](hunting_grounds_discovery.md#seeking-on-its-own--the-continuous-cadence)

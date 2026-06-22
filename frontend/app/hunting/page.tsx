@@ -9,6 +9,7 @@ import { EscalationsPanel } from "@/components/hunting/EscalationsPanel";
 import { FlagConcernForm } from "@/components/hunting/FlagConcernForm";
 import { LogLeadForm } from "@/components/hunting/LogLeadForm";
 import { ProposeSourceForm } from "@/components/hunting/ProposeSourceForm";
+import { ReferralButton } from "@/components/hunting/ReferralButton";
 import { RunDiscoveryForm } from "@/components/hunting/RunDiscoveryForm";
 import { SourceControls } from "@/components/hunting/SourceControls";
 import { Table, Td, Th, Tr } from "@/components/ui/Table";
@@ -217,6 +218,7 @@ function SourceCard({ source }: { source: HuntingSource }) {
       {source.status === "monitored" && (
         <div className="space-y-2">
           <CollectSourceButton sourceId={source.id} />
+          <ReferralButton sourceId={source.id} />
           <LogLeadForm sourceId={source.id} />
           <FlagConcernForm sourceId={source.id} aor={source.aor} url={source.url} />
         </div>

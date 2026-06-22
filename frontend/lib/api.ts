@@ -32,6 +32,7 @@ import type {
   HuntingDiscoverySweepResult,
   HuntingEscalation,
   HuntingEscalationStatus,
+  HuntingReferralPackage,
   HuntingSource,
   HuntingSourceCategory,
   HuntingSourceStatus,
@@ -250,6 +251,10 @@ export const collectHuntingSource = (sourceId: string, limit = 10) =>
     "POST",
     {},
   );
+
+// LE referral dossier — located identifiers + leads + relationships + provenance (no media).
+export const getHuntingReferral = (sourceId: string) =>
+  apiGet<HuntingReferralPackage>(`/hunting/sources/${sourceId}/referral`);
 
 // Suspected-minor / CSAM escalation — report-only, never-store.
 export const getHuntingEscalations = (status?: HuntingEscalationStatus) =>

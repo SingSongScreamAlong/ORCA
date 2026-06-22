@@ -109,6 +109,68 @@ class HuntingSummary(ORCAModel):
     totals: HuntingAorSummary
 
 
+class ReferralEntity(ORCAModel):
+    """A located identifier in a referral package (pointer/metadata only — never media)."""
+
+    entity_type: EntityType
+    value: str
+
+
+class ReferralObservation(ORCAModel):
+    id: UUID
+    summary: str  # the text lead (observation notes)
+    observed_at: datetime
+    confidence: float
+    status: str
+
+
+class ReferralRelationship(ORCAModel):
+    relationship_type: str
+    source_value: str
+    target_value: str
+    confidence: float
+    status: str
+
+
+class ReferralSource(ORCAModel):
+    """The monitored venue and the lawful basis it was watched under (provenance for LE)."""
+
+    id: UUID
+    name: str
+    url: str
+    category: HuntingSourceCategory
+    aor: str
+    status: HuntingSourceStatus
+    lawful_basis: str | None
+    access_method: str | None
+    jurisdiction: str | None
+    proposed_by: str
+    authorized_by: str | None
+
+
+class HuntingReferralPackage(ORCAModel):
+    """A law-enforcement referral dossier for a Hunting Grounds source.
+
+    Aggregates the **located identifiers**, the text leads, and the relationship map ORCA built
+    from a monitored venue, with the source's provenance and lawful basis — **no media**, by
+    construction. This is the "locate → case" output: pointers and patterns LE can act on.
+    """
+
+    source: ReferralSource
+    generated_at: datetime
+    generated_by: str
+    observation_count: int
+    identifier_count: int
+    located_identifiers: list[ReferralEntity]
+    observations: list[ReferralObservation]
+    relationships: list[ReferralRelationship]
+    summary_markdown: str
+    notice: str = (
+        "Lawful OSINT referral. Contains pointers and metadata only — no media, no CSAM. "
+        "Identifiers are leads for lawful follow-up; de-anonymization requires legal process."
+    )
+
+
 class HuntingDiscoveryCandidate(ORCAModel):
     name: str = Field(min_length=1)
     url: str = Field(min_length=1)
