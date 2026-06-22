@@ -30,6 +30,18 @@ class MockFoundryClient:
             "note": "Synthetic mock — no real Foundry tenant was contacted.",
         }
 
+    def list_ontologies(self) -> list[dict]:
+        self._guard()
+        return [{"apiName": "mock-ontology", "displayName": "Mock Ontology (synthetic)"}]
+
+    def list_object_types(self, *, ontology: str | None = None) -> list[dict]:
+        self._guard()
+        return [
+            {"apiName": "OrcaCase", "displayName": "Orca Case"},
+            {"apiName": "OrcaEntity", "displayName": "Orca Entity"},
+            {"apiName": "OrcaObservation", "displayName": "Orca Observation"},
+        ]
+
     def get_object_type_metadata(self, object_type: str) -> dict:
         self._guard()
         # A small OrcaCase-like shape (synthetic).
