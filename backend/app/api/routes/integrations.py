@@ -1,33 +1,37 @@
-"""Integration diagnostics (v1.1–v1.3).
+"""Integration diagnostics + read-only import (v1.1–v1.4).
 
-Admin-only, **read-only** diagnostics for external integrations — currently Palantir
-Foundry. These surface the Foundry connector's reads *inside the app* (not just the CLI):
+Admin-only access to Palantir Foundry from inside the app. Reads surface the connector's
+data; the v1.4 import materialises Foundry objects as ORCA **entities** (the only write, and
+only to ORCA's own store — never to Foundry):
 
-* ``GET /integrations/foundry/health``           — connection health (v1.1).
-* ``GET /integrations/foundry/discover``          — ontologies + object types (v1.3).
-* ``GET /integrations/foundry/object-types/{t}``  — object-type metadata (v1.3).
-* ``GET /integrations/foundry/objects/{t}``       — a small sample of objects (v1.3).
-* ``GET /integrations/foundry/objects/{t}/{id}``  — a single object by id (v1.3).
+* ``GET  /integrations/foundry/health``           — connection health (v1.1).
+* ``GET  /integrations/foundry/discover``          — ontologies + object types (v1.3).
+* ``GET  /integrations/foundry/object-types/{t}``  — object-type metadata (v1.3).
+* ``GET  /integrations/foundry/objects/{t}``       — a small sample of objects (v1.3).
+* ``GET  /integrations/foundry/objects/{t}/{id}``  — a single object by id (v1.3).
+* ``POST /integrations/foundry/import``            — import objects as ORCA entities (v1.4).
 
-All are **admin-only** and **read-only**. They are connection/admin diagnostics rather than
-case actions, so — consistently with the health check — they are **not case-audited**. They
-never emit secrets (the connector's errors are secret-free, and config is redacted). When
-Foundry is disabled (the default for dev/CI), the deterministic **mock** client answers, and
-every response carries a ``mode`` field (``mock`` | ``real``) so the source is unambiguous.
-No endpoint writes to Foundry.
+All are **admin-only**. The reads are **read-only** against Foundry; the import reads Foundry
+and writes only deduplicated ORCA entities (idempotent). They never emit secrets (the
+connector's errors are secret-free, config is redacted). When Foundry is disabled (the default
+for dev/CI), the deterministic **mock** client answers, and every response carries a ``mode``
+field (``mock`` | ``real``) so the source is unambiguous.
 """
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
-from app.api.deps import current_principal
+from app.api.deps import current_principal, get_uow
 from app.core.rbac import Role
 from app.core.security import Principal
 from app.foundry.client import build_foundry_client
 from app.foundry.config import FoundryConfig
 from app.foundry.errors import FoundryConfigError, FoundryError
 from app.foundry.health import foundry_health
+from app.foundry.import_service import FoundryImportService
+from app.repositories.uow import UnitOfWork
+from app.schemas.foundry import FoundryImportRequest, FoundryImportResult
 from app.services.errors import PermissionDenied
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
@@ -113,3 +117,19 @@ def foundry_object_by_id_endpoint(
     client = _client()
     return {"mode": client.mode, "object_type": object_type, "object_id": object_id,
             "object": _safe_call(lambda: client.get_object_by_id(object_type, object_id))}
+
+
+@router.post(
+    "/foundry/import",
+    response_model=FoundryImportResult,
+    summary="Import Foundry objects as ORCA entities (admin-only; read-only against Foundry)",
+)
+def foundry_import_endpoint(
+    payload: FoundryImportRequest,
+    principal: Principal = Depends(current_principal),
+    uow: UnitOfWork = Depends(get_uow),
+) -> FoundryImportResult:
+    _require_admin(principal)
+    client = _client()
+    service = FoundryImportService(uow, client)
+    return _safe_call(lambda: service.import_entities(payload, principal))
