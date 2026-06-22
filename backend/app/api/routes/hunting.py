@@ -18,6 +18,7 @@ from app.core.security import Principal
 from app.models.enums import EntityType, HuntingEscalationStatus, HuntingSourceStatus
 from app.repositories.uow import UnitOfWork
 from app.schemas.hunting import (
+    AorReferralPackage,
     HuntingAuthorize,
     HuntingCollectionResult,
     HuntingCollectionStatus,
@@ -139,6 +140,22 @@ def identifier_referral(
     if pkg is None:
         raise HTTPException(status_code=404, detail="No such located identifier.")
     return pkg
+
+
+@router.get(
+    "/intel/aor/referral",
+    response_model=AorReferralPackage,
+    summary="Generate an LE operation rollup for a whole AOR (cross-venue case file; no media)",
+)
+def aor_referral(
+    aor: str = Query(..., min_length=1, description="Area of responsibility to roll up."),
+    principal: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> AorReferralPackage:
+    """The AOR operation rollup: consolidate every monitored venue in the region (with lawful
+    basis), all located identifiers, the cross-venue links tying venues into one operation, and the
+    relationship map into a single LE dossier. Pointers/metadata only — no media. Audited."""
+    return HuntingReferralService(uow).build_for_aor(aor, principal)
 
 
 @router.post(

@@ -154,6 +154,17 @@ locate an identifier everywhere, then hand LE the dossier. **No media** — poin
 `READ_CASE_MATERIAL`; `404` if the identifier was never located; audited as
 `hunting.referral.identifier_generated`. In the UI it's a one-click action inside the pivot panel.
 
+### AOR operation rollup — the regional case file
+
+`GET /api/v1/hunting/intel/aor/referral?aor=…` is the widest referral: it consolidates a whole area
+of responsibility into **one** operation dossier — every monitored venue in the region (each with
+its lawful basis), all located identifiers (cross-venue ones flagged), the **cross-venue links**
+that tie separate venues into one operation, and the relationship map, with a `summary_markdown`.
+This is the "this is one trafficking operation" packet: per-source and per-identifier referrals
+zoom in; the rollup is the regional picture. Always returns a package (empty when nothing is
+monitored/located — no `404`). **No media** — pointers and metadata only. `READ_CASE_MATERIAL`;
+audited as `hunting.referral.aor_generated`. In the UI it's a per-AOR action on the AOR picture.
+
 ## On the cadence
 
 When the [continuous cadence](hunting_grounds_discovery.md#seeking-on-its-own--the-continuous-cadence)

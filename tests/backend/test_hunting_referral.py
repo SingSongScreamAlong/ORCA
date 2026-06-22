@@ -203,3 +203,54 @@ def test_identifier_referral_requires_read_capability(client):
         headers={"X-ORCA-User": "partner"},
     )
     assert res.status_code == 403
+
+
+# --- AOR operation rollup (the regional case file) ------------------------------
+
+AORREF = f"{PREFIX}/hunting/intel/aor/referral"
+
+
+def test_aor_rollup_consolidates_venues_identifiers_and_cross_venue_links(client):
+    a = _monitored_in(client, "RI A", "https://ri-a.invalid", "Rhode Island")
+    b = _monitored_in(client, "RI B", "https://ri-b.invalid", "Rhode Island")
+    c = _monitored_in(client, "CT A", "https://ct-a.invalid", "Connecticut")  # out of scope
+    client.post(f"{SRC}/{a}/leads", json={"summary": "call 401-555-0142, @sky", "confidence": 0.5}, headers=ANA)
+    client.post(f"{SRC}/{b}/leads", json={"summary": "same 401.555.0142, email vip@m.invalid", "confidence": 0.4}, headers=ANA)
+    client.post(f"{SRC}/{c}/leads", json={"summary": "ct only 860-555-0000", "confidence": 0.4}, headers=ANA)
+
+    res = client.get(AORREF, params={"aor": "Rhode Island"}, headers=ANA)
+    assert res.status_code == 200, res.text
+    body = res.json()
+    # Scoped to the AOR: only the two RI venues, not the CT one.
+    assert body["source_count"] == 2
+    assert {s["name"] for s in body["sources"]} == {"RI A", "RI B"}
+    assert all(s["lawful_basis"] == AUTH["lawful_basis"] for s in body["sources"])
+    # The shared phone is a cross-venue link (2 RI venues); the CT number is not present.
+    cross = {i["value"] for i in body["cross_venue"]}
+    assert "+14015550142" in cross
+    assert "+18605550000" not in {i["value"] for i in body["located_identifiers"]}
+    assert body["cross_venue_count"] == 1
+    # Renderable, no-media operation dossier.
+    assert body["summary_markdown"].startswith("# Operation rollup — Rhode Island")
+    assert "no media" in body["notice"].lower()
+    assert "media" not in body
+
+
+def test_aor_rollup_empty_for_aor_with_no_monitored_sources(client):
+    body = client.get(AORREF, params={"aor": "Nowhere"}, headers=ANA).json()
+    assert body["source_count"] == 0
+    assert body["located_identifiers"] == []
+    assert "(none monitored in this AOR)" in body["summary_markdown"]
+
+
+def test_aor_rollup_is_audited(client):
+    _monitored_in(client, "RI", "https://ri.invalid/r", "Rhode Island")
+    client.get(AORREF, params={"aor": "Rhode Island"}, headers=ANA)
+    entries = client.get(f"{PREFIX}/audit?action_prefix=hunting.referral.aor", headers=ADMIN).json()
+    assert any(e["action"] == "hunting.referral.aor_generated" for e in entries)
+
+
+def test_aor_rollup_requires_read_capability(client):
+    _monitored_in(client, "RI", "https://ri.invalid/p", "Rhode Island")
+    res = client.get(AORREF, params={"aor": "Rhode Island"}, headers={"X-ORCA-User": "partner"})
+    assert res.status_code == 403

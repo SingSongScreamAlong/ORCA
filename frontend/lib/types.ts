@@ -734,6 +734,22 @@ export interface IdentifierReferralPackage {
   notice: string;
 }
 
+export interface AorReferralPackage {
+  aor: string;
+  generated_at: string;
+  generated_by: string;
+  source_count: number;
+  identifier_count: number;
+  lead_count: number;
+  cross_venue_count: number;
+  sources: ReferralSource[];
+  located_identifiers: ReferralEntity[];
+  cross_venue: IntelIdentifier[];
+  relationships: ReferralRelationship[];
+  summary_markdown: string;
+  notice: string;
+}
+
 export type HuntingEscalationStatus = "open" | "reported" | "closed" | "dismissed";
 
 export interface HuntingEscalationTransition {
