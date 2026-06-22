@@ -24,6 +24,8 @@ import type {
   FoundryObjectsResult,
   GraphView,
   HuntingDiscoveryResult,
+  HuntingEscalation,
+  HuntingEscalationStatus,
   HuntingSource,
   HuntingSourceCategory,
   HuntingSourceStatus,
@@ -195,6 +197,26 @@ export const runHuntingDiscovery = (body: {
   aor: string;
   candidates: { name: string; url: string }[];
 }) => apiSend<HuntingDiscoveryResult>("/hunting/discovery/run", "POST", body);
+
+// Suspected-minor / CSAM escalation — report-only, never-store.
+export const getHuntingEscalations = (status?: HuntingEscalationStatus) =>
+  apiGet<HuntingEscalation[]>(`/hunting/escalations${status ? `?status=${status}` : ""}`);
+
+export const raiseHuntingEscalation = (body: {
+  aor: string;
+  concern: string;
+  url?: string;
+  source_id?: string;
+}) => apiSend<HuntingEscalation>("/hunting/escalations", "POST", body);
+
+export const reportHuntingEscalation = (id: string, ncmecReference: string) =>
+  apiSend<HuntingEscalation>(`/hunting/escalations/${id}/report`, "POST", { ncmec_reference: ncmecReference });
+
+export const closeHuntingEscalation = (id: string, reason: string) =>
+  apiSend<HuntingEscalation>(`/hunting/escalations/${id}/close`, "POST", { reason });
+
+export const dismissHuntingEscalation = (id: string, reason: string) =>
+  apiSend<HuntingEscalation>(`/hunting/escalations/${id}/dismiss`, "POST", { reason });
 
 export const getMe = () => apiGet<CurrentUser>("/me");
 export const getUsers = () => apiGet<User[]>("/users");

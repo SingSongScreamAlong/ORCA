@@ -1,12 +1,14 @@
 import { Card } from "@/components/ui/Card";
 import { BackendNotice, EmptyState } from "@/components/ui/States";
 import { PageIntro } from "@/components/ui/PageIntro";
+import { EscalationsPanel } from "@/components/hunting/EscalationsPanel";
+import { FlagConcernForm } from "@/components/hunting/FlagConcernForm";
 import { LogLeadForm } from "@/components/hunting/LogLeadForm";
 import { ProposeSourceForm } from "@/components/hunting/ProposeSourceForm";
 import { RunDiscoveryForm } from "@/components/hunting/RunDiscoveryForm";
 import { SourceControls } from "@/components/hunting/SourceControls";
 import { Table, Td, Th, Tr } from "@/components/ui/Table";
-import { getHuntingSources, getHuntingSummary } from "@/lib/api";
+import { getHuntingEscalations, getHuntingSources, getHuntingSummary } from "@/lib/api";
 import { humanize } from "@/lib/format";
 import type { HuntingSource, HuntingSourceStatus, HuntingSummary } from "@/lib/types";
 
@@ -24,7 +26,11 @@ const STATUS_STYLE: Record<HuntingSourceStatus, string> = {
 };
 
 export default async function HuntingPage() {
-  const [sources, summary] = await Promise.all([getHuntingSources(), getHuntingSummary()]);
+  const [sources, summary, escalations] = await Promise.all([
+    getHuntingSources(),
+    getHuntingSummary(),
+    getHuntingEscalations(),
+  ]);
 
   if (!sources.ok) {
     return (
@@ -35,10 +41,25 @@ export default async function HuntingPage() {
     );
   }
 
+  // Escalations are admin-only; the fetch 403s for everyone else, so we only show the queue
+  // when it resolves (i.e. the viewer is an administrator).
+  const openEscalations = escalations.ok
+    ? escalations.data.filter((e) => e.status === "open" || e.status === "reported")
+    : [];
+
   return (
     <div className="space-y-6">
       <Intro />
       <GovernanceNote />
+
+      {escalations.ok && (
+        <Card
+          title="Escalations — suspected minor / CSAM"
+          subtitle="Report-only, never-store. Each is a pointer; a human files the NCMEC CyberTipline report and records the reference here. ORCA stores no material."
+        >
+          <EscalationsPanel escalations={openEscalations} />
+        </Card>
+      )}
 
       {summary.ok && summary.data.totals.total > 0 && <AorPicture summary={summary.data} />}
 
@@ -154,7 +175,12 @@ function SourceCard({ source }: { source: HuntingSource }) {
         </div>
       )}
 
-      {source.status === "monitored" && <LogLeadForm sourceId={source.id} />}
+      {source.status === "monitored" && (
+        <div className="space-y-2">
+          <LogLeadForm sourceId={source.id} />
+          <FlagConcernForm sourceId={source.id} aor={source.aor} url={source.url} />
+        </div>
+      )}
 
       <details className="text-xs">
         <summary className="cursor-pointer text-ink-faint hover:text-ink">
