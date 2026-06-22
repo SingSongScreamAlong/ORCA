@@ -339,6 +339,9 @@ class HuntingDiscoveryScheduleStatus(ORCAModel):
     last_total_proposed: int | None = None
     last_total_skipped: int | None = None
     last_aors: list[str] = Field(default_factory=list)
+    # The targets the next sweep would cover — the live operator-managed watchlist (else the env
+    # fallback), so the panel can preview the cadence's next run as the watchlist is edited.
+    next_targets: list[str] = Field(default_factory=list)
     # Collection runs on the same cadence (each tick: discovery sweep, then collection sweep).
     collection_runs: int = 0
     last_collection_proposed: int | None = None

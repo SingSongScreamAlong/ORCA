@@ -441,6 +441,14 @@ class HuntingDiscoveryService:
                 return persisted
         return list(config.aors)
 
+    def watchlist(self) -> list[str]:
+        """The effective sweep targets the next pass would cover (deduped, in order).
+
+        The operator-managed watchlist if any, else the ``ORCA_HUNTING_DISCOVERY_AORS`` fallback.
+        Used to preview the autonomous cadence's next run without touching any provider.
+        """
+        return _dedup_preserving_order(self._watchlist(self._resolved_config()))
+
     def status(self) -> HuntingDiscoveryStatus:
         """Secret-free posture of the engine (provider, enabled, configured, host, watchlist)."""
         config = self._resolved_config()

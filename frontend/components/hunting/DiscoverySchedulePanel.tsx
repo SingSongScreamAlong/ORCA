@@ -96,6 +96,14 @@ function CadenceState({ status }: { status: HuntingDiscoveryScheduleStatus }) {
         {status.limit_per_aor} candidates per AOR.
       </p>
       <p className="mt-0.5">
+        Next sweep:{" "}
+        {status.next_targets.length ? (
+          <span className="font-medium">{status.next_targets.join(", ")}</span>
+        ) : (
+          <span className="text-ink-faint">no AORs on the watchlist — add one to arm the sweep.</span>
+        )}
+      </p>
+      <p className="mt-0.5">
         Discovery:{" "}
         {status.runs > 0 ? (
           <>

@@ -567,6 +567,7 @@ export interface HuntingDiscoveryScheduleStatus {
   last_total_proposed: number | null;
   last_total_skipped: number | null;
   last_aors: string[];
+  next_targets: string[];
   collection_runs: number;
   last_collection_proposed: number | null;
   last_collection_sources: number | null;
