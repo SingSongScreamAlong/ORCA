@@ -12,7 +12,7 @@ and metadata only; no media.
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import defaultdict, deque
 from uuid import UUID
 
 from app.models.enums import EntityType, HuntingSourceStatus
@@ -224,12 +224,13 @@ class HuntingIntelService:
                 adjacency[a].add(b)
                 adjacency[b].add(a)
 
-        # BFS from the seed across the graph, capped so a huge network can't run away.
+        # BFS from the seed across the graph, capped so a huge network can't run away. A FIFO queue
+        # gives nearest-first expansion, so a truncated component is the seed's closest neighbours.
         component: set[UUID] = set()
-        frontier = [seed.id]
+        frontier: deque[UUID] = deque([seed.id])
         truncated = False
         while frontier:
-            nid = frontier.pop()
+            nid = frontier.popleft()
             if nid in component:
                 continue
             if len(component) >= _MAX_OPERATION:
@@ -266,9 +267,10 @@ class HuntingIntelService:
         venues.sort(key=lambda s: s.name)
         aors = sorted({source_by_id[sid].aor for sid in venue_ids if sid in source_by_id})
 
+        # Only edges fully inside the operation, so every relationship endpoint is also a member.
         relationships: list[ReferralRelationship] = []
         for rel in rels:
-            if rel.source_entity_id in component or rel.target_entity_id in component:
+            if rel.source_entity_id in component and rel.target_entity_id in component:
                 s = self.uow.entities.get(rel.source_entity_id)
                 t = self.uow.entities.get(rel.target_entity_id)
                 if s is None or t is None:

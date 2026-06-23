@@ -191,9 +191,11 @@ def test_operation_cluster_isolates_unconnected_identifiers(client):
         OP,
         params={"type": "crypto_address", "value": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"},
         headers=ANA,
-    ).json()
-    assert res["identifier_count"] == 1
-    assert res["venue_count"] == 1
+    )
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["identifier_count"] == 1
+    assert body["venue_count"] == 1
 
 
 def test_operation_cluster_links_via_relationship_edge(client):
@@ -222,10 +224,12 @@ def test_operation_cluster_links_via_relationship_edge(client):
     )
     uow.commit()
 
-    res = client.get(OP, params={"type": "phone_number", "value": "+14015551111"}, headers=ANA).json()
-    assert {"+14015551111", "+14015552222"} <= {m["value"] for m in res["members"]}
-    assert res["identifier_count"] == 2
-    assert any(r["relationship_type"] == "shared_account" for r in res["relationships"])
+    res = client.get(OP, params={"type": "phone_number", "value": "+14015551111"}, headers=ANA)
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert {"+14015551111", "+14015552222"} <= {m["value"] for m in body["members"]}
+    assert body["identifier_count"] == 2
+    assert any(r["relationship_type"] == "shared_account" for r in body["relationships"])
 
 
 def test_operation_cluster_404_for_unlocated(client):
