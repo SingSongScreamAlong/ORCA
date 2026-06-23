@@ -177,6 +177,19 @@ zoom in; the rollup is the regional picture. Always returns a package (empty whe
 monitored/located — no `404`). **No media** — pointers and metadata only. `READ_CASE_MATERIAL`;
 audited as `hunting.referral.aor_generated`. In the UI it's a per-AOR action on the AOR picture.
 
+### Operation referral — the linked-network case file
+
+`GET /api/v1/hunting/intel/operation/referral?type=…&value=…` is the fourth referral tier: where the
+AOR rollup bounds the case by **region**, this bounds it by the actual **linked network** — the
+[operation cluster](#operation-cluster--whats-the-whole-network) around a seed identifier. It wraps
+that connected component into an LE dossier: the member identifiers, the venues (each with lawful
+basis), the relationship map, and a `summary_markdown`. Use it when the operation crosses AORs and a
+region-scoped rollup would either miss members or sweep in unrelated ones. **No media** — pointers
+and metadata only. `READ_CASE_MATERIAL`; `404` if the seed was never located; audited as
+`hunting.referral.operation_generated`. In the UI it's a one-click action inside the revealed
+operation network. Together the four tiers cover every scope an analyst hands to LE — **source**,
+**identifier**, **AOR**, and **operation**.
+
 ## On the cadence
 
 When the [continuous cadence](hunting_grounds_discovery.md#seeking-on-its-own--the-continuous-cadence)

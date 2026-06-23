@@ -46,6 +46,7 @@ import type {
   MembershipStatus,
   Observation,
   OperationCluster,
+  OperationReferralPackage,
   Relationship,
   ReviewDecision,
   ReviewItem,
@@ -192,6 +193,11 @@ export const getHuntingIdentifierDossier = (entityType: string, value: string) =
 export const getHuntingOperationCluster = (entityType: string, value: string) =>
   apiGet<OperationCluster>(
     `/hunting/intel/operation?type=${encodeURIComponent(entityType)}&value=${encodeURIComponent(value)}`,
+  );
+
+export const getHuntingOperationReferral = (entityType: string, value: string) =>
+  apiGet<OperationReferralPackage>(
+    `/hunting/intel/operation/referral?type=${encodeURIComponent(entityType)}&value=${encodeURIComponent(value)}`,
   );
 
 export const getHuntingIdentifierReferral = (entityType: string, value: string) =>

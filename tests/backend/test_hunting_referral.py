@@ -254,3 +254,57 @@ def test_aor_rollup_requires_read_capability(client):
     _monitored_in(client, "RI", "https://ri.invalid/p", "Rhode Island")
     res = client.get(AORREF, params={"aor": "Rhode Island"}, headers={"X-ORCA-User": "partner"})
     assert res.status_code == 403
+
+
+# --- operation referral (the linked-network case file) --------------------------
+
+OPREF = f"{PREFIX}/hunting/intel/operation/referral"
+
+
+def test_operation_referral_wraps_the_linked_network(client):
+    a = _monitored_in(client, "V1", "https://v1.invalid", "Rhode Island")
+    b = _monitored_in(client, "V2", "https://v2.invalid", "Connecticut")
+    # P co-occurs with @alpha (V1); @alpha co-occurs with an email (V2) → one operation, two AORs.
+    client.post(f"{SRC}/{a}/leads", json={"summary": "call 401-555-0142, @alpha", "confidence": 0.5}, headers=ANA)
+    client.post(f"{SRC}/{b}/leads", json={"summary": "@alpha at boss@mail.invalid", "confidence": 0.4}, headers=ANA)
+
+    res = client.get(OPREF, params={"type": "phone_number", "value": "+14015550142"}, headers=ANA)
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["identifier_count"] == 3  # phone, @alpha, email
+    assert sorted(body["aors"]) == ["Connecticut", "Rhode Island"]
+    member_values = {m["value"] for m in body["members"]}
+    assert {"+14015550142", "alpha", "boss@mail.invalid"} <= member_values
+    # Each venue carries its lawful basis; the dossier is renderable and media-free.
+    assert {s["name"] for s in body["venues"]} == {"V1", "V2"}
+    assert all(s["lawful_basis"] == AUTH["lawful_basis"] for s in body["venues"])
+    assert body["summary_markdown"].startswith("# Operation dossier — seed +14015550142")
+    assert "no media" in body["notice"].lower()
+    assert "media" not in body
+
+
+def test_operation_referral_404_for_unlocated(client):
+    _monitored_in(client, "Solo", "https://solo.invalid", "Rhode Island")
+    res = client.get(OPREF, params={"type": "phone_number", "value": "+19998887777"}, headers=ANA)
+    assert res.status_code == 404
+
+
+def test_operation_referral_is_audited(client):
+    a = _monitored_in(client, "RI", "https://ri.invalid/o", "Rhode Island")
+    client.post(f"{SRC}/{a}/leads", json={"summary": "call 401-555-0142", "confidence": 0.5}, headers=ANA)
+    client.get(OPREF, params={"type": "phone_number", "value": "+14015550142"}, headers=ANA)
+    entries = client.get(
+        f"{PREFIX}/audit?action_prefix=hunting.referral.operation", headers=ADMIN
+    ).json()
+    assert any(e["action"] == "hunting.referral.operation_generated" for e in entries)
+
+
+def test_operation_referral_requires_read_capability(client):
+    a = _monitored_in(client, "RI", "https://ri.invalid/q", "Rhode Island")
+    client.post(f"{SRC}/{a}/leads", json={"summary": "call 401-555-0142", "confidence": 0.5}, headers=ANA)
+    res = client.get(
+        OPREF,
+        params={"type": "phone_number", "value": "+14015550142"},
+        headers={"X-ORCA-User": "partner"},
+    )
+    assert res.status_code == 403

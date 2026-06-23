@@ -25,6 +25,7 @@ from app.schemas.hunting import (
     AorReferralPackage,
     HuntingReferralPackage,
     IdentifierReferralPackage,
+    OperationReferralPackage,
     ReferralEntity,
     ReferralObservation,
     ReferralRelationship,
@@ -281,6 +282,55 @@ class HuntingReferralService:
             )
         )
 
+    def build_for_operation(
+        self, entity_type: EntityType, value: str, principal: Principal
+    ) -> OperationReferralPackage | None:
+        """The per-operation referral: wrap the connected-component cluster around a seed identifier
+        into an LE dossier — its member identifiers, the venues (with lawful basis), the relationship
+        map, and a markdown summary. ``None`` if the seed was never located.
+
+        Bounds the case by the actual linked network rather than by region (the AOR rollup) or a
+        single identifier. Pointers and metadata only — no media. Audited.
+        """
+        cluster = HuntingIntelService(self.uow).operation_cluster(entity_type, value)
+        if cluster is None:
+            return None
+        now = datetime.now(UTC)
+        package = OperationReferralPackage(
+            seed_type=cluster.seed_type,
+            seed_value=cluster.seed_value,
+            generated_at=now,
+            generated_by=principal.username,
+            identifier_count=cluster.identifier_count,
+            venue_count=cluster.venue_count,
+            lead_count=cluster.lead_count,
+            aors=cluster.aors,
+            members=cluster.members,
+            venues=cluster.venues,
+            relationships=cluster.relationships,
+            truncated=cluster.truncated,
+            summary_markdown=_render_operation_markdown(cluster, now),
+        )
+        self._audit_operation(principal, package)
+        return package
+
+    def _audit_operation(self, principal: Principal, package: OperationReferralPackage) -> None:
+        self.uow.audit.record(
+            new_audit_entry(
+                actor_id=principal.id,
+                action="hunting.referral.operation_generated",
+                target_type="hunting_operation",
+                target_id=f"{package.seed_type.value}:{package.seed_value}",
+                case_id=None,
+                context={
+                    "seed": package.seed_value,
+                    "type": package.seed_type.value,
+                    "identifiers": package.identifier_count,
+                    "venues": package.venue_count,
+                },
+            )
+        )
+
     def _audit(self, principal: Principal, source_id: UUID, package: HuntingReferralPackage) -> None:
         self.uow.audit.record(
             new_audit_entry(
@@ -300,6 +350,58 @@ class HuntingReferralService:
 
 def _to_referral_source(source) -> ReferralSource:
     return ReferralSource.from_source(source)
+
+
+def _render_operation_markdown(cluster, now) -> str:
+    lines = [
+        f"# Operation dossier — seed {cluster.seed_value}",
+        "",
+        "_Lawful OSINT referral. Pointers and metadata only — no media. Identifiers are leads for "
+        "lawful follow-up; de-anonymization requires legal process._",
+        "",
+        "## Operation",
+        f"- **Seed identifier:** `{cluster.seed_type.value}` {cluster.seed_value}",
+        f"- **Linked identifiers:** {cluster.identifier_count} · **Venues:** {cluster.venue_count}"
+        f" · **Leads:** {cluster.lead_count}",
+        f"- **AORs spanned:** {', '.join(cluster.aors) or '—'}",
+    ]
+    if cluster.truncated:
+        lines.append("- **Note:** network truncated at the traversal cap — a very large operation.")
+    lines += [
+        f"- **Generated:** {now.isoformat()}",
+        "",
+        f"## Member identifiers ({len(cluster.members)})",
+    ]
+    if cluster.members:
+        lines += [
+            f"- `{m.entity_type.value}` — {m.value}  ({m.venue_count} venue(s), {m.lead_count} lead(s))"
+            for m in cluster.members
+        ]
+    else:
+        lines.append("- (none)")
+    lines += ["", f"## Venues / provenance ({len(cluster.venues)})"]
+    if cluster.venues:
+        for s in cluster.venues:
+            lines.append(
+                f"- **{s.name}** (`{s.url}`) — AOR {s.aor} · {s.category.value}"
+                f" · status {s.status.value}"
+            )
+            lines.append(
+                f"  - Lawful basis: {s.lawful_basis or '—'} · Access: {s.access_method or '—'}"
+                f" · Jurisdiction: {s.jurisdiction or '—'}"
+            )
+    else:
+        lines.append("- (none)")
+    lines += ["", f"## Relationships ({len(cluster.relationships)})"]
+    if cluster.relationships:
+        lines += [
+            f"- {r.source_value} —[{r.relationship_type}]→ {r.target_value} "
+            f"(confidence {r.confidence:.2f}, {r.status})"
+            for r in cluster.relationships
+        ]
+    else:
+        lines.append("- (none)")
+    return "\n".join(lines)
 
 
 def _render_aor_markdown(aor, sources, identifiers, cross_venue, relationships, lead_count, now) -> str:

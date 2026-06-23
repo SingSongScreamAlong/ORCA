@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { OperationReferralButton } from "@/components/hunting/OperationReferralButton";
 import { getHuntingOperationCluster } from "@/lib/api";
 import { humanize } from "@/lib/format";
 import type { EntityType, OperationCluster } from "@/lib/types";
@@ -82,6 +83,9 @@ export function OperationNetwork({
               );
             })}
           </ul>
+          <div className="border-t border-surface-border pt-2">
+            <OperationReferralButton entityType={entityType} value={value} />
+          </div>
         </div>
       )}
     </div>
