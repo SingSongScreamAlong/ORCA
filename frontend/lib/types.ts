@@ -734,6 +734,26 @@ export interface IdentifierReferralPackage {
   notice: string;
 }
 
+export interface OperationMember {
+  entity_type: EntityType;
+  value: string;
+  venue_count: number;
+  lead_count: number;
+}
+
+export interface OperationCluster {
+  seed_type: EntityType;
+  seed_value: string;
+  identifier_count: number;
+  venue_count: number;
+  lead_count: number;
+  aors: string[];
+  members: OperationMember[];
+  venues: ReferralSource[];
+  relationships: ReferralRelationship[];
+  truncated: boolean;
+}
+
 export interface AorReferralPackage {
   aor: string;
   generated_at: string;

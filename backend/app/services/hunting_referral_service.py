@@ -299,12 +299,7 @@ class HuntingReferralService:
 
 
 def _to_referral_source(source) -> ReferralSource:
-    return ReferralSource(
-        id=source.id, name=source.name, url=source.url, category=source.category,
-        aor=source.aor, status=source.status, lawful_basis=source.lawful_basis,
-        access_method=source.access_method, jurisdiction=source.jurisdiction,
-        proposed_by=source.proposed_by, authorized_by=source.authorized_by,
-    )
+    return ReferralSource.from_source(source)
 
 
 def _render_aor_markdown(aor, sources, identifiers, cross_venue, relationships, lead_count, now) -> str:

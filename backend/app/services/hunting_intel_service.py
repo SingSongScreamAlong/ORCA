@@ -12,7 +12,7 @@ and metadata only; no media.
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import defaultdict, deque
 from uuid import UUID
 
 from app.models.enums import EntityType, HuntingSourceStatus
@@ -24,10 +24,15 @@ from app.schemas.hunting import (
     IdentifierAppearance,
     IdentifierDossier,
     IntelIdentifier,
+    OperationCluster,
+    OperationMember,
+    ReferralRelationship,
+    ReferralSource,
 )
 from app.services.hunting_lead_service import hunting_collector_marker
 
 _MAX = 5000  # recon scale
+_MAX_OPERATION = 250  # cap the connected-component traversal so a huge graph can't run away
 
 
 class HuntingIntelService:
@@ -162,4 +167,133 @@ class HuntingIntelService:
             aors=sorted(aors),
             appearances=appearances,
             co_occurring=co_occurring[:25],
+        )
+
+    def _all_relationships(self):
+        """Yield every relationship, paged — so a large store never silently truncates the graph."""
+        offset = 0
+        while True:
+            batch = self.uow.relationships.list(limit=_MAX, offset=offset)
+            if not batch:
+                break
+            yield from batch
+            if len(batch) < _MAX:
+                break
+            offset += _MAX
+
+    def operation_cluster(
+        self, entity_type: EntityType, value: str
+    ) -> OperationCluster | None:
+        """The operation around a seed identifier — its connected component.
+
+        Two located identifiers are linked when they co-occur in the same text lead, or a
+        relationship ties them; the operation is the transitive closure from the seed across those
+        edges. Where the AOR rollup is "everything in a region," this is "everything in one network"
+        — regardless of AOR. ``None`` if the seed identifier was never located (unknown entity).
+        Read-only; pointers and metadata only.
+        """
+        seed = self.uow.entities.find_by_value(entity_type, value)
+        if seed is None:
+            return None
+
+        sources = self.monitored_sources()
+        source_by_id = {s.id: s for s in sources}
+
+        # Co-occurrence graph among located identifiers; track venues/leads each appears in.
+        adjacency: dict[UUID, set[UUID]] = defaultdict(set)
+        entity_sources: dict[UUID, set[UUID]] = defaultdict(set)
+        entity_obs: dict[UUID, set[UUID]] = defaultdict(set)
+        for source in sources:
+            marker = hunting_collector_marker(source.id)
+            for obs in self.uow.observations.list(collector=marker, limit=_MAX):
+                eids = list(obs.entity_ids)
+                for eid in eids:
+                    entity_sources[eid].add(source.id)
+                    entity_obs[eid].add(obs.id)
+                for i, a in enumerate(eids):
+                    for b in eids[i + 1:]:
+                        adjacency[a].add(b)
+                        adjacency[b].add(a)
+
+        # Relationship edges, restricted to located identifiers so the operation stays in-scope.
+        located = set(entity_sources)
+        rels = list(self._all_relationships())
+        for rel in rels:
+            a, b = rel.source_entity_id, rel.target_entity_id
+            if a in located and b in located:
+                adjacency[a].add(b)
+                adjacency[b].add(a)
+
+        # BFS from the seed across the graph, capped so a huge network can't run away. A FIFO queue
+        # gives nearest-first expansion, so a truncated component is the seed's closest neighbours.
+        component: set[UUID] = set()
+        frontier: deque[UUID] = deque([seed.id])
+        truncated = False
+        while frontier:
+            nid = frontier.popleft()
+            if nid in component:
+                continue
+            if len(component) >= _MAX_OPERATION:
+                truncated = True
+                break
+            component.add(nid)
+            frontier.extend(nb for nb in adjacency.get(nid, ()) if nb not in component)
+
+        # Members, the venues/AORs they touch, and the relationships among them.
+        members: list[OperationMember] = []
+        venue_ids: set[UUID] = set()
+        lead_ids: set[UUID] = set()
+        for eid in component:
+            entity = self.uow.entities.get(eid)
+            if entity is None:
+                continue
+            srcs = entity_sources.get(eid, set())
+            obs_ids = entity_obs.get(eid, set())
+            venue_ids |= srcs
+            lead_ids |= obs_ids
+            members.append(
+                OperationMember(
+                    entity_type=entity.entity_type,
+                    value=entity.value,
+                    venue_count=len(srcs),
+                    lead_count=len(obs_ids),
+                )
+            )
+        members.sort(key=lambda m: (m.venue_count, m.lead_count), reverse=True)
+
+        venues = [
+            ReferralSource.from_source(source_by_id[sid]) for sid in venue_ids if sid in source_by_id
+        ]
+        venues.sort(key=lambda s: s.name)
+        aors = sorted({source_by_id[sid].aor for sid in venue_ids if sid in source_by_id})
+
+        # Only edges fully inside the operation, so every relationship endpoint is also a member.
+        relationships: list[ReferralRelationship] = []
+        for rel in rels:
+            if rel.source_entity_id in component and rel.target_entity_id in component:
+                s = self.uow.entities.get(rel.source_entity_id)
+                t = self.uow.entities.get(rel.target_entity_id)
+                if s is None or t is None:
+                    continue
+                relationships.append(
+                    ReferralRelationship(
+                        relationship_type=rel.relationship_type.value,
+                        source_value=s.value,
+                        target_value=t.value,
+                        confidence=rel.confidence,
+                        status=rel.status.value,
+                    )
+                )
+
+        return OperationCluster(
+            seed_type=seed.entity_type,
+            seed_value=seed.value,
+            identifier_count=len(members),
+            venue_count=len(venue_ids),
+            lead_count=len(lead_ids),
+            aors=aors,
+            members=members,
+            venues=venues,
+            relationships=relationships,
+            truncated=truncated,
         )

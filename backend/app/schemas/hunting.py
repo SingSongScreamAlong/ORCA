@@ -196,6 +196,36 @@ class IdentifierDossier(ORCAModel):
     co_occurring: list[CoOccurringIdentifier]  # identifiers sharing its leads (link candidates)
 
 
+class OperationMember(ORCAModel):
+    """One located identifier that belongs to an operation (a connected-component node)."""
+
+    entity_type: EntityType
+    value: str
+    venue_count: int  # monitored venues this identifier appears in
+    lead_count: int  # leads referencing it
+
+
+class OperationCluster(ORCAModel):
+    """The real linked **operation** around a seed identifier — its connected component.
+
+    Two located identifiers are linked when they co-occur in the same text lead, or a relationship
+    ties them; the operation is the transitive closure from the seed across those edges. Where the
+    AOR rollup is "everything in a region," this is "everything in one network" — the seam that
+    says *these scattered listings are one operation*, regardless of AOR. Pointers/metadata only.
+    """
+
+    seed_type: EntityType
+    seed_value: str
+    identifier_count: int
+    venue_count: int  # distinct monitored venues the operation touches
+    lead_count: int  # distinct leads across the operation
+    aors: list[str]  # AORs the operation spans
+    members: list[OperationMember]
+    venues: list[ReferralSource]  # the venues it touches, with lawful basis
+    relationships: list[ReferralRelationship]
+    truncated: bool = False  # the component hit the traversal cap (very large network)
+
+
 class IdentifierReferralPackage(ORCAModel):
     """A law-enforcement referral dossier centered on one located identifier.
 
@@ -281,6 +311,16 @@ class ReferralSource(ORCAModel):
     jurisdiction: str | None
     proposed_by: str
     authorized_by: str | None
+
+    @classmethod
+    def from_source(cls, source) -> ReferralSource:
+        """Project a registry source (``HuntingSourceRead``) onto its LE-provenance subset."""
+        return cls(
+            id=source.id, name=source.name, url=source.url, category=source.category,
+            aor=source.aor, status=source.status, lawful_basis=source.lawful_basis,
+            access_method=source.access_method, jurisdiction=source.jurisdiction,
+            proposed_by=source.proposed_by, authorized_by=source.authorized_by,
+        )
 
 
 class HuntingReferralPackage(ORCAModel):
