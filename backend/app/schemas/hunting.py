@@ -226,6 +226,34 @@ class OperationCluster(ORCAModel):
     truncated: bool = False  # the component hit the traversal cap (very large network)
 
 
+class OperationReferralPackage(ORCAModel):
+    """An LE referral dossier for a whole **operation** — the connected component as a case file.
+
+    The fourth and widest-by-network referral tier (after per-source, per-identifier, per-AOR):
+    where the AOR rollup bounds the case by region, this bounds it by the actual linked network
+    around a seed identifier. Carries the member identifiers, the venues (with lawful basis), the
+    relationship map, and a ready-to-hand markdown summary. No media, by construction.
+    """
+
+    seed_type: EntityType
+    seed_value: str
+    generated_at: datetime
+    generated_by: str
+    identifier_count: int
+    venue_count: int
+    lead_count: int
+    aors: list[str]
+    members: list[OperationMember]
+    venues: list[ReferralSource]
+    relationships: list[ReferralRelationship]
+    truncated: bool = False
+    summary_markdown: str
+    notice: str = (
+        "Lawful OSINT referral. Contains pointers and metadata only — no media, no CSAM. "
+        "Identifiers are leads for lawful follow-up; de-anonymization requires legal process."
+    )
+
+
 class IdentifierReferralPackage(ORCAModel):
     """A law-enforcement referral dossier centered on one located identifier.
 

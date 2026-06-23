@@ -41,6 +41,7 @@ from app.schemas.hunting import (
     IdentifierDossier,
     IdentifierReferralPackage,
     OperationCluster,
+    OperationReferralPackage,
 )
 from app.schemas.hunting_escalation import (
     HuntingEscalationDecision,
@@ -142,6 +143,27 @@ def operation_cluster(
     if cluster is None:
         raise HTTPException(status_code=404, detail="No such located identifier.")
     return cluster
+
+
+@router.get(
+    "/intel/operation/referral",
+    response_model=OperationReferralPackage,
+    summary="Generate an LE referral dossier for a whole operation (linked network; no media)",
+)
+def operation_referral(
+    type: EntityType = Query(..., description="Seed identifier type (e.g. phone, username)."),
+    value: str = Query(..., min_length=1, description="The seed identifier value."),
+    principal: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> OperationReferralPackage:
+    """The per-operation referral: wrap the connected-component network around a seed identifier
+    into an LE dossier — member identifiers, venues (with lawful basis), and the relationship map.
+    Bounds the case by the linked network rather than a region. No media. `404` if never located;
+    audited."""
+    pkg = HuntingReferralService(uow).build_for_operation(type, value, principal)
+    if pkg is None:
+        raise HTTPException(status_code=404, detail="No such located identifier.")
+    return pkg
 
 
 @router.get(
