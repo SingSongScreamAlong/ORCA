@@ -40,6 +40,7 @@ from app.schemas.hunting import (
     HuntingWatchlistEntry,
     IdentifierDossier,
     IdentifierReferralPackage,
+    OperationCluster,
 )
 from app.schemas.hunting_escalation import (
     HuntingEscalationDecision,
@@ -120,6 +121,27 @@ def identifier_dossier(
     if dossier is None:
         raise HTTPException(status_code=404, detail="No such located identifier.")
     return dossier
+
+
+@router.get(
+    "/intel/operation",
+    response_model=OperationCluster,
+    summary="The operation around an identifier — its linked network (connected component)",
+)
+def operation_cluster(
+    type: EntityType = Query(..., description="Seed identifier type (e.g. phone, username)."),
+    value: str = Query(..., min_length=1, description="The seed identifier value."),
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> OperationCluster:
+    """The transitive network around a seed identifier: every identifier linked to it through
+    shared leads or relationships, the venues and AORs the operation touches, and the relationship
+    map. The seam that says *these scattered listings are one operation*, regardless of AOR.
+    Read-only; pointers/metadata only; `404` if the identifier was never located."""
+    cluster = HuntingIntelService(uow).operation_cluster(type, value)
+    if cluster is None:
+        raise HTTPException(status_code=404, detail="No such located identifier.")
+    return cluster
 
 
 @router.get(

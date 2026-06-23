@@ -2,6 +2,7 @@
 
 import { Fragment, useState } from "react";
 import { IdentifierReferralButton } from "@/components/hunting/IdentifierReferralButton";
+import { OperationNetwork } from "@/components/hunting/OperationNetwork";
 import { Table, Td, Th, Tr } from "@/components/ui/Table";
 import { getHuntingIdentifierDossier } from "@/lib/api";
 import { humanize } from "@/lib/format";
@@ -159,6 +160,14 @@ function DossierDetail({ dossier }: { dossier: IdentifierDossier }) {
           </ul>
         </div>
       )}
+
+      <div className="border-t border-surface-border pt-3">
+        <div className="mb-1 text-xs font-medium text-ink-muted">
+          The operation{" "}
+          <span className="text-ink-faint">(the full linked network, beyond direct co-occurrence)</span>
+        </div>
+        <OperationNetwork entityType={dossier.entity_type} value={dossier.value} />
+      </div>
 
       <div className="border-t border-surface-border pt-3">
         <div className="mb-1 text-xs font-medium text-ink-muted">

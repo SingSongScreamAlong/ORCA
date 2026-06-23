@@ -122,6 +122,18 @@ are this phone/wallet/handle/`.onion`'s listings and posts?* — so an analyst c
 referral. `404` if the identifier was never located. Read-only; pointers/metadata only.
 `READ_CASE_MATERIAL`. In the UI, selecting any cross-venue identifier expands its dossier in place.
 
+### Operation cluster — "what's the whole network?"
+
+`GET /api/v1/hunting/intel/operation?type=…&value=…` widens the pivot from direct co-occurrence to
+the **whole operation**: the connected component around a seed identifier. Two located identifiers
+are linked when they co-occur in the same lead **or** a relationship ties them; the operation is the
+transitive closure from the seed across those edges. Where the AOR rollup is "everything in a
+region," this is "everything in one network" — the seam that says *these scattered listings are one
+operation*, regardless of AOR. Returns the member identifiers (with venue/lead counts), the venues
+and AORs it touches, and the relationship map; the traversal is capped (`truncated` flags a very
+large network). `404` if the seed was never located. Read-only; pointers/metadata only.
+`READ_CASE_MATERIAL`. In the UI, "Reveal operation network" expands it inside the pivot panel.
+
 ## Cross-venue link proposal (intelligence → review queue)
 
 `POST /api/v1/hunting/links/propose?aor=…` turns the cross-venue intelligence into reviewable case

@@ -153,3 +153,82 @@ def test_identifier_dossier_scoped_to_monitored_leads(client):
     assert res["venue_count"] == 1
     assert res["aors"] == ["Rhode Island"]
     assert res["co_occurring"] == []
+
+
+# --- operation cluster (connected-component network) ----------------------------
+
+OP = f"{INTEL}/operation"
+
+
+def test_operation_cluster_is_the_transitive_network(client):
+    a = _monitored(client, "V1", "https://v1.invalid")
+    b = _monitored(client, "V2", "https://v2.invalid")
+    c = _monitored(client, "V3", "https://v3.invalid")
+    # P co-occurs with @alpha (V1); @alpha co-occurs with an email (V2) → P—alpha—email is one
+    # operation, reached transitively from P even though P and the email never share a lead.
+    _lead(client, a, "call +1 401 555 0142, ask for @alpha")
+    _lead(client, b, "@alpha also at boss@mail.invalid")
+    _lead(client, c, "different crew: 860-555-0000")  # unrelated operation
+
+    res = client.get(OP, params={"type": "phone_number", "value": "+14015550142"}, headers=ANA)
+    assert res.status_code == 200, res.text
+    body = res.json()
+    members = {(m["entity_type"], m["value"]) for m in body["members"]}
+    assert ("phone_number", "+14015550142") in members  # seed
+    assert ("username", "alpha") in members  # 1 hop (shared lead in V1)
+    assert ("email", "boss@mail.invalid") in members  # 2 hops (alpha→email in V2)
+    assert ("phone_number", "+18605550000") not in members  # unrelated operation excluded
+    assert body["identifier_count"] == 3
+    assert body["venue_count"] == 2  # V1 + V2, not V3
+    assert body["truncated"] is False
+    assert "media" not in body
+
+
+def test_operation_cluster_isolates_unconnected_identifiers(client):
+    c = _monitored(client, "Solo", "https://solo.invalid")
+    _lead(client, c, "lone wallet 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa")
+    res = client.get(
+        OP,
+        params={"type": "crypto_address", "value": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"},
+        headers=ANA,
+    ).json()
+    assert res["identifier_count"] == 1
+    assert res["venue_count"] == 1
+
+
+def test_operation_cluster_links_via_relationship_edge(client):
+    # Two identifiers that never co-occur become one operation when a relationship ties them.
+    from datetime import UTC, datetime
+    from uuid import UUID, uuid4
+
+    from app.models.enums import Origin, RelationshipType, ReviewStatus
+    from app.repositories.uow import build_unit_of_work
+    from app.schemas.relationship import RelationshipRead
+
+    a = _monitored(client, "V1", "https://v1.invalid")
+    b = _monitored(client, "V2", "https://v2.invalid")
+    o1 = _lead(client, a, "phone 401-555-1111").json()
+    o2 = _lead(client, b, "phone 401-555-2222").json()
+    e1, e2 = UUID(o1["entity_ids"][0]), UUID(o2["entity_ids"][0])
+    now = datetime.now(UTC)
+    uow = build_unit_of_work()
+    uow.relationships.add(
+        RelationshipRead(
+            id=uuid4(), case_id=None, source_entity_id=e1, target_entity_id=e2,
+            relationship_type=RelationshipType.SHARED_ACCOUNT, confidence=0.7,
+            origin=Origin.ANALYST_CREATED, status=ReviewStatus.APPROVED,
+            observation_ids=[], created_at=now, updated_at=now,
+        )
+    )
+    uow.commit()
+
+    res = client.get(OP, params={"type": "phone_number", "value": "+14015551111"}, headers=ANA).json()
+    assert {"+14015551111", "+14015552222"} <= {m["value"] for m in res["members"]}
+    assert res["identifier_count"] == 2
+    assert any(r["relationship_type"] == "shared_account" for r in res["relationships"])
+
+
+def test_operation_cluster_404_for_unlocated(client):
+    _monitored(client, "Solo", "https://solo.invalid")
+    res = client.get(OP, params={"type": "phone_number", "value": "+19998887777"}, headers=ANA)
+    assert res.status_code == 404

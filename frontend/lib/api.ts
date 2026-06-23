@@ -45,6 +45,7 @@ import type {
   IdentifierReferralPackage,
   MembershipStatus,
   Observation,
+  OperationCluster,
   Relationship,
   ReviewDecision,
   ReviewItem,
@@ -186,6 +187,11 @@ export const getHuntingIntel = (aor?: string) =>
 export const getHuntingIdentifierDossier = (entityType: string, value: string) =>
   apiGet<IdentifierDossier>(
     `/hunting/intel/identifier?type=${encodeURIComponent(entityType)}&value=${encodeURIComponent(value)}`,
+  );
+
+export const getHuntingOperationCluster = (entityType: string, value: string) =>
+  apiGet<OperationCluster>(
+    `/hunting/intel/operation?type=${encodeURIComponent(entityType)}&value=${encodeURIComponent(value)}`,
   );
 
 export const getHuntingIdentifierReferral = (entityType: string, value: string) =>
