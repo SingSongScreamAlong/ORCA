@@ -771,6 +771,15 @@ export interface OperationReferralPackage {
   notice: string;
 }
 
+export interface HuntingReferralRecord {
+  tier: "source" | "identifier" | "aor" | "operation";
+  target: string;
+  target_type: string;
+  generated_by: string;
+  generated_at: string;
+  summary: string;
+}
+
 export interface AorReferralPackage {
   aor: string;
   generated_at: string;

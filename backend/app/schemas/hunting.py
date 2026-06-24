@@ -309,6 +309,22 @@ class AorReferralPackage(ORCAModel):
     )
 
 
+class HuntingReferralRecord(ORCAModel):
+    """One entry in the referral history — what was handed to LE, at what scope, by whom, and when.
+
+    Derived from the append-only audit trail (``hunting.referral.*``); the accountability view over
+    the four referral tiers. Pointers and counts only — it records that a dossier was generated, not
+    its contents.
+    """
+
+    tier: str  # "source" | "identifier" | "aor" | "operation"
+    target: str  # the subject (a venue name, an identifier, an AOR, or an operation seed)
+    target_type: str  # the audit target_type (hunting_source / _identifier / _aor / _operation)
+    generated_by: str
+    generated_at: datetime
+    summary: str  # a short human-readable count summary (e.g. "12 identifiers · 3 venues")
+
+
 class ReferralObservation(ORCAModel):
     id: UUID
     summary: str  # the text lead (observation notes)

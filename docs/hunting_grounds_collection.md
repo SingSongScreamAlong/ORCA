@@ -190,6 +190,17 @@ and metadata only. `READ_CASE_MATERIAL`; `404` if the seed was never located; au
 operation network. Together the four tiers cover every scope an analyst hands to LE — **source**,
 **identifier**, **AOR**, and **operation**.
 
+### Referral history — the accountability view
+
+`GET /api/v1/hunting/referrals` reads the append-only audit trail (`hunting.referral.*`, newest
+first) into a referral history: each row records that a dossier was generated — its **tier**
+(source / identifier / AOR / operation), the **subject**, the **author**, the **time**, and a short
+count summary — **never the dossier's contents**. This closes the accountability loop on the
+referral surface: an operator can see what has been handed to LE, at what scope, and by whom, without
+re-opening or re-generating any dossier. Counts and pointers only. `READ_CASE_MATERIAL` (the same
+gate as the referrals themselves). In the UI it's a "Referrals handed to law enforcement" card on the
+Hunting Grounds page.
+
 ## On the cadence
 
 When the [continuous cadence](hunting_grounds_discovery.md#seeking-on-its-own--the-continuous-cadence)
