@@ -52,11 +52,13 @@ class HuntingReferralService:
         names = {str(u.id): u.username for u in self.uow.users.list()}  # show the author, not a UUID
         records: list[HuntingReferralRecord] = []
         for entry in self.uow.audit.list():  # newest first
-            if entry.action.startswith("hunting.referral."):
-                by = names.get(entry.actor_id, entry.actor_id)
-                records.append(_to_referral_record(entry, by))
-                if len(records) >= limit:
-                    break
+            tier = _REFERRAL_TIER.get(entry.action)  # only known referral actions, never a default
+            if tier is None:
+                continue
+            by = names.get(entry.actor_id, entry.actor_id)
+            records.append(_to_referral_record(entry, by, tier))
+            if len(records) >= limit:
+                break
         return records
 
     def build(self, source_id: UUID, principal: Principal) -> HuntingReferralPackage:
@@ -377,9 +379,8 @@ _REFERRAL_TIER = {
 }
 
 
-def _to_referral_record(entry, by: str) -> HuntingReferralRecord:
+def _to_referral_record(entry, by: str, tier: str) -> HuntingReferralRecord:
     ctx = entry.context or {}
-    tier = _REFERRAL_TIER.get(entry.action, "source")
     if tier == "source":
         target = ctx.get("source") or entry.target_id
         summary = f"{ctx.get('identifiers', 0)} identifiers · {ctx.get('observations', 0)} leads"

@@ -9,6 +9,7 @@ Discovery (later) can only ever create ``proposed`` sources.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import Field
@@ -317,9 +318,11 @@ class HuntingReferralRecord(ORCAModel):
     its contents.
     """
 
-    tier: str  # "source" | "identifier" | "aor" | "operation"
+    tier: Literal["source", "identifier", "aor", "operation"]
     target: str  # the subject (a venue name, an identifier, an AOR, or an operation seed)
-    target_type: str  # the audit target_type (hunting_source / _identifier / _aor / _operation)
+    target_type: Literal[
+        "hunting_source", "hunting_identifier", "hunting_aor", "hunting_operation"
+    ]
     generated_by: str
     generated_at: datetime
     summary: str  # a short human-readable count summary (e.g. "12 identifiers · 3 venues")

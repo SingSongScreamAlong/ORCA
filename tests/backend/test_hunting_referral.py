@@ -327,14 +327,15 @@ def test_referral_history_records_every_tier(client):
     res = client.get(HIST, headers=ANA)
     assert res.status_code == 200, res.text
     history = res.json()
-    tiers = {r["tier"] for r in history}
-    assert tiers == {"source", "identifier", "aor", "operation"}
-    # Newest-first, attributed, with a human-readable subject + count summary (no dossier contents).
+    # Newest-first: the referrals were generated source → identifier → aor → operation.
+    assert [r["tier"] for r in history] == ["operation", "aor", "identifier", "source"]
+    # Attributed, with a human-readable subject + count summary (no dossier contents).
     assert all(r["generated_by"] == "ana" and r["summary"] for r in history)
     by_tier = {r["tier"]: r for r in history}
     assert by_tier["source"]["target"] == "RI listings"
     assert "+14015550142" in by_tier["identifier"]["target"]
     assert by_tier["aor"]["target"] == "Rhode Island"
+    assert "+14015550142" in by_tier["operation"]["target"]
 
 
 def test_referral_history_empty_when_nothing_referred(client):
