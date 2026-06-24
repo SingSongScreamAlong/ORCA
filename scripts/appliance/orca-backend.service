@@ -1,0 +1,29 @@
+# ORCA backend (FastAPI/uvicorn) — systemd --user unit for the appliance.
+#
+# Install (one-time, as the checkout owner):
+#   mkdir -p ~/.config/systemd/user
+#   cp scripts/appliance/orca-backend.service ~/.config/systemd/user/
+#   # edit WorkingDirectory/paths below if your checkout isn't /home/orca/ORCA
+#   systemctl --user daemon-reload && systemctl --user enable --now orca-backend.service
+#
+# Bind to 127.0.0.1 — the appliance is not a public server; reach it locally (or
+# tunnel). Storage defaults to the in-memory store; set ORCA_STORAGE_BACKEND=postgres
+# (and DSN) in the environment file for persistence.
+
+[Unit]
+Description=ORCA backend (FastAPI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/ORCA/backend
+# Optional environment file (key=value lines): ORCA_STORAGE_BACKEND, ORCA_POSTGRES_DSN,
+# ORCA_HUNTING_DISCOVERY_*, etc. Leading '-' makes it optional.
+EnvironmentFile=-%h/ORCA/backend/.env
+ExecStart=%h/ORCA/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
