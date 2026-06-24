@@ -1,0 +1,26 @@
+# ORCA frontend (Next.js) — systemd --user unit for the appliance.
+#
+# Install (one-time, as the checkout owner):
+#   cp scripts/appliance/orca-frontend.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now orca-frontend.service
+#
+# Serves the production build (`next start`) on 127.0.0.1:3000. The browser-facing API
+# base is baked at build time from NEXT_PUBLIC_API_BASE (frontend/.env.local); the
+# default points at the local backend (http://localhost:8000/api/v1).
+
+[Unit]
+Description=ORCA frontend (Next.js)
+After=network-online.target orca-backend.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/ORCA/frontend
+Environment=PORT=3000
+Environment=HOSTNAME=127.0.0.1
+ExecStart=/usr/bin/env npm run start
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
