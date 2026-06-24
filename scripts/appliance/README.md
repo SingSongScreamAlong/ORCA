@@ -6,7 +6,7 @@ ever pulls *released source* and rebuilds from it — nothing is hand-edited on 
 so its running state is always reproducible from a single git commit. For a tool that
 handles case evidence, that reproducibility is the audit story.
 
-```
+```text
   dev machine  ──push──▶  GitHub (origin/main)  ──pull over VPN──▶  VM appliance
    (edit, verify green,        source of truth         (~/orca-update.sh:
     commit, push)                                       reset --hard + rebuild)

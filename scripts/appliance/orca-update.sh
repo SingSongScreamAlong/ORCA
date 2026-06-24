@@ -76,6 +76,15 @@ cd "$REPO/backend"
 source .venv/bin/activate
 python -m pip install --quiet --upgrade pip
 python -m pip install --quiet -e .
+# Match the migration decision to the service's *runtime* config: orca-backend.service
+# reads backend/.env (EnvironmentFile=), so source it here before gating alembic — else a
+# Postgres box configured only in .env would silently skip migrations and drift.
+if [ -f .env ]; then
+  set -a
+  # shellcheck source=/dev/null
+  source .env
+  set +a
+fi
 if [ "${ORCA_STORAGE_BACKEND:-memory}" = "postgres" ]; then
   echo "    storage=postgres → alembic upgrade head"
   alembic upgrade head
