@@ -24,6 +24,7 @@ from app.schemas.entity import EntityRead
 from app.schemas.hunting import (
     AorReferralPackage,
     HuntingReferralPackage,
+    HuntingReferralRecord,
     IdentifierReferralPackage,
     OperationReferralPackage,
     ReferralEntity,
@@ -41,6 +42,24 @@ _MAX = 1000  # recon scale; a source's lead volume is small relative to the case
 class HuntingReferralService:
     def __init__(self, uow: UnitOfWork) -> None:
         self.uow = uow
+
+    def referral_history(self, limit: int = 100) -> list[HuntingReferralRecord]:
+        """The accountability view: what was handed to LE, at what scope, by whom, and when.
+
+        Reads the append-only audit trail (``hunting.referral.*``, newest first) — the records say a
+        dossier was generated, never its contents. Counts and pointers only.
+        """
+        names = {str(u.id): u.username for u in self.uow.users.list()}  # show the author, not a UUID
+        records: list[HuntingReferralRecord] = []
+        for entry in self.uow.audit.list():  # newest first
+            tier = _REFERRAL_TIER.get(entry.action)  # only known referral actions, never a default
+            if tier is None:
+                continue
+            by = names.get(entry.actor_id, entry.actor_id)
+            records.append(_to_referral_record(entry, by, tier))
+            if len(records) >= limit:
+                break
+        return records
 
     def build(self, source_id: UUID, principal: Principal) -> HuntingReferralPackage:
         source = HuntingRegistryService(self.uow).get(source_id)  # 404 if missing
@@ -350,6 +369,41 @@ class HuntingReferralService:
 
 def _to_referral_source(source) -> ReferralSource:
     return ReferralSource.from_source(source)
+
+
+_REFERRAL_TIER = {
+    "hunting.referral.generated": "source",
+    "hunting.referral.identifier_generated": "identifier",
+    "hunting.referral.aor_generated": "aor",
+    "hunting.referral.operation_generated": "operation",
+}
+
+
+def _to_referral_record(entry, by: str, tier: str) -> HuntingReferralRecord:
+    ctx = entry.context or {}
+    if tier == "source":
+        target = ctx.get("source") or entry.target_id
+        summary = f"{ctx.get('identifiers', 0)} identifiers · {ctx.get('observations', 0)} leads"
+    elif tier == "identifier":
+        target = f"{ctx.get('type', '')} {ctx.get('identifier', entry.target_id)}".strip()
+        summary = f"{ctx.get('venues', 0)} venues · {ctx.get('leads', 0)} leads"
+    elif tier == "aor":
+        target = ctx.get("aor") or entry.target_id
+        summary = (
+            f"{ctx.get('sources', 0)} venues · {ctx.get('identifiers', 0)} identifiers"
+            f" · {ctx.get('cross_venue', 0)} cross-venue"
+        )
+    else:  # operation
+        target = f"{ctx.get('type', '')} {ctx.get('seed', entry.target_id)}".strip()
+        summary = f"{ctx.get('identifiers', 0)} identifiers · {ctx.get('venues', 0)} venues"
+    return HuntingReferralRecord(
+        tier=tier,
+        target=target,
+        target_type=entry.target_type,
+        generated_by=by,
+        generated_at=entry.created_at,
+        summary=summary,
+    )
 
 
 def _render_operation_markdown(cluster, now) -> str:

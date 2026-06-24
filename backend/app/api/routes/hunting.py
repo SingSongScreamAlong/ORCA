@@ -33,6 +33,7 @@ from app.schemas.hunting import (
     HuntingLeadCreate,
     HuntingLinkResult,
     HuntingReferralPackage,
+    HuntingReferralRecord,
     HuntingSourcePropose,
     HuntingSourceRead,
     HuntingSummary,
@@ -601,6 +602,22 @@ def source_referral(
     """Aggregate the located identifiers, text leads, and relationship map for a source into a
     referral package for LE — provenance + lawful basis included, no media. Audited."""
     return HuntingReferralService(uow).build(source_id, principal)
+
+
+@router.get(
+    "/referrals",
+    response_model=list[HuntingReferralRecord],
+    summary="Referral history — what was handed to LE, at what scope, by whom, and when",
+)
+def referral_history(
+    limit: int = Query(100, ge=1, le=500),
+    _: Principal = Depends(require(Capability.READ_CASE_MATERIAL)),
+    uow: UnitOfWork = Depends(get_uow),
+) -> list[HuntingReferralRecord]:
+    """The accountability view over the four referral tiers (source / identifier / AOR / operation),
+    read from the append-only audit trail (newest first). Records that a dossier was generated — its
+    scope, subject, author, time, and counts — never its contents. Read-only."""
+    return HuntingReferralService(uow).referral_history(limit=limit)
 
 
 # --- suspected-minor / CSAM escalation (report-only, never-store) ----------------

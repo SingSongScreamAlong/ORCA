@@ -308,3 +308,39 @@ def test_operation_referral_requires_read_capability(client):
         headers={"X-ORCA-User": "partner"},
     )
     assert res.status_code == 403
+
+
+# --- referral history (accountability over the four tiers) ----------------------
+
+HIST = f"{PREFIX}/hunting/referrals"
+
+
+def test_referral_history_records_every_tier(client):
+    a = _monitored_in(client, "RI listings", "https://ri.invalid/h", "Rhode Island")
+    client.post(f"{SRC}/{a}/leads", json={"summary": "call 401-555-0142", "confidence": 0.5}, headers=ANA)
+    # Generate one referral of each scope.
+    client.get(f"{SRC}/{a}/referral", headers=ANA)  # source
+    client.get(IDREF, params={"type": "phone_number", "value": "+14015550142"}, headers=ANA)  # identifier
+    client.get(AORREF, params={"aor": "Rhode Island"}, headers=ANA)  # aor
+    client.get(OPREF, params={"type": "phone_number", "value": "+14015550142"}, headers=ANA)  # operation
+
+    res = client.get(HIST, headers=ANA)
+    assert res.status_code == 200, res.text
+    history = res.json()
+    # Newest-first: the referrals were generated source → identifier → aor → operation.
+    assert [r["tier"] for r in history] == ["operation", "aor", "identifier", "source"]
+    # Attributed, with a human-readable subject + count summary (no dossier contents).
+    assert all(r["generated_by"] == "ana" and r["summary"] for r in history)
+    by_tier = {r["tier"]: r for r in history}
+    assert by_tier["source"]["target"] == "RI listings"
+    assert "+14015550142" in by_tier["identifier"]["target"]
+    assert by_tier["aor"]["target"] == "Rhode Island"
+    assert "+14015550142" in by_tier["operation"]["target"]
+
+
+def test_referral_history_empty_when_nothing_referred(client):
+    assert client.get(HIST, headers=ANA).json() == []
+
+
+def test_referral_history_requires_read_capability(client):
+    assert client.get(HIST, headers={"X-ORCA-User": "partner"}).status_code == 403

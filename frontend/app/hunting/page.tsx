@@ -12,6 +12,7 @@ import { IntelPicture } from "@/components/hunting/IntelPicture";
 import { LogLeadForm } from "@/components/hunting/LogLeadForm";
 import { ProposeSourceForm } from "@/components/hunting/ProposeSourceForm";
 import { ReferralButton } from "@/components/hunting/ReferralButton";
+import { ReferralHistory } from "@/components/hunting/ReferralHistory";
 import { RunDiscoveryForm } from "@/components/hunting/RunDiscoveryForm";
 import { SourceControls } from "@/components/hunting/SourceControls";
 import { WatchlistEditor } from "@/components/hunting/WatchlistEditor";
@@ -22,6 +23,7 @@ import {
   getHuntingDiscoveryStatus,
   getHuntingEscalations,
   getHuntingIntel,
+  getHuntingReferrals,
   getHuntingSources,
   getHuntingSummary,
   getHuntingWatchlist,
@@ -52,6 +54,7 @@ export default async function HuntingPage() {
     collectionStatus,
     intel,
     watchlist,
+    referrals,
   ] = await Promise.all([
     getHuntingSources(),
     getHuntingSummary(),
@@ -61,6 +64,7 @@ export default async function HuntingPage() {
     getHuntingCollectionStatus(),
     getHuntingIntel(),
     getHuntingWatchlist(),
+    getHuntingReferrals(),
   ]);
 
   if (!sources.ok) {
@@ -95,6 +99,8 @@ export default async function HuntingPage() {
       {summary.ok && summary.data.totals.total > 0 && <AorPicture summary={summary.data} />}
 
       {intel.ok && intel.data.monitored_sources > 0 && <IntelPicture intel={intel.data} />}
+
+      {referrals.ok && <ReferralHistory records={referrals.data} />}
 
       <Card
         title="Autonomous discovery"
