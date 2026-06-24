@@ -29,11 +29,13 @@ from app.schemas.hunting import (
     HuntingDiscoveryScheduleStatus,
     HuntingDiscoveryStatus,
     HuntingDiscoverySweepResult,
+    HuntingImportResult,
     HuntingIntelPicture,
     HuntingLeadCreate,
     HuntingLinkResult,
     HuntingReferralPackage,
     HuntingReferralRecord,
+    HuntingSourceImport,
     HuntingSourcePropose,
     HuntingSourceRead,
     HuntingSummary,
@@ -274,6 +276,25 @@ def run_discovery(
     uow: UnitOfWork = Depends(get_uow),
 ) -> HuntingDiscoveryResult:
     return HuntingRegistryService(uow).run_discovery(payload, principal)
+
+
+@router.post(
+    "/sources/import",
+    response_model=HuntingImportResult,
+    status_code=status.HTTP_201_CREATED,
+    summary="Import a list of sites to monitor — propose + authorize + monitor in one pass (admin)",
+)
+def import_sources(
+    payload: HuntingSourceImport,
+    principal: Principal = Depends(current_principal),
+    uow: UnitOfWork = Depends(get_uow),
+) -> HuntingImportResult:
+    """Bring-your-own hunting list: hand ORCA the sites to hunt in plus the lawful basis they're
+    watched under, and each is proposed (deduped by URL), authorized with that shared record, and
+    (unless `monitor=false`) set monitored. Admin-only — it records a lawful basis and starts
+    monitoring. Audited."""
+    _require_admin(principal)
+    return HuntingRegistryService(uow).import_sites(payload, principal)
 
 
 @router.get(

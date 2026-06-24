@@ -488,6 +488,27 @@ export interface HuntingTransition {
   note: string | null;
 }
 
+export interface HuntingSourceImport {
+  aor: string;
+  category: HuntingSourceCategory;
+  sites: { url: string; name?: string }[];
+  authorization: {
+    lawful_basis: string;
+    access_method: string;
+    jurisdiction: string;
+    legal_review_note?: string | null;
+  };
+  monitor: boolean;
+}
+
+export interface HuntingImportResult {
+  aor: string;
+  imported: number;
+  monitored: number;
+  skipped_existing: number;
+  sources: HuntingSource[];
+}
+
 export interface HuntingSource {
   id: string;
   name: string;

@@ -35,6 +35,7 @@ Enforced invariants (in `HuntingRegistryService`, not by convention):
 | ------------- | --- | ------ |
 | `GET /hunting/sources?status=&aor=` | analyst+ | list / filter sources |
 | `POST /hunting/sources` | analyst+ | **propose** a candidate (enters `proposed`) |
+| `POST /hunting/sources/import` | **admin** | **bulk import** a list of sites → propose + authorize + monitor in one pass |
 | `GET /hunting/sources/{id}` | analyst+ | get one (incl. history) |
 | `POST /hunting/sources/{id}/authorize` | **admin** | authorize (body: lawful basis / access method / jurisdiction) |
 | `POST /hunting/sources/{id}/reject` | **admin** | reject a proposal (body: reason) |
@@ -46,6 +47,13 @@ Proposing is an operator action (`CREATE_OBSERVATION`); **every lifecycle decisi
 admin-only** — the human + legal gate. In practice that's a two-person split: an analyst
 proposes, an administrator authorizes. Invalid transitions return `422`; an authorize call
 missing any required field is rejected by schema validation (`422`).
+
+**Bulk import (bring-your-own list).** `POST /hunting/sources/import` lets an administrator hand
+ORCA a whole list of sites to monitor at once: each site is proposed (deduped by normalized URL),
+**authorized** with a single shared lawful-basis record, and — unless `monitor: false` — set
+monitored, in one pass. It does **not** weaken the gate: the authorization record is still
+mandatory (an empty `lawful_basis` is a `422`), just applied across the list instead of one source
+at a time. Admin-only; audited as `hunting.sources.imported` plus the per-source transition audits.
 
 ## Storage
 
