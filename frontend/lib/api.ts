@@ -33,12 +33,14 @@ import type {
   HuntingDiscoverySweepResult,
   HuntingEscalation,
   HuntingEscalationStatus,
+  HuntingImportResult,
   HuntingIntelPicture,
   HuntingLinkResult,
   HuntingReferralPackage,
   HuntingReferralRecord,
   HuntingSource,
   HuntingSourceCategory,
+  HuntingSourceImport,
   HuntingSourceStatus,
   HuntingSummary,
   HuntingWatchlistEntry,
@@ -251,6 +253,9 @@ export const runHuntingDiscovery = (body: {
   aor: string;
   candidates: { name: string; url: string }[];
 }) => apiSend<HuntingDiscoveryResult>("/hunting/discovery/run", "POST", body);
+
+export const importHuntingSources = (body: HuntingSourceImport) =>
+  apiSend<HuntingImportResult>("/hunting/sources/import", "POST", body);
 
 // Autonomous discovery — seek new venues via the configured lawful source (proposes only).
 export const getHuntingDiscoveryStatus = () =>

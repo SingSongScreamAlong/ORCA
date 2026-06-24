@@ -431,6 +431,36 @@ class HuntingDiscoveryResult(ORCAModel):
     provider: str | None = None
 
 
+class ImportSite(ORCAModel):
+    """One site in an operator's bring-your-own hunting list."""
+
+    url: str = Field(min_length=1, description="Public host/URL of the venue.")
+    name: str | None = Field(None, description="Optional label; defaults to the host.")
+
+
+class HuntingSourceImport(ORCAModel):
+    """An operator's list of sites to monitor, with the lawful basis they're watched under.
+
+    Each site is proposed (deduped by URL), **authorized** with the shared record, and — unless
+    ``monitor`` is false — set to monitored, in one admin pass. The authorization record is the same
+    gate as a single source: recording the lawful basis is mandatory before anything is monitored.
+    """
+
+    aor: str = Field(min_length=1, description="Area of responsibility for the whole list.")
+    category: HuntingSourceCategory = HuntingSourceCategory.OTHER
+    sites: list[ImportSite] = Field(min_length=1)
+    authorization: HuntingAuthorize  # the shared lawful basis applied to every site
+    monitor: bool = Field(True, description="Set authorized sources to monitored (start hunting).")
+
+
+class HuntingImportResult(ORCAModel):
+    aor: str
+    imported: int  # newly created sources
+    monitored: int  # of those, how many are now monitored
+    skipped_existing: int  # duplicates (by normalized URL) left untouched
+    sources: list[HuntingSourceRead]
+
+
 class HuntingDiscoverySweepResult(ORCAModel):
     """The outcome of an autonomous sweep across a list of AORs (one ``result`` per AOR)."""
 

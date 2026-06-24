@@ -33,6 +33,8 @@ from app.schemas.hunting import (
     HuntingAuthorize,
     HuntingDiscoveryResult,
     HuntingDiscoveryRun,
+    HuntingImportResult,
+    HuntingSourceImport,
     HuntingSourcePropose,
     HuntingSourceRead,
     HuntingSummary,
@@ -66,6 +68,15 @@ def normalize_url(url: str) -> str:
     path = parsed.path.rstrip("/")
     query = f"?{parsed.query}" if parsed.query else ""
     return f"{parsed.scheme}://{host}{port}{path}{query}"
+
+
+def _host(url: str) -> str:
+    """A readable label from a URL — its host without a leading ``www.``; the raw URL if not URL-shaped."""
+    raw = url.strip()
+    host = (urlparse(raw if "://" in raw else f"//{raw}").hostname or "").lower()
+    if not host:
+        return raw
+    return host[4:] if host.startswith("www.") else host
 
 
 def _rollup(aor: str, group: list[HuntingSourceRead]) -> HuntingAorSummary:
@@ -144,6 +155,64 @@ class HuntingRegistryService:
                 )
             )
         return HuntingDiscoveryResult(aor=run.aor, proposed=proposed, skipped_existing=skipped)
+
+    def import_sites(self, payload: HuntingSourceImport, principal: Principal) -> HuntingImportResult:
+        """Bring-your-own hunting list: propose, authorize, and monitor a batch of sites in one pass.
+
+        The operator hands ORCA the sites to hunt in, with the lawful basis they're watched under.
+        Each site is proposed (deduped by normalized URL), then **authorized** with the shared
+        record — the same mandatory gate as a single source — and, unless ``monitor`` is false, set
+        to monitored. Admin-only (it records a lawful basis and starts monitoring). Audited as one
+        ``hunting.sources.imported`` event plus the per-source transition audits.
+        """
+        existing = {normalize_url(s.url) for s in self.uow.hunting_sources.list()}
+        created: list[HuntingSourceRead] = []
+        skipped = 0
+        monitored = 0
+        for site in payload.sites:
+            key = normalize_url(site.url)
+            if key in existing:
+                skipped += 1
+                continue
+            existing.add(key)
+            source = self.propose(
+                HuntingSourcePropose(
+                    name=site.name or _host(site.url),
+                    url=site.url,
+                    category=payload.category,
+                    aor=payload.aor,
+                    discovery_method=HuntingDiscoveryMethod.OPERATOR_SEED,
+                ),
+                principal,
+            )
+            source = self.authorize(source.id, payload.authorization, principal)
+            if payload.monitor:
+                source = self.start_monitoring(source.id, principal)
+                monitored += 1
+            created.append(source)
+
+        self.uow.audit.record(
+            new_audit_entry(
+                actor_id=principal.id,
+                action="hunting.sources.imported",
+                target_type="hunting_aor",
+                target_id=payload.aor,
+                case_id=None,
+                context={
+                    "aor": payload.aor,
+                    "imported": len(created),
+                    "monitored": monitored,
+                    "skipped": skipped,
+                },
+            )
+        )
+        return HuntingImportResult(
+            aor=payload.aor,
+            imported=len(created),
+            monitored=monitored,
+            skipped_existing=skipped,
+            sources=created,
+        )
 
     def summary(self) -> HuntingSummary:
         """An AOR rollup of the registry — the regional posture at a glance (read-only)."""

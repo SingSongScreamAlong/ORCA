@@ -8,6 +8,7 @@ import { CollectSourceButton } from "@/components/hunting/CollectSourceButton";
 import { DiscoverySchedulePanel } from "@/components/hunting/DiscoverySchedulePanel";
 import { EscalationsPanel } from "@/components/hunting/EscalationsPanel";
 import { FlagConcernForm } from "@/components/hunting/FlagConcernForm";
+import { ImportSitesForm } from "@/components/hunting/ImportSitesForm";
 import { IntelPicture } from "@/components/hunting/IntelPicture";
 import { LogLeadForm } from "@/components/hunting/LogLeadForm";
 import { ProposeSourceForm } from "@/components/hunting/ProposeSourceForm";
@@ -136,6 +137,13 @@ export default async function HuntingPage() {
           <BackendNotice error={scheduleStatus.error} status={scheduleStatus.status} />
         )}
         <DiscoverySchedulePanel status={scheduleStatus.ok ? scheduleStatus.data : null} />
+      </Card>
+
+      <Card
+        title="Import sites to hunt"
+        subtitle="Bring your own list — paste the sites to monitor plus the lawful basis they're watched under, and ORCA proposes, authorizes, and starts monitoring each in one pass (deduped by URL). The lawful-basis record is still mandatory; it's just shared across the list. Administrators only."
+      >
+        <ImportSitesForm defaultAor={DEFAULT_AOR} />
       </Card>
 
       <Card
